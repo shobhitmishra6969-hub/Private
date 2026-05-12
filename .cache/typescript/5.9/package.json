@@ -1,0 +1,1 @@
+{"private":true,"dependencies":{"types-registry":"^0.1.769"},"devDependencies":{"@types/better-sqlite3":"^7.6.13","@types/domready":"^1.0.2","@types/express":"^5.0.6","@types/lodash":"^4.17.24","@types/ms":"^2.1.0","@types/node":"^25.5.0","@types/node-fetch":"^2.6.13","@types/react":"^19.2.14","@types/whatwg-url":"^13.0.0"}}

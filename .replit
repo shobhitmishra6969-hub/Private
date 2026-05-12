@@ -1,0 +1,45 @@
+modules = ["nodejs-20"]
+[agent]
+expertMode = true
+
+[nix]
+channel = "stable-25_05"
+
+[workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Start application"
+
+[[workflows.workflow]]
+name = "Start application"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "node run.js"
+
+[workflows.workflow.metadata]
+outputType = "console"
+
+[userenv]
+
+[userenv.shared]
+DISCORD_TOKEN = "MTQ3ODI4NTMxMzg3NTkwMjUwNg.G0U0-H.TTZUzV8oRZd2ngU_0AcpRjyNVbVtL9z0pw5IE8"
+MONGO_URL = "mongodb+srv://codex:codex@cdx-us-1.zunskft.mongodb.net/?appName=cdx-us-1"
+LAVALINK_NODE_NAME = "Node1"
+LAVALINK_URL = "lavalink.jirayu.net"
+LAVALINK_AUTH = "youshallnotpass"
+LAVALINK_SECURE = "True"
+LASTFM_API_KEY = "1f3800ebfe10ed9d3053f946a42bdbcf"
+LASTFM_API_SECRET = "9ad44f80e645dce163bf929d2dcd9bf2"
+
+[[ports]]
+localPort = 3000
+externalPort = 80

@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json.schemastore.org/package.json",
+  "name": "Tone Vibes",
+  "version": "1.0.0",
+  "main": "psycho.js",
+  "scripts": {
+    "start": "node psycho.js",
+    "dev": "nodemon psycho.js"
+  },
+  "dependencies": {
+    "@flytri/lyrics-finder": "^1.0.7",
+    "@napi-rs/canvas": "^0.1.77",
+    "axios": "^1.14.0",
+    "better-sqlite3": "^12.8.0",
+    "discord-hybrid-sharding": "^3.0.1",
+    "discord.js": "^14.25.1",
+    "dokdo": "^1.0.1",
+    "express": "^5.2.1",
+    "kazagumo": "^3.4.1",
+    "kazagumo-spotify": "^2.1.1",
+    "moment-timezone": "^0.6.1",
+    "undici": "^6.0.0",
+    "uuid": "^13.0.0"
+  }
+}
