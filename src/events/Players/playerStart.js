@@ -11,6 +11,7 @@ const {
 } = require("discord.js");
 const { convertTime } = require("../../utils/convert.js");
 const setup = require("../../schema/setup");
+const { createMainPlayerUI } = require("../../utils/playerUI");
 
 module.exports = {
   name: "playerStart",
@@ -18,6 +19,24 @@ module.exports = {
     if (!player || !track) return;
 
     console.log(`[LAVALINK] Player started in guild ${player.guildId} with track: ${track.title}`);
+
+    /* 
+    try {
+      // Apply "Clear Voice" filter by default for crystal clear and realistic sound
+      if (player.shoukaku && (!player.currentFilter || player.currentFilter === "None")) {
+        await player.shoukaku.setFilters({
+          equalizer: [
+            { band: 0, gain: -0.1 }, { band: 1, gain: -0.1 }, { band: 2, gain: -0.05 },
+            { band: 5, gain: 0.1 }, { band: 6, gain: 0.2 }, { band: 7, gain: 0.25 },
+            { band: 8, gain: 0.2 }, { band: 9, gain: 0.1 }
+          ]
+        });
+        player.currentFilter = "Clear Voice";
+      }
+    } catch (err) {
+      console.error("[Filter] Failed to apply default Clear Voice filter:", err.message);
+    }
+    */
 
     try {
       const channel = client.channels.cache.get(player.textId);
@@ -48,6 +67,12 @@ module.exports = {
 
       if (npStyle === 'card') {
         message = await sendCardStyle(client, channel, player, track, buttonsEnabled);
+      } else if (npStyle === 'premium') {
+        const { embeds, components } = createMainPlayerUI(client, player, track);
+        message = await channel.send({
+          embeds,
+          components: buttonsEnabled ? components : [],
+        });
       } else {
         const container = await createNowPlayingContainer(client, player, track, null, buttonsEnabled);
         message = await channel.send({
@@ -77,6 +102,14 @@ module.exports = {
 
       if (npStyle === 'card') {
         await updateCardStyle(client, message, player, player.queue.current, isPaused, buttonsEnabled);
+      } else if (npStyle === 'premium') {
+        const { embeds, components } = createMainPlayerUI(client, player, player.queue.current);
+        await message.edit({
+          embeds,
+          components: buttonsEnabled ? components : [],
+        }).catch(() => {
+          player.data.delete("nowPlayingMessage");
+        });
       } else {
         const container = await createNowPlayingContainer(client, player, player.queue.current, isPaused, buttonsEnabled);
         await message.edit({
@@ -141,26 +174,31 @@ function buildCardButtons(client, player, forcePaused = null) {
     new ButtonBuilder().setCustomId("np_pause").setEmoji(isPaused ? client.emoji.play : client.emoji.pause).setStyle(ButtonStyle.Secondary),
     new ButtonBuilder().setCustomId("np_skip").setEmoji(client.emoji.skip).setStyle(ButtonStyle.Secondary),
     new ButtonBuilder().setCustomId("np_like").setEmoji(client.emoji.like).setStyle(ButtonStyle.Success),
+  );
+
+  const row2 = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId("np_stop").setEmoji(client.emoji.stop).setStyle(ButtonStyle.Danger),
   );
 
-  const vol = player.volume ?? 100;
-
-  const row2 = new ActionRowBuilder().addComponents(
+  const row3 = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId("np_rewind10").setEmoji(client.emoji.perv_10).setLabel("10s").setStyle(ButtonStyle.Secondary),
     new ButtonBuilder().setCustomId("np_forward10").setEmoji(client.emoji.skip_10).setLabel("10s").setStyle(ButtonStyle.Secondary),
     new ButtonBuilder().setCustomId("np_loop").setEmoji(client.emoji.loop).setLabel(loopLabel).setStyle(currentLoop !== "none" ? ButtonStyle.Primary : ButtonStyle.Secondary),
+  );
+
+  const row4 = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId("np_shuffle").setEmoji(client.emoji.suffle).setLabel("Shuffle").setStyle(ButtonStyle.Secondary),
     new ButtonBuilder().setCustomId("np_autoplay").setEmoji(client.emoji.dance).setLabel("Autoplay").setStyle(player.data.get("autoplay") ? ButtonStyle.Success : ButtonStyle.Secondary),
   );
 
-  const row3 = new ActionRowBuilder().addComponents(
+  const vol = player.volume ?? 100;
+  const row5 = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId("np_vol_down").setEmoji(client.emoji.Volume_down).setLabel("Vol −").setStyle(ButtonStyle.Secondary).setDisabled(vol <= 0),
     new ButtonBuilder().setCustomId("np_vol_display").setEmoji(client.emoji.current_volume).setLabel(`${vol}%`).setStyle(ButtonStyle.Secondary).setDisabled(true),
     new ButtonBuilder().setCustomId("np_vol_up").setEmoji(client.emoji.Volume_up).setLabel("Vol +").setStyle(ButtonStyle.Secondary).setDisabled(vol >= 100),
   );
 
-  return [row1, row2, row3];
+  return [row1, row2, row3, row4, row5];
 }
 
 // ── Default style helpers ───────────────────────────────────────────────────────
@@ -220,11 +258,11 @@ async function createNowPlayingContainer(client, player, track, forcePaused = nu
   const volumeBar = buildVolumeBar(player.volume ?? 100);
 
   const infoDisplay = new TextDisplayBuilder().setContent(
-    `${sourceEmoji} **[${track.title}](${track.uri})**\n` +
-    `┣ 🎤 **Artist:** ${authorName}\n` +
-    `┣ ⏱️ **Duration:** \`${duration}\`\n` +
+    `${client.emoji.play} **[${track.title}](${track.uri})**\n` +
+    `┣ 🎵 **Artist:** ${authorName}\n` +
+    `┣ 🕒 **Duration:** ${duration}\n` +
     `┣ 🔊 **Volume:** ${volumeBar}\n` +
-    `┣ 📋 **Queue:** \`${queueSize} track${queueSize !== 1 ? 's' : ''} remaining\`\n` +
+    `┣ 📋 **Queue:** ${queueSize} track${queueSize !== 1 ? 's' : ''} remaining\n` +
     `┗ 👤 **Requested by:** ${requesterMention}`
   );
 
@@ -248,20 +286,25 @@ async function createNowPlayingContainer(client, player, track, forcePaused = nu
       new ButtonBuilder().setCustomId("np_pause").setEmoji(isPaused ? client.emoji.play : client.emoji.pause).setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId("np_skip").setEmoji(client.emoji.skip).setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId("np_like").setEmoji(client.emoji.like).setStyle(ButtonStyle.Success),
+    );
+
+    const row2 = new ActionRowBuilder().addComponents(
       new ButtonBuilder().setCustomId("np_stop").setEmoji(client.emoji.stop).setStyle(ButtonStyle.Danger),
     );
 
-    const vol = player.volume ?? 100;
-
-    const row2 = new ActionRowBuilder().addComponents(
+    const row3 = new ActionRowBuilder().addComponents(
       new ButtonBuilder().setCustomId("np_rewind10").setEmoji(client.emoji.perv_10).setLabel("10s").setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId("np_forward10").setEmoji(client.emoji.skip_10).setLabel("10s").setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId("np_loop").setEmoji(client.emoji.loop).setLabel(loopLabel).setStyle(currentLoop !== "none" ? ButtonStyle.Primary : ButtonStyle.Secondary),
+    );
+
+    const row4 = new ActionRowBuilder().addComponents(
       new ButtonBuilder().setCustomId("np_shuffle").setEmoji(client.emoji.suffle).setLabel("Shuffle").setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId("np_autoplay").setEmoji(client.emoji.dance).setLabel("Autoplay").setStyle(player.data.get("autoplay") ? ButtonStyle.Success : ButtonStyle.Secondary),
     );
 
-    const row3 = new ActionRowBuilder().addComponents(
+    const vol = player.volume ?? 100;
+    const row5 = new ActionRowBuilder().addComponents(
       new ButtonBuilder().setCustomId("np_vol_down").setEmoji(client.emoji.Volume_down).setLabel("Vol −").setStyle(ButtonStyle.Secondary).setDisabled(vol <= 0),
       new ButtonBuilder().setCustomId("np_vol_display").setEmoji(client.emoji.current_volume).setLabel(`${vol}%`).setStyle(ButtonStyle.Secondary).setDisabled(true),
       new ButtonBuilder().setCustomId("np_vol_up").setEmoji(client.emoji.Volume_up).setLabel("Vol +").setStyle(ButtonStyle.Secondary).setDisabled(vol >= 100),
@@ -270,7 +313,9 @@ async function createNowPlayingContainer(client, player, track, forcePaused = nu
     container
       .addActionRowComponents(row1)
       .addActionRowComponents(row2)
-      .addActionRowComponents(row3);
+      .addActionRowComponents(row3)
+      .addActionRowComponents(row4)
+      .addActionRowComponents(row5);
   }
 
   return container;

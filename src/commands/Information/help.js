@@ -16,126 +16,23 @@ const Prefix = require("../../schema/prefix");
 
 function categoryInfo() {
     return {
-        Music:       { emoji: emoji.Music,       description: 'Music & Playback Controls' },
-        Filters:     { emoji: emoji.Filters,     description: 'Audio Effects & Equalizer' },
-        Favourite:   { emoji: emoji.Favourite,   description: 'Liked Songs & Playlists' },
-        Spotify:     { emoji: emoji.Spotify,     description: 'Spotify Commands' },
+        Music: { emoji: emoji.Music, description: 'Music & Playback Controls' },
+        Filters: { emoji: emoji.Filters, description: 'Audio Effects & Equalizer' },
+        Favourite: { emoji: emoji.Favourite, description: 'Liked Songs & Playlists' },
+        Spotify: { emoji: emoji.Spotify, description: 'Spotify Commands' },
         Information: { emoji: emoji.Information, description: 'Bot Status & Information' },
-        Config:      { emoji: emoji.Config,      description: 'System Configuration' },
-        Utility:     { emoji: emoji.Utility,     description: 'Essential Utilities' },
-        Giveaway:    { emoji: emoji.Giveaway,    description: 'Giveaway System' },
-        Playlist:    { emoji: emoji.Playlist,    description: 'Playlist Management' },
-        Lastfm:      { emoji: emoji.Lastfm,      description: 'Last.fm Integration' },
-        Owner:       { emoji: emoji.Owner,       description: 'Owner Only Commands' },
+        Config: { emoji: emoji.Config, description: 'System Configuration' },
+        Utility: { emoji: emoji.Utility, description: 'Essential Utilities' },
+        Giveaway: { emoji: emoji.Giveaway, description: 'Giveaway System' },
+        Playlist: { emoji: emoji.Playlist, description: 'Playlist Management' },
+        Lastfm: { emoji: emoji.Lastfm, description: 'Last.fm Integration' },
+        Owner: { emoji: emoji.Owner, description: 'Owner Only Commands' },
     };
 }
 
 const HIDDEN_CATEGORIES = ['Owner', 'loaders'];
 
-const CMD_EMOJIS = {
-    // ── Music ──────────────────────────────────────────────
-    play:         '🎵',
-    pmusic:       '🎶',
-    pause:        '⏸️',
-    resume:       '▶️',
-    stop:         '⏹️',
-    skip:         '⏭️',
-    forceskip:    '⏭️',
-    skipto:       '🎯',
-    previous:     '⏮️',
-    queue:        '📋',
-    nowplaying:   '🎧',
-    volume:       '🔊',
-    loop:         '🔁',
-    shuffle:      '🔀',
-    seek:         '⏩',
-    forward:      '⏩',
-    rewind:       '⏪',
-    replay:       '🔄',
-    lyrics:       '📝',
-    search:       '🔍',
-    history:      '📜',
-    grab:         '📌',
-    move:         '↕️',
-    remove:       '🗑️',
-    clear:        '🧹',
-    autoplay:     '🤖',
-    join:         '🔊',
-    leave:        '👋',
-    leavecleanup: '🧹',
-    similar:      '💡',
-    speed:        '⚡',
-    sleep:        '💤',
-    spotify:      '🎵',
-    forcefix:     '🔧',
-    // ── Filters ────────────────────────────────────────────
-    filter:       '🎚️',
-    customfilter: '🎛️',
-    equalizer:    '🎵',
-    // ── Favourite ──────────────────────────────────────────
-    like:         '❤️',
-    unlike:       '💔',
-    likeall:      '💖',
-    showliked:    '📋',
-    playliked:    '▶️',
-    // ── Spotify ────────────────────────────────────────────
-    'spotify-login':       '🔐',
-    'spotify-logout':      '🔌',
-    'spotify-profile':     '🎧',
-    'spotify-myplaylist':  '📻',
-    'spotify-playlist':    '📻',
-    'spotify-search':      '🎵',
-    searchtrack:           '🎵',
-    searchartist:          '🎙️',
-    searchalbum:           '💿',
-    // ── Information ────────────────────────────────────────
-    help:    '❓',
-    ping:    '🏓',
-    stats:   '📊',
-    premium: '⭐',
-    invite:  '📨',
-    support: '💬',
-    // ── Config ─────────────────────────────────────────────
-    setprefix: '⚙️',
-    toggle:    '🔄',
-    source:    '🎵',
-    preset:    '🎛️',
-    ignore:    '🚫',
-    '247':     '🕐',
-    bioset:    '📝',
-    branding:  '🎨',
-    // ── Utility ────────────────────────────────────────────
-    avatar:      '🖼️',
-    banner:      '🖼️',
-    serverbanner:'🖼️',
-    servericon:  '🖼️',
-    userinfo:    'ℹ️',
-    serverinfo:  '🏠',
-    membercount: '👥',
-    embed:       '📝',
-    dm:          '📨',
-    afk:         '💤',
-    calculator:  '🧮',
-    profile:     '👤',
-    // ── Giveaway ───────────────────────────────────────────
-    giveaway:       '🎁',
-    giveawayconfig: '⚙️',
-    // ── Playlist ───────────────────────────────────────────
-    playlist:         '📋',
-    'pl-create':      '➕',
-    'pl-delete':      '🗑️',
-    'pl-add':         '➕',
-    'pl-remove':      '❌',
-    'pl-list':        '📃',
-    'pl-load':        '▶️',
-    'pl-info':        'ℹ️',
-    'pl-addnowplaying':'📌',
-    'pl-addqueue':    '📥',
-    'pl-removetrack': '❌',
-    'pl-dupes':       '🔍',
-    // ── Lastfm ─────────────────────────────────────────────
-    lastfm: '🎵',
-};
+
 
 function loadCategories(commandsPath) {
     return fs.readdirSync(commandsPath)
@@ -165,7 +62,7 @@ function loadCategoryData(commandsPath, categories) {
                         subcommands: cmd.subcommands || [],
                     });
                 }
-            } catch {}
+            } catch { }
         }
     }
     return data;
@@ -175,7 +72,7 @@ async function getServerPrefix(guildId) {
     try {
         const doc = await Prefix.findOne({ Guild: guildId });
         if (doc?.Prefix) return doc.Prefix;
-    } catch {}
+    } catch { }
     return config.prefix || '.';
 }
 
@@ -442,25 +339,25 @@ async function runHelp({ userId, guildId, commandArg, sendFn }) {
                 try {
                     if (i.customId === 'help_close') {
                         collector.stop('closed');
-                        return sentMessage.delete().catch(() => {});
+                        return sentMessage.delete().catch(() => { });
                     }
                     if (i.customId === 'help_home') {
                         const freshPrefix = await getServerPrefix(guildId);
                         const homePage = buildHomePage(categories, categoryData, freshPrefix);
-                        return i.update({ components: [homePage], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
+                        return i.update({ components: [homePage], flags: MessageFlags.IsComponentsV2 }).catch(() => { });
                     }
                     if (i.customId === 'help_category_select') {
                         const val = i.values[0];
                         const freshPrefix = await getServerPrefix(guildId);
                         const selectedCmds = categoryData[val] || [];
                         const catPage = buildCategoryPage(val, selectedCmds, freshPrefix, categories);
-                        return i.update({ components: [catPage], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
+                        return i.update({ components: [catPage], flags: MessageFlags.IsComponentsV2 }).catch(() => { });
                     }
-                    await i.deferUpdate().catch(() => {});
-                } catch {}
+                    await i.deferUpdate().catch(() => { });
+                } catch { }
             });
             collector.on('end', (_, reason) => {
-                if (reason !== 'closed') sentMessage.delete().catch(() => {});
+                if (reason !== 'closed') sentMessage.delete().catch(() => { });
             });
             return;
         }
@@ -477,7 +374,7 @@ async function runHelp({ userId, guildId, commandArg, sendFn }) {
                     ) {
                         found = cmd; foundCat = cat; break outer;
                     }
-                } catch {}
+                } catch { }
             }
         }
         if (!found) {
@@ -506,20 +403,20 @@ async function runHelp({ userId, guildId, commandArg, sendFn }) {
         try {
             if (i.customId === 'help_close') {
                 collector.stop('closed');
-                return sentMessage.delete().catch(() => {});
+                return sentMessage.delete().catch(() => { });
             }
 
             if (i.customId === 'help_home') {
                 currentView = 'home';
                 const freshPrefix = await getServerPrefix(guildId);
                 const page = buildHomePage(categories, categoryData, freshPrefix);
-                return i.update({ components: [page], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
+                return i.update({ components: [page], flags: MessageFlags.IsComponentsV2 }).catch(() => { });
             }
 
             if (i.customId === 'help_all_commands') {
                 currentView = 'all';
                 const page = buildAllCommandsPage(categories, categoryData);
-                return i.update({ components: [page], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
+                return i.update({ components: [page], flags: MessageFlags.IsComponentsV2 }).catch(() => { });
             }
 
             if (i.customId === 'help_category_select') {
@@ -528,19 +425,19 @@ async function runHelp({ userId, guildId, commandArg, sendFn }) {
                 const freshPrefix = await getServerPrefix(guildId);
                 const cmds = categoryData[val] || [];
                 const page = buildCategoryPage(val, cmds, freshPrefix, categories);
-                return i.update({ components: [page], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
+                return i.update({ components: [page], flags: MessageFlags.IsComponentsV2 }).catch(() => { });
             }
 
-            await i.deferUpdate().catch(() => {});
+            await i.deferUpdate().catch(() => { });
         } catch (err) {
             console.error('[Help] Collector error:', err);
-            try { await i.deferUpdate().catch(() => {}); } catch {}
+            try { await i.deferUpdate().catch(() => { }); } catch { }
         }
     });
 
     collector.on('end', (_, reason) => {
         if (reason === 'closed') return;
-        sentMessage.delete().catch(() => {});
+        sentMessage.delete().catch(() => { });
     });
 }
 
@@ -574,10 +471,10 @@ module.exports = {
                     if (cmd.name?.toLowerCase().includes(focused)) {
                         results.push({ name: cmd.name, value: cmd.name });
                     }
-                } catch {}
+                } catch { }
             }
         }
-        await interaction.respond(results.slice(0, 25)).catch(() => {});
+        await interaction.respond(results.slice(0, 25)).catch(() => { });
     },
 
     async slashExecute(interaction, client) {

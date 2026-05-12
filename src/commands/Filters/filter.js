@@ -107,6 +107,9 @@ module.exports = {
                     { label: "Soft", value: "soft_but", emoji: emoji.check },
                     { label: "China", value: "china_but", emoji: emoji.check },
                     { label: "Vibrato", value: "vibrato_but", emoji: emoji.check },
+                    { label: "Clear Voice", value: "clear_voice_but", emoji: emoji.check },
+                    { label: "Crystal Voice", value: "crystal_but", emoji: emoji.check },
+                    { label: "Realistic", value: "realistic_but", emoji: emoji.check },
                 ]),
         );
 
@@ -195,6 +198,15 @@ module.exports = {
 
                 case "vibrato_but":
                     await player.shoukaku.setFilters({ vibrato: { frequency: 4.0, depth: 0.75 }, });
+                    break;
+                case "clear_voice_but":
+                    await player.shoukaku.setFilters({ equalizer: [{ band: 0, gain: -0.1 }, { band: 1, gain: -0.1 }, { band: 2, gain: -0.05 }, { band: 5, gain: 0.1 }, { band: 6, gain: 0.2 }, { band: 7, gain: 0.25 }, { band: 8, gain: 0.2 }, { band: 9, gain: 0.1 }] });
+                    break;
+                case "crystal_but":
+                    await player.shoukaku.setFilters({ equalizer: [{ band: 10, gain: 0.3 }, { band: 11, gain: 0.35 }, { band: 12, gain: 0.4 }, { band: 13, gain: 0.45 }, { band: 14, gain: 0.4 }] });
+                    break;
+                case "realistic_but":
+                    await player.shoukaku.setFilters({ equalizer: [{ band: 0, gain: 0.1 }, { band: 1, gain: 0.1 }, { band: 2, gain: 0.05 }, { band: 3, gain: 0.05 }, { band: 4, gain: 0.05 }, { band: 5, gain: 0.1 }, { band: 6, gain: 0.15 }, { band: 7, gain: 0.15 }, { band: 8, gain: 0.15 }, { band: 9, gain: 0.15 }, { band: 10, gain: 0.2 }, { band: 11, gain: 0.2 }, { band: 12, gain: 0.2 }, { band: 13, gain: 0.2 }, { band: 14, gain: 0.2 }] });
                     break;
             }
 

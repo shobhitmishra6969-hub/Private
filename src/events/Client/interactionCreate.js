@@ -565,6 +565,13 @@ module.exports = {
             }
             break;
           }
+
+          case "np_settings": {
+            const { createSettingsUI } = require("../../utils/playerUI");
+            const { components } = createSettingsUI(client, player);
+            await interaction.editReply({ components }).catch(() => {});
+            break;
+          }
         }
         return;
       }
@@ -576,6 +583,87 @@ module.exports = {
         interaction.message.id === data.Message
       )
         return client.emit("playerButtons", interaction, data);
+    }
+
+    if (interaction.isStringSelectMenu()) {
+      if (interaction.customId === "np_settings_menu") {
+        const player = client.manager.players.get(interaction.guildId);
+        if (!player || player.data.get("nowPlayingMessage")?.id !== interaction.message.id) return;
+
+        if (!interaction.member.voice.channel || interaction.member.voice.channel.id !== player.voiceId) {
+          return interaction.reply({ content: `**${client.emoji.warn} You must be in my voice channel to use this menu.**`, ephemeral: true });
+        }
+
+        await interaction.deferUpdate().catch(() => {});
+
+        const value = interaction.values[0];
+
+        if (value === "np_back") {
+          const { createMainPlayerUI } = require("../../utils/playerUI");
+          const { components } = createMainPlayerUI(client, player, player.queue.current);
+          return await interaction.editReply({ components }).catch(() => {});
+        }
+
+        const { updateNowPlayingButtons } = require("../Players/playerStart");
+        
+        switch (value) {
+          case "np_stop": {
+            player.queue.clear();
+            player.loop = "none";
+            player.playing = false;
+            player.paused = false;
+            await player.skip();
+            break;
+          }
+          case "np_rewind10": {
+            const currentPos = player.position;
+            const newPos = Math.max(0, currentPos - 10000);
+            await player.seek(newPos);
+            break;
+          }
+          case "np_forward10": {
+            const track = player.queue.current;
+            const curPos = player.position;
+            const fwdPos = curPos + 10000;
+            if (track && fwdPos >= track.length) {
+              await player.skip();
+            } else {
+              await player.seek(fwdPos);
+            }
+            break;
+          }
+          case "np_loop": {
+            const modes = ["none", "track", "queue"];
+            const currentModeIndex = modes.indexOf(player.loop || "none");
+            const nextMode = modes[(currentModeIndex + 1) % modes.length];
+            player.setLoop(nextMode);
+            await updateNowPlayingButtons(client, player, player.shoukaku.paused);
+            break;
+          }
+          case "np_shuffle": {
+            await player.queue.shuffle();
+            break;
+          }
+          case "np_autoplay": {
+            const currentAuto = player.data.get("autoplay") || false;
+            player.data.set("autoplay", !currentAuto);
+            await updateNowPlayingButtons(client, player, player.shoukaku.paused);
+            break;
+          }
+          case "np_vol_up": {
+            const newVol = Math.min(100, (player.volume ?? 100) + 10);
+            await player.setVolume(newVol);
+            await updateNowPlayingButtons(client, player, player.shoukaku.paused);
+            break;
+          }
+          case "np_vol_down": {
+            const newVol = Math.max(0, (player.volume ?? 100) - 10);
+            await player.setVolume(newVol);
+            await updateNowPlayingButtons(client, player, player.shoukaku.paused);
+            break;
+          }
+        }
+      }
     }
   },
 };

@@ -8,7 +8,12 @@ let _db = null;
 function getDb() {
     if (_db) return _db;
 
-    const dbPath = path.join(__dirname, '..', '..', 'data', 'bot.db');
+    const dataDir = path.join(__dirname, '..', '..', 'data');
+    if (!require('fs').existsSync(dataDir)) {
+        require('fs').mkdirSync(dataDir, { recursive: true });
+    }
+
+    const dbPath = path.join(dataDir, 'bot.db');
     _db = new Database(dbPath);
     _db.pragma('journal_mode = WAL');
     _db.pragma('synchronous = NORMAL');
