@@ -2,7 +2,6 @@
   PermissionsBitField,
   WebhookClient,
   EmbedBuilder,
-  AttachmentBuilder,
   ContainerBuilder,
   TextDisplayBuilder,
   SeparatorBuilder,
@@ -12,7 +11,6 @@
   MessageFlags
 } = require("discord.js");
 const path = require("path");
-const fs = require("fs");
 const PrefixSchema = require("../../schema/prefix.js");
 const BlacklistSchema = require("../../schema/blacklist");
 const IgnoreChannelModel = require("../../schema/ignorechannel");
@@ -47,12 +45,10 @@ function formatUptime(ms) {
 }
 
 function buildMentionCard(client, author, prefix) {
-  const botName   = client.user.username;
-  const support   = client.config?.links?.support || 'https://discord.gg/your-invite';
-  const invite    = client.config?.links?.invite  || support;
-
-  const bannerBuf = fs.readFileSync(path.join(process.cwd(), 'attached_assets', 'banner.webp'));
-  const banner = new AttachmentBuilder(bannerBuf, { name: 'banner.webp' });
+  const botName = client.user.username;
+  const support = client.config?.links?.support || '';
+  const invite  = client.config?.links?.invite  || '';
+  const bgUrl   = client.config?.links?.BG       || '';
 
   const embed = new EmbedBuilder()
     .setColor(0x1a1a2e)
@@ -61,33 +57,22 @@ function buildMentionCard(client, author, prefix) {
       `${botName} is an advanced premium music bot — high-fidelity streaming, aesthetic audio filters, and a clutter-free experience. Vibe with the tone.\n\n` +
       `**Guild Settings**\n` +
       `**My Prefix:** \`${prefix}\`\n\n` +
-      `**Need support?** Join our [Support Server](${support})`
-    )
-    .setImage('attachment://banner.webp');
+      (support && !support.includes('your-invite') ? `**Need support?** Join our [Support Server](${support})` : '')
+    );
+
+  if (bgUrl) embed.setImage(bgUrl);
 
   const btns = [];
-  if (invite && !invite.includes('your-invite')) {
-    btns.push(
-      new ButtonBuilder()
-        .setLabel('Invite Me')
-        .setStyle(ButtonStyle.Link)
-        .setURL(invite)
-    );
+  if (invite && !invite.includes('your-invite') && invite.startsWith('http')) {
+    btns.push(new ButtonBuilder().setLabel('Invite Me').setStyle(ButtonStyle.Link).setURL(invite));
   }
-  if (support && !support.includes('your-invite')) {
-    btns.push(
-      new ButtonBuilder()
-        .setLabel('Support Server')
-        .setStyle(ButtonStyle.Link)
-        .setURL(support)
-    );
+  if (support && !support.includes('your-invite') && support.startsWith('http')) {
+    btns.push(new ButtonBuilder().setLabel('Support Server').setStyle(ButtonStyle.Link).setURL(support));
   }
 
-  const rows = btns.length > 0
-    ? [new ActionRowBuilder().addComponents(btns)]
-    : [];
+  const rows = btns.length > 0 ? [new ActionRowBuilder().addComponents(btns)] : [];
 
-  return { embed, banner, rows };
+  return { embed, rows };
 }
 
 module.exports = {
@@ -165,10 +150,9 @@ module.exports = {
     // ── Bot mention reply (runs before ignore-channel check) ────────────────
     const mention = new RegExp(`^<@!?${client.user.id}>\\s*$`);
     if (message.mentions.users.has(client.user.id) && mention.test(message.content.trim())) {
-      const { embed, banner, rows } = buildMentionCard(client, message.author, prefix);
+      const { embed, rows } = buildMentionCard(client, message.author, prefix);
       await message.channel.send({
         embeds: [embed],
-        files: [banner],
         components: [...rows],
       }).catch(e => console.error('[Mention Reply Error]', e.message));
       return;
