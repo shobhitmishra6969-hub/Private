@@ -66,18 +66,29 @@ function buildMentionCard(client, author, prefix) {
     )
     .setImage('attachment://banner.webp');
 
-  const linkRow = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setLabel('Invite Me')
-      .setStyle(ButtonStyle.Link)
-      .setURL(invite),
-    new ButtonBuilder()
-      .setLabel('Support Server')
-      .setStyle(ButtonStyle.Link)
-      .setURL(support),
-  );
+  const btns = [];
+  if (invite && !invite.includes('your-invite')) {
+    btns.push(
+      new ButtonBuilder()
+        .setLabel('Invite Me')
+        .setStyle(ButtonStyle.Link)
+        .setURL(invite)
+    );
+  }
+  if (support && !support.includes('your-invite')) {
+    btns.push(
+      new ButtonBuilder()
+        .setLabel('Support Server')
+        .setStyle(ButtonStyle.Link)
+        .setURL(support)
+    );
+  }
 
-  return { embed, banner, rows: [linkRow] };
+  const rows = btns.length > 0
+    ? [new ActionRowBuilder().addComponents(btns)]
+    : [];
+
+  return { embed, banner, rows };
 }
 
 module.exports = {
@@ -171,7 +182,7 @@ module.exports = {
         embeds: [embed],
         files: [banner],
         components: [...rows],
-      }).catch(() => null);
+      }).catch(e => console.error('[Mention Reply Error]', e.message));
       return;
     }
 
