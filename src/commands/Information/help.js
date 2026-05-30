@@ -1,513 +1,453 @@
 const {
-    ActionRowBuilder,
-    StringSelectMenuBuilder,
-    ButtonBuilder,
-    ButtonStyle,
-    ContainerBuilder,
-    TextDisplayBuilder,
-    SeparatorBuilder,
-    MessageFlags,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  ContainerBuilder,
+  TextDisplayBuilder,
+  SeparatorBuilder,
+  MessageFlags,
 } = require('discord.js');
 const config = require('../../config.js');
 const fs = require('fs');
 const path = require('path');
-const emoji = require("../../emojis");
-const Prefix = require("../../schema/prefix");
+const emoji = require('../../emojis');
+const Prefix = require('../../schema/prefix');
 
-function categoryInfo() {
-    return {
-        Music: { emoji: emoji.Music, description: 'Music & Playback Controls' },
-        Filters: { emoji: emoji.Filters, description: 'Audio Effects & Equalizer' },
-        Favourite: { emoji: emoji.Favourite, description: 'Liked Songs & Playlists' },
-        Spotify: { emoji: emoji.Spotify, description: 'Spotify Commands' },
-        Information: { emoji: emoji.Information, description: 'Bot Status & Information' },
-        Config: { emoji: emoji.Config, description: 'System Configuration' },
-        Utility: { emoji: emoji.Utility, description: 'Essential Utilities' },
-        Giveaway: { emoji: emoji.Giveaway, description: 'Giveaway System' },
-        Playlist: { emoji: emoji.Playlist, description: 'Playlist Management' },
-        Lastfm: { emoji: emoji.Lastfm, description: 'Last.fm Integration' },
-        Owner: { emoji: emoji.Owner, description: 'Owner Only Commands' },
-    };
+// ── Constants ──────────────────────────────────────────────────────────────────
+const CMDS_PER_PAGE = 12;
+const VISIBLE_CATS = ['Music', 'Filters', 'Favourite', 'Config', 'Utility', 'Giveaway', 'Playlist', 'Spotify', 'Information', 'Lastfm'];
+const CAT_ROW_1 = VISIBLE_CATS.slice(0, 5);   // Music Filters Favourite Config Utility
+const CAT_ROW_2 = VISIBLE_CATS.slice(5, 10);  // Giveaway Playlist Spotify Information Lastfm
+
+function catInfo() {
+  return {
+    Music:       { emoji: emoji.Music,       desc: 'Music playback, queue & player controls' },
+    Filters:     { emoji: emoji.Filters,     desc: 'Audio effects & equalizer presets' },
+    Favourite:   { emoji: emoji.Favourite,   desc: 'Liked songs management' },
+    Config:      { emoji: emoji.Config,      desc: 'Server configuration settings' },
+    Utility:     { emoji: emoji.Utility,     desc: 'General utility & server tools' },
+    Giveaway:    { emoji: emoji.Giveaway,    desc: 'Giveaway system & configuration' },
+    Playlist:    { emoji: emoji.Playlist,    desc: 'Saved playlist management' },
+    Spotify:     { emoji: emoji.Spotify,     desc: 'Spotify search & profile' },
+    Information: { emoji: emoji.Information, desc: 'Bot info & status commands' },
+    Lastfm:      { emoji: emoji.Lastfm,      desc: 'Last.fm music stats & scrobbling' },
+  };
 }
 
-const HIDDEN_CATEGORIES = ['Owner', 'loaders'];
+// ── Data Loading ───────────────────────────────────────────────────────────────
+function loadCategoryData() {
+  const commandsPath = path.join(__dirname, '..', '..', 'commands');
+  const data = {};
 
+  for (const cat of VISIBLE_CATS) {
+    data[cat] = [];
+    const catPath = path.join(commandsPath, cat);
+    if (!fs.existsSync(catPath)) continue;
 
-
-function loadCategories(commandsPath) {
-    return fs.readdirSync(commandsPath)
-        .filter(f => fs.statSync(path.join(commandsPath, f)).isDirectory())
-        .filter(f => !['loaders'].includes(f.toLowerCase()));
-}
-
-function loadVisibleCategories(commandsPath) {
-    return loadCategories(commandsPath).filter(c => !HIDDEN_CATEGORIES.includes(c));
-}
-
-function loadCategoryData(commandsPath, categories) {
-    const data = {};
-    for (const cat of categories) {
-        data[cat] = [];
-        const files = fs.readdirSync(path.join(commandsPath, cat)).filter(f => f.endsWith('.js'));
-        for (const file of files) {
-            try {
-                const cmd = require(path.join(commandsPath, cat, file));
-                if (cmd.name && cmd.description) {
-                    data[cat].push({
-                        name: cmd.name,
-                        description: cmd.description,
-                        aliases: cmd.aliases || [],
-                        slashOptions: cmd.slashOptions || [],
-                        cooldown: cmd.cooldown,
-                        subcommands: cmd.subcommands || [],
-                    });
-                }
-            } catch { }
+    for (const file of fs.readdirSync(catPath).filter(f => f.endsWith('.js'))) {
+      try {
+        const cmd = require(path.join(catPath, file));
+        if (cmd.name && cmd.description) {
+          data[cat].push({
+            name: cmd.name,
+            description: cmd.description,
+            aliases: cmd.aliases || [],
+            slashOptions: cmd.slashOptions || [],
+          });
         }
+      } catch {}
     }
-    return data;
+    data[cat].sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  return data;
 }
 
-async function getServerPrefix(guildId) {
-    try {
-        const doc = await Prefix.findOne({ Guild: guildId });
-        if (doc?.Prefix) return doc.Prefix;
-    } catch { }
-    return config.prefix || '.';
-}
+function findCommand(name) {
+  const commandsPath = path.join(__dirname, '..', '..', 'commands');
+  const allDirs = fs.readdirSync(commandsPath).filter(f =>
+    fs.statSync(path.join(commandsPath, f)).isDirectory() && f !== 'loaders'
+  );
 
-// ─── Home Page ────────────────────────────────────────────────────────────────
-
-function buildHomePage(categories, categoryData, serverPrefix) {
-    const totalCommands = Object.values(categoryData).reduce((n, arr) => n + arr.length, 0);
-
-    const catLines = categories.map(cat => {
-        const info = categoryInfo()[cat] || { emoji: '📁' };
-        return `${info.emoji} **${cat}**`;
-    }).join('\n');
-
-    const inviteUrl = config.links?.invite || 'https://discord.com/api/oauth2/authorize';
-    const supportUrl = config.links?.support || 'https://discord.gg/your-invite';
-
-    const selectRow = buildSelectRow(categories, null);
-    const navRow = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-            .setCustomId('help_home')
-            .setLabel('Home')
-            .setEmoji('<:HOME:1484916391667826872>')
-            .setStyle(ButtonStyle.Primary),
-        new ButtonBuilder()
-            .setCustomId('help_all_commands')
-            .setLabel('All Commands')
-            .setEmoji('<:commands:1484917499572129842>')
-            .setStyle(ButtonStyle.Success),
-        new ButtonBuilder()
-            .setCustomId('help_close')
-            .setLabel('Close')
-            .setEmoji('🗑️')
-            .setStyle(ButtonStyle.Danger),
-    );
-
-    const container = new ContainerBuilder()
-        .addTextDisplayComponents(
-            new TextDisplayBuilder().setContent(
-                `###  Tone Vibes\n` +
-                `-# Your Ultimate Music Companion`
-            )
-        )
-        .addSeparatorComponents(new SeparatorBuilder())
-        .addTextDisplayComponents(
-            new TextDisplayBuilder().setContent(
-                `${emoji.dot} Advanced music playback with advanced features\n` +
-                `${emoji.dot} Server Prefix: \`${serverPrefix}\`\n` +
-                `${emoji.dot} Total Commands: \`${totalCommands}\``
-            )
-        )
-        .addSeparatorComponents(new SeparatorBuilder())
-        .addTextDisplayComponents(
-            new TextDisplayBuilder().setContent(
-                `**<:Arrow_arrow:1484506070935273563> Available Commands**\n${catLines}`
-            )
-        )
-        .addSeparatorComponents(new SeparatorBuilder())
-        .addTextDisplayComponents(
-            new TextDisplayBuilder().setContent(
-                `-# [Invite](<${inviteUrl}>) • [Support](<${supportUrl}>) • [Vote](<https://top.gg/>)`
-            )
-        )
-        .addActionRowComponents(navRow)
-        .addActionRowComponents(selectRow);
-
-    return container;
-}
-
-// ─── All Commands Page ────────────────────────────────────────────────────────
-
-function buildAllCommandsPage(categories, categoryData) {
-    const totalCommands = Object.values(categoryData).reduce((n, arr) => n + arr.length, 0);
-    const catCount = categories.filter(c => (categoryData[c] || []).length > 0).length;
-
-    const sections = categories.map(cat => {
-        const info = categoryInfo()[cat] || { emoji: '📁' };
-        const cmds = categoryData[cat] || [];
-        if (cmds.length === 0) return null;
-        const cmdList = cmds.map(c => c.name).join(' • ');
-        return `**${info.emoji} ${cat} (${cmds.length})**\n${cmdList}`;
-    }).filter(Boolean).join('\n\n');
-
-    const backRow = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-            .setCustomId('help_home')
-            .setLabel('BACK')
-            .setEmoji('<:backward:1484916482180780254>')
-            .setStyle(ButtonStyle.Primary),
-        new ButtonBuilder()
-            .setCustomId('help_close')
-            .setLabel('Close')
-            .setEmoji('🗑️')
-            .setStyle(ButtonStyle.Danger),
-    );
-
-    const container = new ContainerBuilder()
-        .addTextDisplayComponents(
-            new TextDisplayBuilder().setContent(
-                `### <:HOME:1484916391667826872> All Commands\n` +
-                `-# Complete command reference`
-            )
-        )
-        .addSeparatorComponents(new SeparatorBuilder())
-        .addTextDisplayComponents(
-            new TextDisplayBuilder().setContent(sections)
-        )
-        .addSeparatorComponents(new SeparatorBuilder())
-        .addTextDisplayComponents(
-            new TextDisplayBuilder().setContent(
-                `-# ${totalCommands} total commands across ${catCount} categories`
-            )
-        )
-        .addActionRowComponents(backRow);
-
-    return container;
-}
-
-// ─── Category Page ────────────────────────────────────────────────────────────
-
-function buildCategoryPage(category, cmdsList, serverPrefix, categories) {
-    const info = categoryInfo()[category] || { emoji: '<:folder:1484918804155727912>', description: `${category} commands` };
-
-    const listText = cmdsList.length > 0
-        ? cmdsList.map(cmd => {
-            const cmdEmoji = CMD_EMOJIS[cmd.name] || CMD_EMOJIS[cmd.name?.toLowerCase()] || '🔹';
-            const aliasStr = cmd.aliases?.length ? ` *(${cmd.aliases.slice(0, 3).join(', ')})*` : '';
-            let entry = `${cmdEmoji} \`${serverPrefix}${cmd.name}\`${aliasStr} — ${cmd.description}`;
-            if (cmd.subcommands?.length) {
-                const subList = cmd.subcommands.map(s =>
-                    `> \`${serverPrefix}${cmd.name} ${s.name}\` — ${s.description}`
-                ).join('\n');
-                entry += `\n${subList}`;
-            }
-            return entry;
-        }).join('\n\n')
-        : 'No commands in this category.';
-
-    const backRow = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-            .setCustomId('help_home')
-            .setLabel('BACK')
-            .setEmoji('<:backward:1484916482180780254>')
-            .setStyle(ButtonStyle.Primary),
-        new ButtonBuilder()
-            .setCustomId('help_close')
-            .setLabel('Close')
-            .setEmoji('🗑️')
-            .setStyle(ButtonStyle.Danger),
-    );
-
-    const selectRow = buildSelectRow(categories, category);
-
-    const container = new ContainerBuilder()
-        .addTextDisplayComponents(
-            new TextDisplayBuilder().setContent(
-                `### ${info.emoji} ${category} Commands\n` +
-                `-# ${info.description}`
-            )
-        )
-        .addSeparatorComponents(new SeparatorBuilder())
-        .addTextDisplayComponents(
-            new TextDisplayBuilder().setContent(listText)
-        )
-        .addSeparatorComponents(new SeparatorBuilder())
-        .addTextDisplayComponents(
-            new TextDisplayBuilder().setContent(
-                `-# ${cmdsList.length} command${cmdsList.length !== 1 ? 's' : ''} • Use \`${serverPrefix}help <command>\` for details`
-            )
-        )
-        .addActionRowComponents(backRow)
-        .addActionRowComponents(selectRow);
-
-    return container;
-}
-
-// ─── Command Detail Page ──────────────────────────────────────────────────────
-
-function buildCommandPage(cmd, category, prefix) {
-    const info = categoryInfo()[category] || { emoji: '<:folder:1484918804155727912>' };
-
-    let usage = `**${emoji.dot} Usage:** \`${prefix}${cmd.name}`;
-    (cmd.slashOptions || []).forEach(opt => {
-        usage += opt.required ? ` <${opt.name}>` : ` [${opt.name}]`;
-    });
-    usage += '`';
-
-    let example = `**${emoji.dot} Example:** \`${prefix}${cmd.name}`;
-    if (cmd.slashOptions?.length > 0) {
-        const opt = cmd.slashOptions[0];
-        example += ['song', 'query', 'url'].includes(opt.name)
-            ? ' imagine dragons believer'
-            : opt.name === 'user' ? ' @user' : ` ${opt.name}`;
+  for (const cat of allDirs) {
+    const catPath = path.join(commandsPath, cat);
+    for (const file of fs.readdirSync(catPath).filter(f => f.endsWith('.js'))) {
+      try {
+        const cmd = require(path.join(catPath, file));
+        if (
+          cmd.name?.toLowerCase() === name.toLowerCase() ||
+          (cmd.aliases || []).some(a => a.toLowerCase() === name.toLowerCase())
+        ) {
+          return { cmd, cat };
+        }
+      } catch {}
     }
-    example += '`';
-
-    const aliasLine = cmd.aliases?.length > 0
-        ? `\n**${emoji.dot} Aliases:** ${cmd.aliases.map(a => `\`${a}\``).join(', ')}`
-        : '';
-    const cooldownLine = cmd.cooldown ? `\n**${emoji.dot} Cooldown:** \`${cmd.cooldown}s\`` : '';
-
-    return new ContainerBuilder()
-        .addTextDisplayComponents(
-            new TextDisplayBuilder().setContent(
-                `### ${emoji.check} Command: \`${cmd.name.toUpperCase()}\``
-            )
-        )
-        .addSeparatorComponents(new SeparatorBuilder())
-        .addTextDisplayComponents(
-            new TextDisplayBuilder().setContent(
-                `**${emoji.dot} Description:** ${cmd.description || 'No description'}\n` +
-                `**${emoji.dot} Category:** ${info.emoji} \`${category}\`` +
-                aliasLine + cooldownLine
-            )
-        )
-        .addSeparatorComponents(new SeparatorBuilder())
-        .addTextDisplayComponents(
-            new TextDisplayBuilder().setContent(`${usage}\n${example}`)
-        );
+  }
+  return null;
 }
 
-// ─── Select Menu ──────────────────────────────────────────────────────────────
-
-function buildSelectRow(categories, currentCat) {
-    const options = categories.map(cat => {
-        const info = categoryInfo()[cat] || { emoji: '📁', description: `${cat} commands` };
-        return {
-            label: cat,
-            value: cat,
-            description: info.description,
-            emoji: info.emoji,
-            default: cat === currentCat,
-        };
-    });
-
-    const select = new StringSelectMenuBuilder()
-        .setCustomId('help_category_select')
-        .setPlaceholder('Browse command categories')
-        .addOptions(options);
-
-    return new ActionRowBuilder().addComponents(select);
+async function getPrefix(guildId) {
+  try {
+    const doc = await Prefix.findOne({ Guild: guildId });
+    if (doc?.Prefix) return doc.Prefix;
+  } catch {}
+  return config.prefix || '.';
 }
 
-// ─── Core Logic ───────────────────────────────────────────────────────────────
+// ── Formatters ─────────────────────────────────────────────────────────────────
+function fmtCmd(cmd, prefix) {
+  const slash = `\`/${cmd.name}\``;
+  const pfx   = `\`${prefix}${cmd.name}\``;
+  const al    = cmd.aliases?.length
+    ? ` *(${cmd.aliases.slice(0, 3).join(', ')})*`
+    : '';
+  return `${slash}  ${pfx}${al} — ${cmd.description}`;
+}
 
+// ── UI Builders ────────────────────────────────────────────────────────────────
+function buildTabRows(activeCategory) {
+  const makeRow = (cats) =>
+    new ActionRowBuilder().addComponents(
+      cats.map(cat =>
+        new ButtonBuilder()
+          .setCustomId(`help_cat_${cat}`)
+          .setLabel(cat)
+          .setStyle(cat === activeCategory ? ButtonStyle.Primary : ButtonStyle.Secondary)
+      )
+    );
+
+  return [makeRow(CAT_ROW_1), makeRow(CAT_ROW_2)];
+}
+
+function buildControlRow(totalPages, page) {
+  const supportUrl = config.links?.support || '';
+  const inviteUrl  = config.links?.invite  || '';
+  const btns = [];
+
+  if (supportUrl && !supportUrl.includes('your-invite-code')) {
+    btns.push(
+      new ButtonBuilder()
+        .setLabel('Support Server')
+        .setEmoji('🔧')
+        .setStyle(ButtonStyle.Link)
+        .setURL(supportUrl)
+    );
+  }
+
+  if (inviteUrl) {
+    btns.push(
+      new ButtonBuilder()
+        .setLabel('Invite Bot')
+        .setEmoji('➕')
+        .setStyle(ButtonStyle.Link)
+        .setURL(inviteUrl)
+    );
+  }
+
+  if (totalPages > 1) {
+    btns.push(
+      new ButtonBuilder()
+        .setCustomId('help_prev')
+        .setLabel('◀')
+        .setStyle(ButtonStyle.Secondary)
+        .setDisabled(page === 0),
+      new ButtonBuilder()
+        .setCustomId('help_next')
+        .setLabel('▶')
+        .setStyle(ButtonStyle.Secondary)
+        .setDisabled(page >= totalPages - 1)
+    );
+  }
+
+  btns.push(
+    new ButtonBuilder()
+      .setCustomId('help_close')
+      .setLabel('✕')
+      .setStyle(ButtonStyle.Danger)
+  );
+
+  return new ActionRowBuilder().addComponents(btns.slice(0, 5));
+}
+
+function buildCategoryContainer(category, cmds, page, prefix) {
+  const info       = catInfo()[category] || { emoji: '📁', desc: `${category} commands` };
+  const totalPages = Math.max(1, Math.ceil(cmds.length / CMDS_PER_PAGE));
+  const safePage   = Math.max(0, Math.min(page, totalPages - 1));
+  const slice      = cmds.slice(safePage * CMDS_PER_PAGE, (safePage + 1) * CMDS_PER_PAGE);
+
+  const listText = slice.length
+    ? slice.map(c => fmtCmd(c, prefix)).join('\n')
+    : '*No commands in this category.*';
+
+  const pageStr  = totalPages > 1 ? `  •  Page \`${safePage + 1}/${totalPages}\`` : '';
+  const footer   = `${info.desc}  •  \`${cmds.length}\` command${cmds.length !== 1 ? 's' : ''}${pageStr}`;
+
+  const [tabRow1, tabRow2] = buildTabRows(category);
+  const controlRow = buildControlRow(totalPages, safePage);
+
+  return new ContainerBuilder()
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `### ${info.emoji} Tone Vibes Commands (${category})`
+      )
+    )
+    .addSeparatorComponents(new SeparatorBuilder().setDivider(true))
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(listText)
+    )
+    .addSeparatorComponents(new SeparatorBuilder().setDivider(true))
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(`-# ${footer}`)
+    )
+    .addActionRowComponents(tabRow1)
+    .addActionRowComponents(tabRow2)
+    .addActionRowComponents(controlRow);
+}
+
+function buildCommandDetailContainer(cmd, cat, prefix) {
+  const info = catInfo()[cat] || { emoji: '📁', desc: cat };
+
+  let usage = `\`/${cmd.name}`;
+  let usagePfx = `\`${prefix}${cmd.name}`;
+  for (const opt of (cmd.slashOptions || [])) {
+    const part = opt.required ? ` <${opt.name}>` : ` [${opt.name}]`;
+    usage += part;
+    usagePfx += part;
+  }
+  usage += '`';
+  usagePfx += '`';
+
+  const aliasLine = cmd.aliases?.length
+    ? `\n${emoji.dot} **Aliases:** ${cmd.aliases.map(a => `\`${a}\``).join(', ')}`
+    : '';
+  const cooldownLine = cmd.cooldown ? `\n${emoji.dot} **Cooldown:** \`${cmd.cooldown}s\`` : '';
+
+  const backRow = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`help_cat_${VISIBLE_CATS.includes(cat) ? cat : 'Music'}`)
+      .setLabel('← Back')
+      .setStyle(ButtonStyle.Primary),
+    new ButtonBuilder()
+      .setCustomId('help_close')
+      .setLabel('✕')
+      .setStyle(ButtonStyle.Danger)
+  );
+
+  return new ContainerBuilder()
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `### ${emoji.check} \`${cmd.name.toUpperCase()}\` — Command Info`
+      )
+    )
+    .addSeparatorComponents(new SeparatorBuilder().setDivider(true))
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `${emoji.dot} **Description:** ${cmd.description}\n` +
+        `${emoji.dot} **Category:** ${info.emoji} \`${cat}\`` +
+        aliasLine + cooldownLine
+      )
+    )
+    .addSeparatorComponents(new SeparatorBuilder().setDivider(false))
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `${emoji.dot} **Slash:** ${usage}\n` +
+        `${emoji.dot} **Prefix:** ${usagePfx}`
+      )
+    )
+    .addSeparatorComponents(new SeparatorBuilder().setDivider(true))
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `-# Use \`${prefix}help <category>\` to browse a category`
+      )
+    )
+    .addActionRowComponents(backRow);
+}
+
+// ── Core Logic ─────────────────────────────────────────────────────────────────
 async function runHelp({ userId, guildId, commandArg, sendFn }) {
-    const commandsPath = path.join(__dirname, '..', '..', 'commands');
-    const allCategories = loadCategories(commandsPath);
-    const categories = loadVisibleCategories(commandsPath);
-    const categoryData = loadCategoryData(commandsPath, categories);
-    const serverPrefix = await getServerPrefix(guildId);
+  const prefix     = await getPrefix(guildId);
+  const catData    = loadCategoryData();
 
-    if (commandArg) {
-        const matchedCategory = categories.find(c => c.toLowerCase() === commandArg.toLowerCase());
-        if (matchedCategory) {
-            const cmds = categoryData[matchedCategory] || [];
-            const page = buildCategoryPage(matchedCategory, cmds, serverPrefix, categories);
-            const sentMessage = await sendFn({ components: [page], flags: MessageFlags.IsComponentsV2 });
-            if (!sentMessage) return;
-            const collector = sentMessage.createMessageComponentCollector({
-                filter: i => i.user.id === userId,
-                time: 30000,
-            });
-            collector.on('collect', async i => {
-                try {
-                    if (i.customId === 'help_close') {
-                        collector.stop('closed');
-                        return sentMessage.delete().catch(() => { });
-                    }
-                    if (i.customId === 'help_home') {
-                        const freshPrefix = await getServerPrefix(guildId);
-                        const homePage = buildHomePage(categories, categoryData, freshPrefix);
-                        return i.update({ components: [homePage], flags: MessageFlags.IsComponentsV2 }).catch(() => { });
-                    }
-                    if (i.customId === 'help_category_select') {
-                        const val = i.values[0];
-                        const freshPrefix = await getServerPrefix(guildId);
-                        const selectedCmds = categoryData[val] || [];
-                        const catPage = buildCategoryPage(val, selectedCmds, freshPrefix, categories);
-                        return i.update({ components: [catPage], flags: MessageFlags.IsComponentsV2 }).catch(() => { });
-                    }
-                    await i.deferUpdate().catch(() => { });
-                } catch { }
-            });
-            collector.on('end', (_, reason) => {
-                if (reason !== 'closed') sentMessage.delete().catch(() => { });
-            });
-            return;
-        }
-
-        let found = null, foundCat = null;
-        outer: for (const cat of allCategories) {
-            const files = fs.readdirSync(path.join(commandsPath, cat)).filter(f => f.endsWith('.js'));
-            for (const file of files) {
-                try {
-                    const cmd = require(path.join(commandsPath, cat, file));
-                    if (
-                        cmd.name?.toLowerCase() === commandArg.toLowerCase() ||
-                        (cmd.aliases || []).some(a => a.toLowerCase() === commandArg.toLowerCase())
-                    ) {
-                        found = cmd; foundCat = cat; break outer;
-                    }
-                } catch { }
-            }
-        }
-        if (!found) {
-            const c = new ContainerBuilder()
-                .addTextDisplayComponents(new TextDisplayBuilder()
-                    .setContent(`**${emoji.cross} Command or category \`${commandArg}\` not found.**`));
-            return sendFn({ components: [c], flags: MessageFlags.IsComponentsV2 });
-        }
-        const cmdPage = buildCommandPage(found, foundCat, serverPrefix);
-        return sendFn({ components: [cmdPage], flags: MessageFlags.IsComponentsV2 });
+  // ── Command/Category Lookup ──────────────────────────────────────────────────
+  if (commandArg) {
+    // Category lookup
+    const matchedCat = VISIBLE_CATS.find(c => c.toLowerCase() === commandArg.toLowerCase());
+    if (matchedCat) {
+      const cmds = catData[matchedCat] || [];
+      let page = 0;
+      const msg = await sendFn({
+        components: [buildCategoryContainer(matchedCat, cmds, page, prefix)],
+        flags: MessageFlags.IsComponentsV2,
+      });
+      if (!msg) return;
+      return attachCollector(msg, userId, guildId, catData, prefix, matchedCat, page);
     }
 
-    const homeContainer = buildHomePage(categories, categoryData, serverPrefix);
-    const sentMessage = await sendFn({ components: [homeContainer], flags: MessageFlags.IsComponentsV2 });
+    // Specific command lookup
+    const result = findCommand(commandArg);
+    if (!result) {
+      return sendFn({
+        components: [
+          new ContainerBuilder().addTextDisplayComponents(
+            new TextDisplayBuilder().setContent(
+              `**${emoji.cross} Command \`${commandArg}\` not found.**\n-# Use \`${prefix}help\` to browse all categories.`
+            )
+          )
+        ],
+        flags: MessageFlags.IsComponentsV2,
+      });
+    }
 
-    if (!sentMessage) return;
-
-    let currentView = 'home';
-
-    const collector = sentMessage.createMessageComponentCollector({
-        filter: i => i.user.id === userId,
-        time: 30000,
+    const { cmd, cat } = result;
+    const msg = await sendFn({
+      components: [buildCommandDetailContainer(cmd, cat, prefix)],
+      flags: MessageFlags.IsComponentsV2,
     });
+    if (!msg) return;
+    return attachCollector(msg, userId, guildId, catData, prefix, null, 0);
+  }
 
-    collector.on('collect', async i => {
-        try {
-            if (i.customId === 'help_close') {
-                collector.stop('closed');
-                return sentMessage.delete().catch(() => { });
-            }
-
-            if (i.customId === 'help_home') {
-                currentView = 'home';
-                const freshPrefix = await getServerPrefix(guildId);
-                const page = buildHomePage(categories, categoryData, freshPrefix);
-                return i.update({ components: [page], flags: MessageFlags.IsComponentsV2 }).catch(() => { });
-            }
-
-            if (i.customId === 'help_all_commands') {
-                currentView = 'all';
-                const page = buildAllCommandsPage(categories, categoryData);
-                return i.update({ components: [page], flags: MessageFlags.IsComponentsV2 }).catch(() => { });
-            }
-
-            if (i.customId === 'help_category_select') {
-                const val = i.values[0];
-                currentView = 'category';
-                const freshPrefix = await getServerPrefix(guildId);
-                const cmds = categoryData[val] || [];
-                const page = buildCategoryPage(val, cmds, freshPrefix, categories);
-                return i.update({ components: [page], flags: MessageFlags.IsComponentsV2 }).catch(() => { });
-            }
-
-            await i.deferUpdate().catch(() => { });
-        } catch (err) {
-            console.error('[Help] Collector error:', err);
-            try { await i.deferUpdate().catch(() => { }); } catch { }
-        }
-    });
-
-    collector.on('end', (_, reason) => {
-        if (reason === 'closed') return;
-        sentMessage.delete().catch(() => { });
-    });
+  // ── Default view: Music category ─────────────────────────────────────────────
+  const defaultCat = 'Music';
+  let page = 0;
+  const msg = await sendFn({
+    components: [buildCategoryContainer(defaultCat, catData[defaultCat] || [], page, prefix)],
+    flags: MessageFlags.IsComponentsV2,
+  });
+  if (!msg) return;
+  return attachCollector(msg, userId, guildId, catData, prefix, defaultCat, page);
 }
 
-// ─── Export ───────────────────────────────────────────────────────────────────
+function attachCollector(msg, userId, guildId, catData, prefix, initialCat, initialPage) {
+  let currentCat  = initialCat;
+  let currentPage = initialPage;
 
+  const collector = msg.createMessageComponentCollector({
+    filter: i => {
+      if (i.user.id !== userId) {
+        i.reply({
+          components: [
+            new ContainerBuilder().addTextDisplayComponents(
+              new TextDisplayBuilder().setContent(
+                `**${emoji.cross} Only <@${userId}> can use these buttons.**`
+              )
+            )
+          ],
+          flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+        }).catch(() => {});
+        return false;
+      }
+      return true;
+    },
+    idle: 120000,
+  });
+
+  collector.on('collect', async i => {
+    try {
+      await i.deferUpdate().catch(() => {});
+
+      if (i.customId === 'help_close') {
+        collector.stop('closed');
+        return msg.delete().catch(() => {});
+      }
+
+      if (i.customId.startsWith('help_cat_')) {
+        const cat = i.customId.replace('help_cat_', '');
+        currentCat  = cat;
+        currentPage = 0;
+        const freshPrefix = await getPrefix(guildId);
+        const freshData   = loadCategoryData();
+        return msg.edit({
+          components: [buildCategoryContainer(cat, freshData[cat] || [], 0, freshPrefix)],
+          flags: MessageFlags.IsComponentsV2,
+        }).catch(() => {});
+      }
+
+      if (i.customId === 'help_prev') {
+        currentPage = Math.max(0, currentPage - 1);
+      } else if (i.customId === 'help_next') {
+        const total = Math.max(1, Math.ceil((catData[currentCat] || []).length / CMDS_PER_PAGE));
+        currentPage = Math.min(total - 1, currentPage + 1);
+      }
+
+      if (currentCat) {
+        const freshPrefix = await getPrefix(guildId);
+        return msg.edit({
+          components: [buildCategoryContainer(currentCat, catData[currentCat] || [], currentPage, freshPrefix)],
+          flags: MessageFlags.IsComponentsV2,
+        }).catch(() => {});
+      }
+    } catch (err) {
+      console.error('[Help] collector error:', err.message);
+    }
+  });
+
+  collector.on('end', (_, reason) => {
+    if (reason === 'closed') return;
+    msg.delete().catch(() => {});
+  });
+}
+
+// ── Export ─────────────────────────────────────────────────────────────────────
 module.exports = {
-    name: 'help',
-    category: 'Information',
-    aliases: ['h'],
-    description: 'Shows all commands with categories',
-    slashOptions: [
-        {
-            name: 'command',
-            description: 'Shows info about a specific command',
-            type: 3,
-            required: false,
-            autocomplete: true,
-        }
-    ],
+  name: 'help',
+  category: 'Information',
+  aliases: ['h'],
+  description: 'Shows all commands with categories',
+  slashOptions: [
+    {
+      name: 'command',
+      description: 'Specific command or category name',
+      type: 3,
+      required: false,
+      autocomplete: true,
+    }
+  ],
 
-    autocomplete: async (interaction) => {
-        const focused = interaction.options.getFocused().toLowerCase();
-        const commandsPath = path.join(__dirname, '..', '..', 'commands');
-        const results = [];
+  autocomplete: async (interaction) => {
+    const focused = interaction.options.getFocused().toLowerCase();
+    const commandsPath = path.join(__dirname, '..', '..', 'commands');
+    const results = [];
 
-        for (const cat of loadCategories(commandsPath)) {
-            const files = fs.readdirSync(path.join(commandsPath, cat)).filter(f => f.endsWith('.js'));
-            for (const file of files) {
-                try {
-                    const cmd = require(path.join(commandsPath, cat, file));
-                    if (cmd.name?.toLowerCase().includes(focused)) {
-                        results.push({ name: cmd.name, value: cmd.name });
-                    }
-                } catch { }
-            }
-        }
-        await interaction.respond(results.slice(0, 25)).catch(() => { });
-    },
+    for (const cat of VISIBLE_CATS) {
+      if (cat.toLowerCase().includes(focused)) {
+        results.push({ name: `📁 ${cat} (category)`, value: cat });
+      }
+      const catPath = path.join(commandsPath, cat);
+      if (!fs.existsSync(catPath)) continue;
+      for (const file of fs.readdirSync(catPath).filter(f => f.endsWith('.js'))) {
+        try {
+          const cmd = require(path.join(catPath, file));
+          if (cmd.name?.toLowerCase().includes(focused)) {
+            results.push({ name: cmd.name, value: cmd.name });
+          }
+        } catch {}
+      }
+    }
 
-    async slashExecute(interaction, client) {
-        await interaction.deferReply();
+    await interaction.respond(results.slice(0, 25)).catch(() => {});
+  },
 
-        await runHelp({
-            userId: interaction.user.id,
-            guildId: interaction.guild.id,
-            commandArg: interaction.options.getString('command') || null,
-            sendFn: async (opts) => {
-                try {
-                    return await interaction.editReply(opts);
-                } catch (err) {
-                    console.error('[Help] editReply error:', err.message);
-                    return null;
-                }
-            },
-        });
-    },
+  async slashExecute(interaction, client) {
+    await interaction.deferReply();
+    await runHelp({
+      userId:     interaction.user.id,
+      guildId:    interaction.guild.id,
+      commandArg: interaction.options.getString('command') || null,
+      sendFn:     async (opts) => {
+        try { return await interaction.editReply(opts); } catch { return null; }
+      },
+    });
+  },
 
-    async execute(message, args, client) {
-        await runHelp({
-            userId: message.author.id,
-            guildId: message.guild.id,
-            commandArg: args[0] || null,
-            sendFn: async (opts) => {
-                try {
-                    return await message.reply(opts);
-                } catch (err) {
-                    console.error('[Help] reply error:', err.message);
-                    return null;
-                }
-            },
-        });
-    },
+  async execute(message, args, client) {
+    await runHelp({
+      userId:     message.author.id,
+      guildId:    message.guild.id,
+      commandArg: args[0] || null,
+      sendFn:     async (opts) => {
+        try { return await message.reply(opts); } catch { return null; }
+      },
+    });
+  },
 };
