@@ -11,51 +11,38 @@ function parseBoolean(value) {
     }
 }
 
-function parseBoolean(value) {
-    if (typeof value === "string") {
-        value = value.trim().toLowerCase();
-    }
-    switch (value) {
-        case true:
-        case "true":
-            return true;
-        default:
-            return false;
-    }
-}
-
 module.exports = {
-    token: process.env.DISCORD_TOKEN || "MTQ3ODI4NTMxMzg3NTkwMjUwNg.G-DKi9.86vnQPTpAtL0TJQfWrX-hBSwNqodBqQbjcfArQ",
+    token: process.env.DISCORD_TOKEN,
     prefix: process.env.BOT_PREFIX || "+",
-    ownerID: process.env.OWNER_ID ? process.env.OWNER_ID.split(",") : ["1426569122224931010"],
-    SpotifyID: process.env.SPOTIFY_CLIENT_ID || "85aab1d51a174aad9eed6d7989f530e6",
-    SpotifySecret: process.env.SPOTIFY_CLIENT_SECRET || "b2ad05aa725e434c88776a1be8eab6c",
+    ownerID: process.env.OWNER_ID ? process.env.OWNER_ID.split(",") : [],
+    SpotifyID: process.env.SPOTIFY_CLIENT_ID || "",
+    SpotifySecret: process.env.SPOTIFY_CLIENT_SECRET || "",
     spotifyRedirectUri: process.env.SPOTIFY_REDIRECT_URI || null,
-    mongourl: process.env.MONGO_URL || "mongodb+srv://codex:codex@cdx-us-1.zunskft.mongodb.net/?appName=cdx-us-1",
+    mongourl: process.env.MONGO_URL || null,
     color: process.env.BOT_COLOR || "#00D4FF",
     logs: process.env.LOGS_CHANNEL || "",
     node_source: process.env.NODE_SOURCE || "ytmsearch",
-    lastfmKey: process.env.LASTFM_API_KEY || "YOUR_LASTFM_API_KEY",
-    lastfmSecret: process.env.LASTFM_API_SECRET || "YOUR_LASTFM_API_SECRET",
+    lastfmKey: process.env.LASTFM_API_KEY || "",
+    lastfmSecret: process.env.LASTFM_API_SECRET || "",
 
     links: {
         BG: process.env.BG_URL || "",
         support: process.env.SUPPORT_URL || "https://discord.gg/your-invite-code",
-        premium: process.env.PREMIUM_URL || "https://discord.gg/lovebite",
-        invite: process.env.INVITE_URL || "https://discord.gg/lovebite",
+        premium: process.env.PREMIUM_URL || "",
+        invite: process.env.INVITE_URL || "",
         Shafed_Billa: "On Top??",
         power: "Powered By Psychotic Development",
-        vanity: process.env.VANITY_URL || "https://discord.gg/your-vanity-url",
-        guild: process.env.GUILD_ID || "GUILD_ID_HERE",
+        vanity: process.env.VANITY_URL || "",
+        guild: process.env.GUILD_ID || "",
     },
 
     Webhooks: {
-        black: process.env.WEBHOOK_BLACK || "https://discord.com/api/webhooks/1483329126361464903/YlTxKi8_v1JMW5YEv5qkU7MVyIgIFTHW3jT0YwmQU4YBxem4v9LQglVouqZPrQjv3_z3",
-        player_create: process.env.WEBHOOK_PLAYER_CREATE || "https://discord.com/api/webhooks/1483329126361464903/YlTxKi8_v1JMW5YEv5qkU7MVyIgIFTHW3jT0YwmQU4YBxem4v9LQglVouqZPrQjv3_z3",
-        player_delete: process.env.WEBHOOK_PLAYER_DELETE || "https://discord.com/api/webhooks/1483329126361464903/YlTxKi8_v1JMW5YEv5qkU7MVyIgIFTHW3jT0YwmQU4YBxem4v9LQglVouqZPrQjv3_z3",
-        guild_join: process.env.WEBHOOK_GUILD_JOIN || "https://discord.com/api/webhooks/1483329126361464903/YlTxKi8_v1JMW5YEv5qkU7MVyIgIFTHW3jT0YwmQU4YBxem4v9LQglVouqZPrQjv3_z3",
-        guild_leave: process.env.WEBHOOK_GUILD_LEAVE || "https://discord.com/api/webhooks/1483329126361464903/YlTxKi8_v1JMW5YEv5qkU7MVyIgIFTHW3jT0YwmQU4YBxem4v9LQglVouqZPrQjv3_z3",
-        cmdrun: process.env.WEBHOOK_CMDRUN || "https://discord.com/api/webhooks/1483329126361464903/YlTxKi8_v1JMW5YEv5qkU7MVyIgIFTHW3jT0YwmQU4YBxem4v9LQglVouqZPrQjv3_z3",
+        black: process.env.WEBHOOK_BLACK || "",
+        player_create: process.env.WEBHOOK_PLAYER_CREATE || "",
+        player_delete: process.env.WEBHOOK_PLAYER_DELETE || "",
+        guild_join: process.env.WEBHOOK_GUILD_JOIN || "",
+        guild_leave: process.env.WEBHOOK_GUILD_LEAVE || "",
+        cmdrun: process.env.WEBHOOK_CMDRUN || "",
     },
 
     nodes: [
@@ -70,7 +57,7 @@ module.exports = {
             url: process.env.LAVALINK_NODE_2_URL || "lavalink.jirayu.net",
             auth: process.env.LAVALINK_NODE_2_AUTH || "youshallnotpass",
             secure: parseBoolean(process.env.LAVALINK_NODE_2_SECURE || "true"),
-        }
+        },
     ],
 
     node_options: {
