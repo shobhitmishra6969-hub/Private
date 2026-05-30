@@ -1,8 +1,13 @@
 const {
-  EmbedBuilder,
+  ContainerBuilder,
+  TextDisplayBuilder,
+  SeparatorBuilder,
+  SectionBuilder,
+  ThumbnailBuilder,
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
+  MessageFlags,
 } = require("discord.js");
 const emoji = require("../../emojis.js");
 
@@ -26,61 +31,87 @@ function cleanAuthorName(author) {
   return author.replace(/\s*-\s*Topic\s*$/i, "").trim();
 }
 
-function getSourceName(uri = "") {
-  if (uri.includes("spotify.com")) return "spotify";
-  if (uri.includes("music.youtube.com")) return "youtube music";
-  if (uri.includes("youtube.com") || uri.includes("youtu.be")) return "youtube";
-  if (uri.includes("deezer.com")) return "deezer";
-  if (uri.includes("jiosaavn.com")) return "jiosaavn";
-  return "unknown";
+function getCleanThumbnail(url) {
+  if (!url) return null;
+  if (url.includes("i.ytimg.com") || url.includes("img.youtube.com")) {
+    const m = url.match(/vi\/([^/]+)\//);
+    if (m?.[1]) return `https://i.ytimg.com/vi/${m[1]}/maxresdefault.jpg`;
+  }
+  return url;
 }
 
-function truncate(str, max) {
-  if (!str) return "";
-  return str.length > max ? str.slice(0, max) + "..." : str;
-}
-
-function buildEmbeds(track, player) {
+function buildContainer(track, player, client) {
   const artist = cleanAuthorName(track.author);
   const durationHMS = formatHMS(track.length);
-  const durationShort = formatMSS(track.length);
-  const sourceName = getSourceName(track.uri);
-  const thumbnail = track.thumbnail || track.artworkUrl || null;
   const position = player.position || 0;
   const posFormatted = formatMSS(position);
-  const username = track.requester?.username || "Unknown";
+  const durationShort = formatMSS(track.length);
+  const thumbnail = getCleanThumbnail(track.thumbnail || track.artworkUrl);
+  const queueSize = player.queue?.size ?? 0;
+  const isPaused = player.shoukaku?.paused ?? false;
 
   const percentage = track.length > 0 ? position / track.length : 0;
-  const barLen = 20;
+  const barLen = 17;
   const filled = Math.floor(barLen * percentage);
   const bar = "▬".repeat(filled) + "🔘" + "▬".repeat(barLen - filled);
 
-  const mainEmbed = new EmbedBuilder()
-    .setColor(0x000000)
-    .setTitle("🎵 Now Playing...")
-    .setDescription(
-      `[${track.title}](${track.uri})\n\n` +
-      `**Artist:** ${artist}\n` +
-      `**Duration:** ${durationHMS}\n` +
-      `**Requested by** \`${username}\``
+  const headerText = `🎵 Playing **[${track.title}](${track.uri})** by **[${artist}](${track.uri})**`;
+
+  const section = new SectionBuilder()
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(headerText)
     );
 
-  const cardEmbed = new EmbedBuilder()
-    .setColor(0x2b2d31)
-    .setAuthor({ name: `Playing from ${sourceName}` })
-    .setTitle(truncate(track.title, 20))
-    .setURL(track.uri)
-    .setDescription(
-      `${artist}\n\n` +
-      `${bar}\n` +
-      `\`${posFormatted}\` / \`${durationShort}\`\n` +
-      `Artist: ${artist}\n` +
-      `Duration: ${durationShort}`
+  if (thumbnail) {
+    section.setThumbnailAccessory(new ThumbnailBuilder().setURL(thumbnail));
+  }
+
+  const container = new ContainerBuilder()
+    .addSectionComponents(section)
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `Duration: ${durationHMS} • ${queueSize} song${queueSize !== 1 ? "s" : ""} in queue\n` +
+        `${bar} \`${posFormatted} / ${durationShort}\``
+      )
+    )
+    .addSeparatorComponents(new SeparatorBuilder());
+
+  const currentLoop = player.loop || "none";
+  const loopLabel = currentLoop === "track" ? "Loop (Track)" : currentLoop === "queue" ? "Loop (Queue)" : "Loop";
+
+  const row1 = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId("np_pause").setEmoji(isPaused ? client.emoji.play : client.emoji.pause).setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId("np_skip").setEmoji(client.emoji.skip).setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId("np_loop").setEmoji(client.emoji.loop).setStyle(currentLoop !== "none" ? ButtonStyle.Primary : ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId("np_stop").setLabel("Stop").setStyle(ButtonStyle.Danger),
+  );
+
+  const row2 = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId("np_vol_down").setLabel("−").setStyle(ButtonStyle.Secondary).setDisabled((player.volume ?? 100) <= 0),
+    new ButtonBuilder().setCustomId("np_vol_up").setLabel("+").setStyle(ButtonStyle.Secondary).setDisabled((player.volume ?? 100) >= 100),
+    new ButtonBuilder().setCustomId("np_like").setEmoji(client.emoji.like).setStyle(ButtonStyle.Success),
+    new ButtonBuilder().setCustomId("np_lyrics").setLabel("Lyrics").setStyle(ButtonStyle.Secondary),
+  );
+
+  const row3 = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId("np_playlist").setLabel("Playlist").setStyle(ButtonStyle.Primary),
+  );
+
+  const filtersSection = new SectionBuilder()
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent("Audio Filters")
+    )
+    .setButtonAccessory(
+      new ButtonBuilder().setCustomId("np_audio_filters").setLabel("›").setStyle(ButtonStyle.Secondary)
     );
 
-  if (thumbnail) cardEmbed.setThumbnail(thumbnail);
+  container
+    .addActionRowComponents(row1)
+    .addActionRowComponents(row2)
+    .addActionRowComponents(row3)
+    .addSectionComponents(filtersSection);
 
-  return [mainEmbed, cardEmbed];
+  return container;
 }
 
 module.exports = {
@@ -125,13 +156,18 @@ module.exports = {
     const player = client.manager.players.get(message.guild.id);
 
     if (!player.queue.current) {
-      return message.reply({ content: `**${emoji.cross} Nothing is playing right now.**` });
+      const container = new ContainerBuilder()
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(`**${emoji.cross} Nothing is playing right now.**`)
+        );
+      return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
     }
 
     const track = player.queue.current;
 
     const npmsg = await message.reply({
-      embeds: buildEmbeds(track, player),
+      components: [buildContainer(track, player, client)],
+      flags: MessageFlags.IsComponentsV2,
     });
 
     const interval = setInterval(() => {
@@ -140,7 +176,10 @@ module.exports = {
         return;
       }
       try {
-        npmsg.edit({ embeds: buildEmbeds(track, player) }).catch(() => clearInterval(interval));
+        npmsg.edit({
+          components: [buildContainer(track, player, client)],
+          flags: MessageFlags.IsComponentsV2,
+        }).catch(() => clearInterval(interval));
       } catch {
         clearInterval(interval);
       }

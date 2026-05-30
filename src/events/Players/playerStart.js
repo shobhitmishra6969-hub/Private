@@ -1,22 +1,19 @@
 const {
-  EmbedBuilder,
+  ContainerBuilder,
+  TextDisplayBuilder,
+  SeparatorBuilder,
+  SectionBuilder,
+  ThumbnailBuilder,
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
+  MessageFlags,
   AttachmentBuilder,
 } = require("discord.js");
 const setup = require("../../schema/setup");
 const { createMainPlayerUI } = require("../../utils/playerUI");
 
-// ── Shared helpers ──────────────────────────────────────────────────────────────
-
-function formatHMS(ms) {
-  const totalSec = Math.floor(ms / 1000);
-  const h = Math.floor(totalSec / 3600);
-  const m = Math.floor((totalSec % 3600) / 60);
-  const s = totalSec % 60;
-  return [h, m, s].map(n => String(n).padStart(2, "0")).join(":");
-}
+// ── Helpers ─────────────────────────────────────────────────────────────────────
 
 function formatMSS(ms) {
   const totalSec = Math.floor(ms / 1000);
@@ -30,21 +27,6 @@ function cleanAuthorName(author) {
   return author.replace(/\s*-\s*Topic\s*$/i, "").trim();
 }
 
-function getSourceName(track) {
-  const uri = track.uri || "";
-  if (uri.includes("spotify.com")) return "spotify";
-  if (uri.includes("music.youtube.com")) return "youtube music";
-  if (uri.includes("youtube.com") || uri.includes("youtu.be")) return "youtube";
-  if (uri.includes("deezer.com")) return "deezer";
-  if (uri.includes("jiosaavn.com")) return "jiosaavn";
-  return track.sourceName || "unknown";
-}
-
-function truncate(str, max) {
-  if (!str) return "";
-  return str.length > max ? str.slice(0, max) + "..." : str;
-}
-
 function getCleanThumbnail(url) {
   if (!url) return null;
   if (url.includes("i.ytimg.com") || url.includes("img.youtube.com")) {
@@ -54,132 +36,107 @@ function getCleanThumbnail(url) {
   return url;
 }
 
-function buildNowPlayingEmbeds(track, player, isPaused = false) {
+// ── Default style (V2 Components) ───────────────────────────────────────────────
+
+function buildDefaultContainer(client, player, track, isPaused = false, buttonsEnabled = true) {
   const artist = cleanAuthorName(track.author);
-  const durationHMS = formatHMS(track.length);
-  const durationShort = formatMSS(track.length);
-  const sourceName = getSourceName(track);
+  const duration = formatMSS(track.length);
   const thumbnail = getCleanThumbnail(track.thumbnail || track.artworkUrl);
-  const username = track.requester?.username || "Unknown";
-  const statusPrefix = isPaused ? "⏸️" : "🎵";
-  const statusLabel = isPaused ? "Paused" : "Now Playing...";
+  const queueSize = player.queue?.size ?? 0;
 
-  const mainEmbed = new EmbedBuilder()
-    .setColor(0x000000)
-    .setTitle(`${statusPrefix} ${statusLabel}`)
-    .setDescription(
-      `[${track.title}](${track.uri})\n\n` +
-      `**Artist:** ${artist}\n` +
-      `**Duration:** ${durationHMS}\n` +
-      `**Requested by** \`${username}\``
+  const headerText = `🎵 Playing **[${track.title}](${track.uri})** by **[${artist}](${track.uri})**`;
+
+  const section = new SectionBuilder()
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(headerText)
     );
 
-  const cardEmbed = new EmbedBuilder()
-    .setColor(0x2b2d31)
-    .setAuthor({ name: `Playing from ${sourceName}` })
-    .setTitle(truncate(track.title, 20))
-    .setURL(track.uri)
-    .setDescription(
-      `${artist}\n\n` +
-      `▬▬▬▬▬▬▬▬▬▬🔘▬▬▬▬▬▬▬▬▬▬\n` +
-      `\`0:00\` / \`${durationShort}\`\n` +
-      `Artist: ${artist}\n` +
-      `Duration: ${durationShort}`
+  if (thumbnail) {
+    section.setThumbnailAccessory(new ThumbnailBuilder().setURL(thumbnail));
+  }
+
+  const container = new ContainerBuilder()
+    .addSectionComponents(section)
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `Duration: ${duration} • ${queueSize} song${queueSize !== 1 ? "s" : ""} in queue`
+      )
+    )
+    .addSeparatorComponents(new SeparatorBuilder());
+
+  if (buttonsEnabled) {
+    const currentLoop = player.loop || "none";
+    const loopLabel = currentLoop === "track" ? "Loop (Track)" : currentLoop === "queue" ? "Loop (Queue)" : "Loop";
+
+    const row1 = new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId("np_pause").setEmoji(isPaused ? client.emoji.play : client.emoji.pause).setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId("np_skip").setEmoji(client.emoji.skip).setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId("np_loop").setEmoji(client.emoji.loop).setStyle(currentLoop !== "none" ? ButtonStyle.Primary : ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId("np_stop").setLabel("Stop").setStyle(ButtonStyle.Danger),
     );
 
-  if (thumbnail) cardEmbed.setThumbnail(thumbnail);
+    const row2 = new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId("np_vol_down").setLabel("−").setStyle(ButtonStyle.Secondary).setDisabled((player.volume ?? 100) <= 0),
+      new ButtonBuilder().setCustomId("np_vol_up").setLabel("+").setStyle(ButtonStyle.Secondary).setDisabled((player.volume ?? 100) >= 100),
+      new ButtonBuilder().setCustomId("np_like").setEmoji(client.emoji.like).setStyle(ButtonStyle.Success),
+      new ButtonBuilder().setCustomId("np_lyrics").setLabel("Lyrics").setStyle(ButtonStyle.Secondary),
+    );
 
-  return [mainEmbed, cardEmbed];
+    const row3 = new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId("np_playlist").setLabel("Playlist").setStyle(ButtonStyle.Primary),
+    );
+
+    const filtersSection = new SectionBuilder()
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent("Audio Filters")
+      )
+      .setButtonAccessory(
+        new ButtonBuilder().setCustomId("np_audio_filters").setLabel("›").setStyle(ButtonStyle.Secondary)
+      );
+
+    container
+      .addActionRowComponents(row1)
+      .addActionRowComponents(row2)
+      .addActionRowComponents(row3)
+      .addSectionComponents(filtersSection);
+  }
+
+  return container;
 }
 
-// ── Button helpers ──────────────────────────────────────────────────────────────
-
-function buildButtons(client, player, forcePaused = null) {
-  const isPaused = forcePaused !== null ? forcePaused : (player.shoukaku?.paused ?? false);
-  const currentLoop = player.loop || "none";
-  const loopLabel = currentLoop === "track" ? "Loop (Track)" : currentLoop === "queue" ? "Loop (Queue)" : "Loop";
-  const vol = player.volume ?? 100;
-
-  const row1 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId("np_previous").setEmoji(client.emoji.previous).setStyle(ButtonStyle.Primary),
-    new ButtonBuilder().setCustomId("np_pause").setEmoji(isPaused ? client.emoji.play : client.emoji.pause).setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId("np_skip").setEmoji(client.emoji.skip).setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId("np_like").setEmoji(client.emoji.like).setStyle(ButtonStyle.Success),
-  );
-  const row2 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId("np_stop").setEmoji(client.emoji.stop).setStyle(ButtonStyle.Danger),
-  );
-  const row3 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId("np_rewind10").setEmoji(client.emoji.perv_10).setLabel("10s").setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId("np_forward10").setEmoji(client.emoji.skip_10).setLabel("10s").setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId("np_loop").setEmoji(client.emoji.loop).setLabel(loopLabel).setStyle(currentLoop !== "none" ? ButtonStyle.Primary : ButtonStyle.Secondary),
-  );
-  const row4 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId("np_shuffle").setEmoji(client.emoji.suffle).setLabel("Shuffle").setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId("np_autoplay").setEmoji(client.emoji.dance).setLabel("Autoplay").setStyle(player.data.get("autoplay") ? ButtonStyle.Success : ButtonStyle.Secondary),
-  );
-  const row5 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId("np_vol_down").setEmoji(client.emoji.Volume_down).setLabel("Vol −").setStyle(ButtonStyle.Secondary).setDisabled(vol <= 0),
-    new ButtonBuilder().setCustomId("np_vol_display").setEmoji(client.emoji.current_volume).setLabel(`${vol}%`).setStyle(ButtonStyle.Secondary).setDisabled(true),
-    new ButtonBuilder().setCustomId("np_vol_up").setEmoji(client.emoji.Volume_up).setLabel("Vol +").setStyle(ButtonStyle.Secondary).setDisabled(vol >= 100),
-  );
-
-  return [row1, row2, row3, row4, row5];
-}
-
-// ── Card (image) style helpers ──────────────────────────────────────────────────
+// ── Card style helpers ──────────────────────────────────────────────────────────
 
 async function sendCardStyle(client, channel, player, track, buttonsEnabled) {
   try {
     const { generateMusicCard } = require("../../utils/musicCard");
     const imageBuffer = await generateMusicCard(track, player);
     const attachment = new AttachmentBuilder(imageBuffer, { name: "nowplaying.png" });
+    const container = buildDefaultContainer(client, player, track, false, buttonsEnabled);
     return await channel.send({
       files: [attachment],
-      components: buttonsEnabled ? buildButtons(client, player) : [],
+      components: [container],
+      flags: MessageFlags.IsComponentsV2,
     });
   } catch (err) {
     console.error("Card style error, falling back to default:", err);
-    return await sendDefaultStyle(client, channel, player, track, null, buttonsEnabled);
+    const container = buildDefaultContainer(client, player, track, false, buttonsEnabled);
+    return await channel.send({
+      components: [container],
+      flags: MessageFlags.IsComponentsV2,
+    });
   }
 }
 
 async function updateCardStyle(client, message, player, track, isPaused, buttonsEnabled) {
   try {
-    const { generateMusicCard } = require("../../utils/musicCard");
-    const imageBuffer = await generateMusicCard(track, player);
-    const attachment = new AttachmentBuilder(imageBuffer, { name: "nowplaying.png" });
+    const container = buildDefaultContainer(client, player, track, isPaused, buttonsEnabled);
     await message.edit({
-      files: [attachment],
-      components: buttonsEnabled ? buildButtons(client, player, isPaused) : [],
+      components: [container],
+      flags: MessageFlags.IsComponentsV2,
     }).catch(() => {});
   } catch (err) {
     console.error("Card style update error:", err);
   }
-}
-
-// ── Default style (embed-based) ─────────────────────────────────────────────────
-
-async function sendDefaultStyle(client, channel, player, track, forcePaused, buttonsEnabled) {
-  const isPaused = forcePaused !== null && forcePaused !== undefined
-    ? forcePaused
-    : (player.shoukaku?.paused ?? false);
-  return await channel.send({
-    embeds: buildNowPlayingEmbeds(track, player, isPaused),
-    components: buttonsEnabled ? buildButtons(client, player, isPaused) : [],
-  });
-}
-
-async function updateDefaultStyle(client, message, player, track, isPaused, buttonsEnabled) {
-  const paused = isPaused !== null && isPaused !== undefined
-    ? isPaused
-    : (player.shoukaku?.paused ?? false);
-  await message.edit({
-    embeds: buildNowPlayingEmbeds(track, player, paused),
-    components: buttonsEnabled ? buildButtons(client, player, paused) : [],
-  }).catch(() => {
-    player.data.delete("nowPlayingMessage");
-  });
 }
 
 // ── Module export ───────────────────────────────────────────────────────────────
@@ -228,7 +185,11 @@ module.exports = {
           components: buttonsEnabled ? components : [],
         });
       } else {
-        message = await sendDefaultStyle(client, channel, player, track, null, buttonsEnabled);
+        const container = buildDefaultContainer(client, player, track, false, buttonsEnabled);
+        message = await channel.send({
+          components: [container],
+          flags: MessageFlags.IsComponentsV2,
+        });
       }
 
       player.data.set("nowPlayingMessage", message);
@@ -261,7 +222,13 @@ module.exports = {
           player.data.delete("nowPlayingMessage");
         });
       } else {
-        await updateDefaultStyle(client, message, player, player.queue.current, isPaused, buttonsEnabled);
+        const container = buildDefaultContainer(client, player, player.queue.current, isPaused, buttonsEnabled);
+        await message.edit({
+          components: [container],
+          flags: MessageFlags.IsComponentsV2,
+        }).catch(() => {
+          player.data.delete("nowPlayingMessage");
+        });
       }
     } catch (error) {
       console.error("Error updating now playing buttons:", error);
