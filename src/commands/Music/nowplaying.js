@@ -4,8 +4,11 @@ const {
   SectionBuilder,
   ThumbnailBuilder,
   MessageFlags,
+  AttachmentBuilder,
 } = require("discord.js");
 const emoji = require("../../emojis.js");
+const { generateNowPlayingCard } = require("../../utils/canvasCard.js");
+const setup = require("../../schema/setup");
 
 function formatMSS(ms) {
   const totalSec = Math.floor(ms / 1000);
@@ -35,7 +38,7 @@ function buildProgressBar(position, length) {
   return "─".repeat(knobPos) + "●" + "─".repeat(barLen - knobPos);
 }
 
-function buildContainer(track, player) {
+function buildComponentsContainer(track, player) {
   const artist = cleanAuthorName(track.author);
   const position = player.position || 0;
   const posFormatted = formatMSS(position);
@@ -66,6 +69,22 @@ function buildContainer(track, player) {
         `\`${posFormatted}\` ${bar} \`${durationShort}\``
       )
     );
+}
+
+async function buildCardAttachment(track, player) {
+  const thumbnail = getCleanThumbnail(track.thumbnail || track.artworkUrl);
+  const requester = track.requester?.username || track.requester?.globalName || null;
+
+  const buf = await generateNowPlayingCard({
+    title: track.title || "Unknown Title",
+    artist: cleanAuthorName(track.author),
+    requester,
+    thumbnail,
+    position: player.position || 0,
+    duration: track.length || 0,
+  });
+
+  return new AttachmentBuilder(buf, { name: "nowplaying.png" });
 }
 
 module.exports = {
@@ -114,29 +133,73 @@ module.exports = {
 
     const track = player.queue.current;
 
-    const npmsg = await message.reply({
-      components: [buildContainer(track, player)],
-      flags: MessageFlags.IsComponentsV2,
-    });
+    // Check guild's npStyle setting
+    const guildSettings = await setup.findOne({ Guild: message.guild.id }).catch(() => null);
+    const npStyle = guildSettings?.npStyle || 'default';
 
-    const interval = setInterval(() => {
-      if (!player || !player.playing || !npmsg) return clearInterval(interval);
-      npmsg.edit({
-        components: [buildContainer(track, player)],
+    if (npStyle === 'card') {
+      // ── Canvas card style ────────────────────────────────────────────────────
+      let attachment;
+      try {
+        attachment = await buildCardAttachment(track, player);
+      } catch (err) {
+        console.error('[NP Card] Canvas error:', err);
+        // Fallback to components
+        const npmsg = await message.reply({
+          components: [buildComponentsContainer(track, player)],
+          flags: MessageFlags.IsComponentsV2,
+        });
+        _startComponentsInterval(npmsg, track, player, client, message.guild.id);
+        return;
+      }
+
+      const npmsg = await message.reply({ files: [attachment] });
+
+      const interval = setInterval(async () => {
+        if (!player || !player.playing || !npmsg) return clearInterval(interval);
+        try {
+          const newAttachment = await buildCardAttachment(track, player);
+          await npmsg.edit({
+            files: [newAttachment],
+            attachments: [],
+          });
+        } catch {
+          clearInterval(interval);
+        }
+      }, 5000);
+
+      const cleanup = () => clearInterval(interval);
+      _attachStopListeners(client, message.guild.id, cleanup, 300000);
+
+    } else {
+      // ── Components V2 style (default) ────────────────────────────────────────
+      const npmsg = await message.reply({
+        components: [buildComponentsContainer(track, player)],
         flags: MessageFlags.IsComponentsV2,
-      }).catch(() => clearInterval(interval));
-    }, 3000);
-
-    const cleanup = () => clearInterval(interval);
-
-    const stopEvents = ["playerEnd", "playerStop", "playerEmpty", "playerDestroy"];
-    const handler = (p) => { if (p.guildId === message.guild.id) cleanup(); };
-
-    stopEvents.forEach(e => client.manager.on(e, handler));
-
-    setTimeout(() => {
-      cleanup();
-      stopEvents.forEach(e => client.manager.off(e, handler));
-    }, 300000);
+      });
+      _startComponentsInterval(npmsg, track, player, client, message.guild.id);
+    }
   }
 };
+
+function _startComponentsInterval(npmsg, track, player, client, guildId) {
+  const interval = setInterval(() => {
+    if (!player || !player.playing || !npmsg) return clearInterval(interval);
+    npmsg.edit({
+      components: [buildComponentsContainer(track, player)],
+      flags: MessageFlags.IsComponentsV2,
+    }).catch(() => clearInterval(interval));
+  }, 3000);
+
+  _attachStopListeners(client, guildId, () => clearInterval(interval), 300000);
+}
+
+function _attachStopListeners(client, guildId, cleanup, timeout) {
+  const stopEvents = ["playerEnd", "playerStop", "playerEmpty", "playerDestroy"];
+  const handler = (p) => { if (p.guildId === guildId) cleanup(); };
+  stopEvents.forEach(e => client.manager.on(e, handler));
+  setTimeout(() => {
+    cleanup();
+    stopEvents.forEach(e => client.manager.off(e, handler));
+  }, timeout);
+}
