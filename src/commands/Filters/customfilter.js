@@ -8,7 +8,6 @@ const {
     MessageFlags,
 } = require('discord.js');
 const emoji = require('../../emojis');
-const { checkPremium } = require('../../utils/premiumUtils');
 const { getDb } = require('../../database');
 
 const TOTAL_BANDS = 15;
@@ -178,21 +177,6 @@ module.exports = {
                 .setContent(`**${emoji.warn} No song is currently playing.**`);
             const container = new ContainerBuilder().addTextDisplayComponents(warn);
             return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
-        }
-
-        try {
-            const isPremium = await checkPremium(client, message.author, message.guild);
-            if (!isPremium) {
-                const warn = new TextDisplayBuilder()
-                    .setContent(
-                        `**${emoji.warn} Custom filter is premium-only.**\n` +
-                        `> You need to be a global premium user or have the server's premium role to use this.`
-                    );
-                const container = new ContainerBuilder().addTextDisplayComponents(warn);
-                return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
-            }
-        } catch (e) {
-            console.error('Premium check error in customfilter command:', e);
         }
 
         initPresetsTable();
