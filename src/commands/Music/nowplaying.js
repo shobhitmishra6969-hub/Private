@@ -40,52 +40,49 @@ function getCleanThumbnail(url) {
   return url;
 }
 
+function buildProgressBar(position, length) {
+  const barLen = 22;
+  const percentage = length > 0 ? position / length : 0;
+  const filled = Math.round(barLen * percentage);
+  const knobPos = Math.max(0, Math.min(filled, barLen));
+  return "─".repeat(knobPos) + "●" + "─".repeat(barLen - knobPos);
+}
+
 function buildContainer(track, player, client) {
   const artist = cleanAuthorName(track.author);
-  const durationHMS = formatHMS(track.length);
   const position = player.position || 0;
   const posFormatted = formatMSS(position);
   const durationShort = formatMSS(track.length);
   const thumbnail = getCleanThumbnail(track.thumbnail || track.artworkUrl);
-  const queueSize = player.queue?.size ?? 0;
   const isPaused = player.shoukaku?.paused ?? false;
 
-  const percentage = track.length > 0 ? position / track.length : 0;
-  const barLen = 17;
-  const filled = Math.floor(barLen * percentage);
-  const bar = "▬".repeat(filled) + "🔘" + "▬".repeat(barLen - filled);
+  const requester = track.requester?.username || track.requester?.globalName
+    || (track.requester?.id ? `<@${track.requester.id}>` : null);
 
-  const requesterLine = track.requester?.id
-    ? `\nRequested by <@${track.requester.id}>`
-    : track.requester?.username
-      ? `\nRequested by **${track.requester.username}**`
-      : "";
+  const infoLines =
+    `🎵  **${track.title}**\n` +
+    `👤  **Artist:** ${artist}` +
+    (requester ? `\n➕  **Requester:** ${requester}` : "");
 
-  const headerText = `🎵 Playing **[${track.title}](${track.uri})** by **[${artist}](${track.uri})**${requesterLine}`;
-
-  const section = new SectionBuilder()
-    .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(headerText)
-    );
+  const infoSection = new SectionBuilder()
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent(infoLines));
 
   if (thumbnail) {
-    section.setThumbnailAccessory(new ThumbnailBuilder().setURL(thumbnail));
+    infoSection.setThumbnailAccessory(new ThumbnailBuilder().setURL(thumbnail));
   }
 
-  const volume = player.volume ?? 100;
+  const bar = buildProgressBar(position, track.length);
 
   const container = new ContainerBuilder()
-    .addSectionComponents(section)
+    .addSectionComponents(infoSection)
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
-        `Duration: ${durationHMS} • ${queueSize} song${queueSize !== 1 ? "s" : ""} in queue • Volume: ${volume}%\n` +
-        `${bar} \`${posFormatted} / ${durationShort}\``
+        `\`${posFormatted}\` ${bar} \`${durationShort}\``
       )
     )
     .addSeparatorComponents(new SeparatorBuilder());
 
   const currentLoop = player.loop || "none";
-  const loopLabel = currentLoop === "track" ? "Loop (Track)" : currentLoop === "queue" ? "Loop (Queue)" : "Loop";
 
   const row1 = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId("np_pause").setEmoji(isPaused ? client.emoji.play : client.emoji.pause).setStyle(ButtonStyle.Secondary),
