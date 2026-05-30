@@ -1,4 +1,4 @@
-modules = ["nodejs-20"]
+modules = ["nodejs-20", "nix"]
 [agent]
 expertMode = true
 stack = "BEST_EFFORT_FALLBACK"
@@ -32,14 +32,10 @@ args = "node run.js"
 [userenv]
 
 [userenv.shared]
-DISCORD_TOKEN = "MTQ4NDYwNjk2MjYyMzcwOTQwNQ.Gr37Jl.V7wRrdtJZzXtY3rkw6N5eUQiI5vw-0Xgb3laoY"
-MONGO_URL = "mongodb+srv://codex:codex@cdx-us-1.zunskft.mongodb.net/?appName=cdx-us-1"
 LAVALINK_NODE_NAME = "Node1"
 LAVALINK_URL = "lavalink.jirayu.net"
 LAVALINK_AUTH = "youshallnotpass"
 LAVALINK_SECURE = "True"
-LASTFM_API_KEY = "1f3800ebfe10ed9d3053f946a42bdbcf"
-LASTFM_API_SECRET = "9ad44f80e645dce163bf929d2dcd9bf2"
 
 [[ports]]
 localPort = 3000
