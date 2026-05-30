@@ -44,7 +44,13 @@ function buildDefaultContainer(client, player, track, isPaused = false, buttonsE
   const thumbnail = getCleanThumbnail(track.thumbnail || track.artworkUrl);
   const queueSize = player.queue?.size ?? 0;
 
-  const headerText = `🎵 Playing **[${track.title}](${track.uri})** by **[${artist}](${track.uri})**`;
+  const requesterLine = track.requester?.id
+    ? `\nRequested by <@${track.requester.id}>`
+    : track.requester?.username
+      ? `\nRequested by **${track.requester.username}**`
+      : "";
+
+  const headerText = `🎵 Playing **[${track.title}](${track.uri})** by **[${artist}](${track.uri})**${requesterLine}`;
 
   const section = new SectionBuilder()
     .addTextDisplayComponents(
@@ -55,11 +61,13 @@ function buildDefaultContainer(client, player, track, isPaused = false, buttonsE
     section.setThumbnailAccessory(new ThumbnailBuilder().setURL(thumbnail));
   }
 
+  const volume = player.volume ?? 100;
+
   const container = new ContainerBuilder()
     .addSectionComponents(section)
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
-        `Duration: ${duration} • ${queueSize} song${queueSize !== 1 ? "s" : ""} in queue`
+        `Duration: ${duration} • ${queueSize} song${queueSize !== 1 ? "s" : ""} in queue • Volume: ${volume}%`
       )
     )
     .addSeparatorComponents(new SeparatorBuilder());

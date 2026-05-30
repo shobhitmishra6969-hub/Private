@@ -55,7 +55,13 @@ function buildContainer(track, player, client) {
   const filled = Math.floor(barLen * percentage);
   const bar = "▬".repeat(filled) + "🔘" + "▬".repeat(barLen - filled);
 
-  const headerText = `🎵 Playing **[${track.title}](${track.uri})** by **[${artist}](${track.uri})**`;
+  const requesterLine = track.requester?.id
+    ? `\nRequested by <@${track.requester.id}>`
+    : track.requester?.username
+      ? `\nRequested by **${track.requester.username}**`
+      : "";
+
+  const headerText = `🎵 Playing **[${track.title}](${track.uri})** by **[${artist}](${track.uri})**${requesterLine}`;
 
   const section = new SectionBuilder()
     .addTextDisplayComponents(
@@ -66,11 +72,13 @@ function buildContainer(track, player, client) {
     section.setThumbnailAccessory(new ThumbnailBuilder().setURL(thumbnail));
   }
 
+  const volume = player.volume ?? 100;
+
   const container = new ContainerBuilder()
     .addSectionComponents(section)
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
-        `Duration: ${durationHMS} • ${queueSize} song${queueSize !== 1 ? "s" : ""} in queue\n` +
+        `Duration: ${durationHMS} • ${queueSize} song${queueSize !== 1 ? "s" : ""} in queue • Volume: ${volume}%\n` +
         `${bar} \`${posFormatted} / ${durationShort}\``
       )
     )
