@@ -1,13 +1,91 @@
 const {
-  StringSelectMenuBuilder,
   ActionRowBuilder,
-  ComponentType,
+  ButtonBuilder,
+  ButtonStyle,
   ContainerBuilder,
   TextDisplayBuilder,
+  SeparatorBuilder,
+  SeparatorSpacingSize,
+  ComponentType,
   MessageFlags
 } = require('discord.js');
 const UserPreferences = require('../../schema/userpreferences');
 const emoji = require('../../emojis');
+
+const SOURCES = [
+  { label: 'YT Music',    value: 'ytmsearch', emoji: emoji.ytmusic,  fullName: 'YouTube Music' },
+  { label: 'YouTube',     value: 'ytsearch',  emoji: emoji.youtube,  fullName: 'YouTube'       },
+  { label: 'Spotify',     value: 'spsearch',  emoji: emoji.spotify,  fullName: 'Spotify'       },
+  { label: 'Apple Music', value: 'amsearch',  emoji: '🍎',           fullName: 'Apple Music'   },
+  { label: 'Deezer',      value: 'dzsearch',  emoji: emoji.deezer,   fullName: 'Deezer'        },
+  { label: 'JioSaavn',    value: 'jssearch',  emoji: emoji.jiosaavn, fullName: 'JioSaavn'      },
+  { label: 'Last.fm',     value: 'lfsearch',  emoji: emoji.lastfm,   fullName: 'Last.fm'       },
+];
+
+function buildSourceRows(current) {
+  const row1 = new ActionRowBuilder();
+  const row2 = new ActionRowBuilder();
+
+  SOURCES.forEach((src, i) => {
+    const btn = new ButtonBuilder()
+      .setCustomId(`source_btn_${src.value}`)
+      .setLabel(src.label)
+      .setEmoji(src.emoji)
+      .setStyle(src.value === current ? ButtonStyle.Primary : ButtonStyle.Secondary);
+
+    if (i < 4) row1.addComponents(btn);
+    else row2.addComponents(btn);
+  });
+
+  return [row1, row2];
+}
+
+function buildSourcePanel(current, userId) {
+  const currentSrc = SOURCES.find(s => s.value === current);
+  const currentLabel = currentSrc ? `${currentSrc.emoji} **${currentSrc.fullName}**` : '`Not set`';
+
+  const header = new TextDisplayBuilder()
+    .setContent(`## 🎵 Music Source\nChoose your preferred platform for music searches.\n\n**Current Source:** ${currentLabel}`);
+
+  const sep = new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true);
+
+  const rows = buildSourceRows(current);
+
+  const container = new ContainerBuilder()
+    .addTextDisplayComponents(header)
+    .addSeparatorComponents(sep)
+    .addActionRowComponents(rows[0])
+    .addActionRowComponents(rows[1]);
+
+  return container;
+}
+
+function buildSuccessPanel(srcName, srcEmoji) {
+  const text = new TextDisplayBuilder()
+    .setContent(`${emoji.check} Music source set to ${srcEmoji} **${srcName}**`);
+
+  return new ContainerBuilder().addTextDisplayComponents(text);
+}
+
+function buildErrorPanel(msg) {
+  const text = new TextDisplayBuilder()
+    .setContent(`${emoji.cross} ${msg}`);
+
+  return new ContainerBuilder().addTextDisplayComponents(text);
+}
+
+async function getCurrentSource(userId) {
+  const pref = await UserPreferences.findOne({ userId });
+  return pref?.musicSource || null;
+}
+
+async function saveSource(userId, value) {
+  await UserPreferences.findOneAndUpdate(
+    { userId },
+    { userId, musicSource: value, updatedAt: Date.now() },
+    { upsert: true, new: true }
+  );
+}
 
 module.exports = {
   name: 'source',
@@ -16,187 +94,120 @@ module.exports = {
   cooldown: 5,
   slashOptions: [
     {
-      name: "source",
-      description: "Choose your preferred music source",
+      name: 'source',
+      description: 'Choose your preferred music source',
       type: 3,
-      required: true,
-      choices: [
-        { name: "YouTube Music", value: "ytmsearch" },
-        { name: "YouTube", value: "ytsearch" },
-        { name: "Spotify", value: "spsearch" },
-        { name: "Apple Music", value: "amsearch" },
-        { name: "Deezer", value: "dzsearch" },
-        { name: "JioSaavn", value: "jssearch" },
-        { name: "Last.fm", value: "lfsearch" }
-      ]
+      required: false,
+      choices: SOURCES.map(s => ({ name: s.fullName, value: s.value }))
     }
   ],
 
   async slashExecute(interaction, client) {
     try {
-      const selectedSource = interaction.options.getString("source");
+      const selected = interaction.options.getString('source');
 
-      const sourceNames = {
-        'ytmsearch': 'YouTube Music',
-        'ytsearch': 'YouTube',
-        'spsearch': 'Spotify',
-        'amsearch': 'Apple Music',
-        'dzsearch': 'Deezer',
-        'jssearch': 'JioSaavn',
-        'lfsearch': 'Last.fm'
-      };
+      if (selected) {
+        const src = SOURCES.find(s => s.value === selected);
+        await saveSource(interaction.user.id, selected);
+        return interaction.reply({
+          components: [buildSuccessPanel(src.fullName, src.emoji)],
+          flags: MessageFlags.IsComponentsV2
+        });
+      }
 
-      const selectedSourceName = sourceNames[selectedSource];
+      const current = await getCurrentSource(interaction.user.id);
+      const panel   = buildSourcePanel(current, interaction.user.id);
+      const msg     = await interaction.reply({
+        components: [panel],
+        flags: MessageFlags.IsComponentsV2,
+        fetchReply: true
+      });
 
-      await UserPreferences.findOneAndUpdate(
-        { userId: interaction.user.id },
-        {
-          userId: interaction.user.id,
-          musicSource: selectedSource,
-          updatedAt: Date.now()
-        },
-        { upsert: true, new: true }
-      );
+      const collector = msg.createMessageComponentCollector({
+        componentType: ComponentType.Button,
+        time: 60000,
+        filter: i => i.user.id === interaction.user.id && i.customId.startsWith('source_btn_')
+      });
 
-      const successDisplay = new TextDisplayBuilder()
-        .setContent(`**${emoji.check} Your preferred music source has been set to \`${selectedSourceName}\`**`);
-
-      const container = new ContainerBuilder()
-        .addTextDisplayComponents(successDisplay);
-
-      return interaction.reply({
-        components: [container],
-        flags: MessageFlags.IsComponentsV2
+      collector.on('collect', async i => {
+        try {
+          const value = i.customId.replace('source_btn_', '');
+          const src   = SOURCES.find(s => s.value === value);
+          await saveSource(i.user.id, value);
+          await i.update({
+            components: [buildSuccessPanel(src.fullName, src.emoji)],
+            flags: MessageFlags.IsComponentsV2
+          });
+        } catch (e) {
+          console.error('source slash collect error:', e);
+          await i.update({
+            components: [buildErrorPanel('Could not save preference. Try again.')],
+            flags: MessageFlags.IsComponentsV2
+          }).catch(() => {});
+        }
       });
 
     } catch (error) {
       console.error('Error in source slash command:', error);
-
-      const errorDisplay = new TextDisplayBuilder()
-        .setContent(`**${emoji.cross} An error occurred while saving your preference. Please try again.**`);
-
-      const container = new ContainerBuilder()
-        .addTextDisplayComponents(errorDisplay);
-
       return interaction.reply({
-        components: [container],
+        components: [buildErrorPanel('An error occurred. Please try again.')],
         flags: MessageFlags.IsComponentsV2
-      });
+      }).catch(() => {});
     }
   },
 
   async execute(message, args, client, prefix) {
     try {
-      const sourceOptions = [
-        { label: 'YouTube Music', value: 'ytmsearch', emoji: emoji.ytmusic },
-        { label: 'YouTube', value: 'ytsearch', emoji: emoji.youtube },
-        { label: 'Spotify', value: 'spsearch', emoji: emoji.spotify },
-        { label: 'Apple Music', value: 'amsearch', emoji: emoji.applemusic },
-        { label: 'Deezer', value: 'dzsearch', emoji: emoji.deezer },
-        { label: 'JioSaavn', value: 'jssearch', emoji: emoji.jiosaavn },
-        { label: 'Last.fm', value: 'lfsearch', emoji: emoji.lastfm },
-      ];
-
-      const selectedSource = args[0];
-      if (selectedSource && ['ytmsearch', 'ytsearch', 'spsearch', 'amsearch', 'dzsearch', 'jssearch', 'lfsearch'].includes(selectedSource)) {
-        const selectedSourceName = sourceOptions.find(opt => opt.value === selectedSource)?.label;
-
-        await UserPreferences.findOneAndUpdate(
-          { userId: message.author.id },
-          {
-            userId: message.author.id,
-            musicSource: selectedSource,
-            updatedAt: Date.now()
-          },
-          { upsert: true, new: true }
-        );
-
-        const successDisplay = new TextDisplayBuilder()
-          .setContent(`**${emoji.check} Your preferred music source has been set to \`${selectedSourceName}\`**`);
-
-        const container = new ContainerBuilder()
-          .addTextDisplayComponents(successDisplay);
-
+      if (args[0] && SOURCES.some(s => s.value === args[0])) {
+        const src = SOURCES.find(s => s.value === args[0]);
+        await saveSource(message.author.id, args[0]);
         return message.reply({
-          components: [container],
+          components: [buildSuccessPanel(src.fullName, src.emoji)],
           flags: MessageFlags.IsComponentsV2
         });
       }
 
-      const selectMenu = new StringSelectMenuBuilder()
-        .setCustomId('source_select')
-        .setPlaceholder('Choose your preferred music source')
-        .addOptions(sourceOptions);
-
-      const row = new ActionRowBuilder().addComponents(selectMenu);
-
-      const response = await message.reply({ components: [row] });
-
-      const collector = response.createMessageComponentCollector({
-        componentType: ComponentType.StringSelect,
-        time: 60000,
-        filter: (interaction) => interaction.user.id === message.author.id
+      const current = await getCurrentSource(message.author.id);
+      const panel   = buildSourcePanel(current, message.author.id);
+      const reply   = await message.reply({
+        components: [panel],
+        flags: MessageFlags.IsComponentsV2
       });
 
-      collector.on('collect', async (interaction) => {
+      const collector = reply.createMessageComponentCollector({
+        componentType: ComponentType.Button,
+        time: 60000,
+        filter: i => i.user.id === message.author.id && i.customId.startsWith('source_btn_')
+      });
+
+      collector.on('collect', async i => {
         try {
-          const selectedSource = interaction.values[0];
-          const selectedSourceName = sourceOptions.find(opt => opt.value === selectedSource)?.label;
-
-          await UserPreferences.findOneAndUpdate(
-            { userId: message.author.id },
-            {
-              userId: message.author.id,
-              musicSource: selectedSource,
-              updatedAt: Date.now()
-            },
-            { upsert: true, new: true }
-          );
-
-          const successDisplay = new TextDisplayBuilder()
-            .setContent(`**${emoji.check} Your preferred music source has been set to \`${selectedSourceName}\`**`);
-
-          const container = new ContainerBuilder()
-            .addTextDisplayComponents(successDisplay);
-
-          await interaction.update({
-            components: [container],
+          const value = i.customId.replace('source_btn_', '');
+          const src   = SOURCES.find(s => s.value === value);
+          await saveSource(i.user.id, value);
+          await i.update({
+            components: [buildSuccessPanel(src.fullName, src.emoji)],
             flags: MessageFlags.IsComponentsV2
           });
-
-        } catch (error) {
-          console.error('Error updating user preference:', error);
-
-          const errorDisplay = new TextDisplayBuilder()
-            .setContent(`**${emoji.cross} An error occurred while saving your preference. Please try again.**`);
-
-          const container = new ContainerBuilder()
-            .addTextDisplayComponents(errorDisplay);
-
-          await interaction.update({
-            components: [container],
+        } catch (e) {
+          console.error('source collect error:', e);
+          await i.update({
+            components: [buildErrorPanel('Could not save preference. Try again.')],
             flags: MessageFlags.IsComponentsV2
-          });
+          }).catch(() => {});
         }
       });
 
       collector.on('end', (collected, reason) => {
         if (reason === 'time' && collected.size === 0) {
-          response.delete().catch(() => { });
+          reply.delete().catch(() => {});
         }
       });
 
     } catch (error) {
       console.error('Error in source command:', error);
-
-      const errorDisplay = new TextDisplayBuilder()
-        .setContent(`**${emoji.cross} An error occurred while loading the source menu. Please try again.**`);
-
-      const container = new ContainerBuilder()
-        .addTextDisplayComponents(errorDisplay);
-
       return message.reply({
-        components: [container],
+        components: [buildErrorPanel('An error occurred. Please try again.')],
         flags: MessageFlags.IsComponentsV2
       });
     }
