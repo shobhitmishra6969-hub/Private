@@ -104,8 +104,8 @@ function buildContainer(track, player, client) {
   const isAutoplay = player.data?.get?.("autoplay") || false;
 
   const row3 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId("np_shuffle").setEmoji(client.emoji.suffle).setLabel("Shuffle").setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId("np_autoplay").setEmoji(client.emoji.dance).setLabel("Autoplay").setStyle(isAutoplay ? ButtonStyle.Primary : ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId("np_shuffle").setLabel("Shuffle").setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId("np_autoplay").setLabel("Autoplay").setStyle(isAutoplay ? ButtonStyle.Primary : ButtonStyle.Secondary),
     new ButtonBuilder().setCustomId("np_playlist").setLabel("Playlist").setStyle(ButtonStyle.Primary),
   );
 
