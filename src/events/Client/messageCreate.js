@@ -159,23 +159,16 @@ module.exports = {
       }
     }
 
-    const isIgnored = await IgnoreChannelModel.findOne({
-      guildId: message.guild.id,
-      channelId: message.channel.id
-    });
-    if (isIgnored) {
-      return;
-    }
-
     let prefix = client.prefix;
     const prefixData = await PrefixSchema.findOne({ Guild: message.guild.id });
     if (prefixData?.Prefix) prefix = prefixData.Prefix;
 
-    const mention = new RegExp(`^<@!?${client.user.id}>( |)$`);
-    if (message.content.match(mention)) {
-      if (!message.guild.members.me.permissions.has(PermissionsBitField.Flags.SendMessages) || !message.guild.members.me.permissions.has(PermissionsBitField.Flags.EmbedLinks)) {
-        return;
-      }
+    // ── Bot mention reply (runs before ignore-channel check) ────────────────
+    const mention = new RegExp(`^<@!?${client.user.id}>\\s*$`);
+    if (mention.test(message.content.trim())) {
+      const canSend = message.guild.members.me?.permissions.has(PermissionsBitField.Flags.SendMessages)
+        && message.guild.members.me?.permissions.has(PermissionsBitField.Flags.EmbedLinks);
+      if (!canSend) return;
 
       const { embed, banner, rows } = buildMentionCard(client, message.author, prefix);
       await message.channel.send({
@@ -183,6 +176,14 @@ module.exports = {
         files: [banner],
         components: [...rows],
       }).catch(e => console.error('[Mention Reply Error]', e.message));
+      return;
+    }
+
+    const isIgnored = await IgnoreChannelModel.findOne({
+      guildId: message.guild.id,
+      channelId: message.channel.id
+    });
+    if (isIgnored) {
       return;
     }
 
