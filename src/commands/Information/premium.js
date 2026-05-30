@@ -21,6 +21,18 @@ function parseActivatedGuilds(raw) {
   try { return JSON.parse(raw || "[]"); } catch { return []; }
 }
 
+async function dmOrReply(message, payload) {
+  try {
+    await message.author.send(payload);
+    const ack = new ContainerBuilder().addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(`${emoji.check} Sent you a DM with the details!`)
+    );
+    return message.reply({ components: [ack], flags: MessageFlags.IsComponentsV2 });
+  } catch {
+    return message.reply(payload);
+  }
+}
+
 async function subActivate(message, client, prefix) {
   if (!message.guild) {
     const d = new TextDisplayBuilder().setContent(`**${emoji.warn} This command can only be used inside a server.**`);
@@ -36,12 +48,12 @@ async function subActivate(message, client, prefix) {
         `**${emoji.cross} You don't have global premium.**\n` +
         `> Get premium to activate it on servers. Use \`${prefix}premium\` for more info.`
       );
-    return message.reply({ components: [new ContainerBuilder().addTextDisplayComponents(d)], flags: MessageFlags.IsComponentsV2 });
+    return dmOrReply(message, { components: [new ContainerBuilder().addTextDisplayComponents(d)], flags: MessageFlags.IsComponentsV2 });
   }
 
   if (!isOwner && record.expiresAt && new Date(record.expiresAt) < new Date()) {
     const d = new TextDisplayBuilder().setContent(`**${emoji.cross} Your premium has expired. Renew it to activate servers.**`);
-    return message.reply({ components: [new ContainerBuilder().addTextDisplayComponents(d)], flags: MessageFlags.IsComponentsV2 });
+    return dmOrReply(message, { components: [new ContainerBuilder().addTextDisplayComponents(d)], flags: MessageFlags.IsComponentsV2 });
   }
 
   const db = getDb();
@@ -51,7 +63,7 @@ async function subActivate(message, client, prefix) {
   if (guilds.includes(message.guild.id)) {
     const d = new TextDisplayBuilder()
       .setContent(`**${emoji.info} Premium is already active in this server.**`);
-    return message.reply({ components: [new ContainerBuilder().addTextDisplayComponents(d)], flags: MessageFlags.IsComponentsV2 });
+    return dmOrReply(message, { components: [new ContainerBuilder().addTextDisplayComponents(d)], flags: MessageFlags.IsComponentsV2 });
   }
 
   guilds.push(message.guild.id);
@@ -71,7 +83,7 @@ async function subActivate(message, client, prefix) {
       )
     );
 
-  return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+  return dmOrReply(message, { components: [container], flags: MessageFlags.IsComponentsV2 });
 }
 
 async function subRevoke(message, client, prefix) {
@@ -85,7 +97,7 @@ async function subRevoke(message, client, prefix) {
 
   if (!isOwner && !record) {
     const d = new TextDisplayBuilder().setContent(`**${emoji.cross} You have no premium record to revoke.**`);
-    return message.reply({ components: [new ContainerBuilder().addTextDisplayComponents(d)], flags: MessageFlags.IsComponentsV2 });
+    return dmOrReply(message, { components: [new ContainerBuilder().addTextDisplayComponents(d)], flags: MessageFlags.IsComponentsV2 });
   }
 
   const db = getDb();
@@ -95,7 +107,7 @@ async function subRevoke(message, client, prefix) {
   if (!guilds.includes(message.guild.id)) {
     const d = new TextDisplayBuilder()
       .setContent(`**${emoji.info} Premium is not activated in this server from your account.**`);
-    return message.reply({ components: [new ContainerBuilder().addTextDisplayComponents(d)], flags: MessageFlags.IsComponentsV2 });
+    return dmOrReply(message, { components: [new ContainerBuilder().addTextDisplayComponents(d)], flags: MessageFlags.IsComponentsV2 });
   }
 
   const updated = guilds.filter(id => id !== message.guild.id);
@@ -109,7 +121,7 @@ async function subRevoke(message, client, prefix) {
       )
     );
 
-  return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+  return dmOrReply(message, { components: [container], flags: MessageFlags.IsComponentsV2 });
 }
 
 async function subValidity(message, client, prefix) {
@@ -118,7 +130,7 @@ async function subValidity(message, client, prefix) {
   if (isOwner) {
     const d = new TextDisplayBuilder()
       .setContent(`**${emoji.star} You are an owner — your premium is permanent and unrestricted.**`);
-    return message.reply({ components: [new ContainerBuilder().addTextDisplayComponents(d)], flags: MessageFlags.IsComponentsV2 });
+    return dmOrReply(message, { components: [new ContainerBuilder().addTextDisplayComponents(d)], flags: MessageFlags.IsComponentsV2 });
   }
 
   const record = await PremiumUser.findOne({ userId: message.author.id });
@@ -131,7 +143,7 @@ async function subValidity(message, client, prefix) {
           `> Use \`${prefix}premium\` to learn how to get it.`
         )
       );
-    return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+    return dmOrReply(message, { components: [container], flags: MessageFlags.IsComponentsV2 });
   }
 
   const now = new Date();
@@ -172,7 +184,7 @@ async function subValidity(message, client, prefix) {
       )
     );
 
-  return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+  return dmOrReply(message, { components: [container], flags: MessageFlags.IsComponentsV2 });
 }
 
 async function subStats(message, client) {
@@ -219,7 +231,7 @@ async function subStats(message, client) {
       )
     );
 
-  return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+  return dmOrReply(message, { components: [container], flags: MessageFlags.IsComponentsV2 });
 }
 
 async function subHelp(message, client, prefix) {
@@ -263,7 +275,7 @@ async function subHelp(message, client, prefix) {
       )
     );
 
-  return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+  return dmOrReply(message, { components: [container], flags: MessageFlags.IsComponentsV2 });
 }
 
 module.exports = {
@@ -398,16 +410,6 @@ module.exports = {
     const buttonRow = new ActionRowBuilder().addComponents(getPremiumBtn, supportBtn);
     container.addActionRowComponents(buttonRow);
 
-    try {
-      await message.reply({
-        components: [container],
-        flags: MessageFlags.IsComponentsV2
-      });
-    } catch (e) {
-      await message.channel.send({
-        components: [container],
-        flags: MessageFlags.IsComponentsV2
-      });
-    }
+    return dmOrReply(message, { components: [container], flags: MessageFlags.IsComponentsV2 });
   }
 };
