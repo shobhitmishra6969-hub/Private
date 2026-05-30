@@ -186,6 +186,10 @@ function buildCategoryContainer(category, cmds, page, prefix) {
   const controlRow = buildControlRow(totalPages, safePage);
 
   return new ContainerBuilder()
+    .addActionRowComponents(tabRow1)
+    .addActionRowComponents(tabRow2)
+    .addActionRowComponents(controlRow)
+    .addSeparatorComponents(new SeparatorBuilder().setDivider(true))
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
         `### ${info.emoji} Tone Vibes Commands (${category})`
@@ -198,10 +202,7 @@ function buildCategoryContainer(category, cmds, page, prefix) {
     .addSeparatorComponents(new SeparatorBuilder().setDivider(true))
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(`-# ${footer}`)
-    )
-    .addActionRowComponents(tabRow1)
-    .addActionRowComponents(tabRow2)
-    .addActionRowComponents(controlRow);
+    );
 }
 
 function buildCommandDetailContainer(cmd, cat, prefix) {
