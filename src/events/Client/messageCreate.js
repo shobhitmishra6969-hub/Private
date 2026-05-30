@@ -44,70 +44,37 @@ function formatUptime(ms) {
 }
 
 function buildMentionCard(client, author, prefix) {
-  const botName     = client.user.username;
-  const globalPfx   = client.prefix;
-  const developer   = (client.config?.links?.power || '').replace(/^powered by /i, '') || 'Unknown';
-  const cmdCount    = client.commands?.size ?? 0;
-  const serverCount = client.guilds.cache.size;
-  const userCount   = client.users.cache.size;
-  const ping        = client.ws.ping;
-  const uptime      = formatUptime(client.uptime ?? 0);
-  const support     = client.config?.links?.support || 'https://discord.gg/your-invite';
-  const invite      = client.config?.links?.invite  || support;
-  const vote        = client.config?.links?.vote    || 'https://top.gg/';
-  const power       = client.config?.links?.power   || botName;
+  const globalPfx = client.prefix;
+  const support   = client.config?.links?.support || 'https://discord.gg/your-invite';
+  const invite    = client.config?.links?.invite  || support;
+  const color     = client.config?.color          || '#00D4FF';
 
-  const container = new ContainerBuilder()
-    .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(`###  ${botName} Help Center`)
-    )
-    .addSeparatorComponents(new SeparatorBuilder().setDivider(true))
-    .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(
-        ` Advanced Music Bot For Your Server Here's My Prefix!\n\n` +
-        `**Guild Prefix:** \`${prefix}\`\n` +
-        `**Global Prefix:** \`${globalPfx}\``
-      )
-    )
-    .addSeparatorComponents(new SeparatorBuilder().setDivider(true))
-    .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(
-        ` And also, here's a bit about me:\n\n` +
-        `• **Guild Prefix:** \`${prefix}\`\n` +
-        `• **Global Prefix:** \`${globalPfx}\`\n` +
-        `• **Bot Name:** ${botName}\n` +
-        `• **Developer:** ${developer}\n` +
-        `• **Total Commands:** ${cmdCount}\n` +
-        `• **Servers:** ${serverCount.toLocaleString()}\n` +
-        `• **Users Cached:** ${userCount.toLocaleString()}\n` +
-        `• **Ping:** ${ping}ms\n` +
-        `• **Uptime:** ${uptime}`
-      )
-    )
-    .addSeparatorComponents(new SeparatorBuilder().setDivider(true))
-    .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(`-# ${power}`)
+  const embed = new EmbedBuilder()
+    .setColor(color)
+    .setThumbnail(client.user.displayAvatarURL({ size: 256 }))
+    .setDescription(
+      `**Server Prefix:** \`${prefix}\`\n` +
+      `**Global Prefix:** \`${globalPfx}\`\n\n` +
+      `♫ Tone Vibes ───\n` +
+      `Your ultimate late-night voice channel companion.\n` +
+      `• 🪐 High-fidelity, lag-free audio streaming.\n` +
+      `• ☕️ Custom aesthetic filters (Lo-Fi, 8D, Bass).\n` +
+      `• ☁️ Minimalist, clutter-free design.\n` +
+      `Type \`/play\` to set the mood.`
     );
 
   const linkRow = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setLabel('Invite Me')
-      
       .setStyle(ButtonStyle.Link)
       .setURL(invite),
     new ButtonBuilder()
-      .setLabel('Vote Me')
-      
-      .setStyle(ButtonStyle.Link)
-      .setURL(vote),
-    new ButtonBuilder()
       .setLabel('Support')
-      
       .setStyle(ButtonStyle.Link)
       .setURL(support),
   );
 
-  return { container, rows: [linkRow] };
+  return { embed, rows: [linkRow] };
 }
 
 module.exports = {
@@ -196,10 +163,10 @@ module.exports = {
         return;
       }
 
-      const { container, rows } = buildMentionCard(client, message.author, prefix);
+      const { embed, rows } = buildMentionCard(client, message.author, prefix);
       await message.channel.send({
-        components: [container, ...rows],
-        flags: MessageFlags.IsComponentsV2,
+        embeds: [embed],
+        components: [...rows],
       }).catch(() => null);
       return;
     }
