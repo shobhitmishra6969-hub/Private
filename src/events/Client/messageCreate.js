@@ -2,6 +2,7 @@
   PermissionsBitField,
   WebhookClient,
   EmbedBuilder,
+  AttachmentBuilder,
   ContainerBuilder,
   TextDisplayBuilder,
   SeparatorBuilder,
@@ -10,6 +11,7 @@
   ButtonStyle,
   MessageFlags
 } = require("discord.js");
+const path = require("path");
 const PrefixSchema = require("../../schema/prefix.js");
 const BlacklistSchema = require("../../schema/blacklist");
 const IgnoreChannelModel = require("../../schema/ignorechannel");
@@ -44,24 +46,25 @@ function formatUptime(ms) {
 }
 
 function buildMentionCard(client, author, prefix) {
-  const globalPfx = client.prefix;
+  const botName   = client.user.username;
   const support   = client.config?.links?.support || 'https://discord.gg/your-invite';
   const invite    = client.config?.links?.invite  || support;
-  const color     = client.config?.color          || '#00D4FF';
+
+  const banner = new AttachmentBuilder(
+    path.join(process.cwd(), 'attached_assets', 'banner.webp'),
+    { name: 'banner.webp' }
+  );
 
   const embed = new EmbedBuilder()
-    .setColor(color)
-    .setThumbnail(client.user.displayAvatarURL({ size: 256 }))
+    .setColor(0x1a1a2e)
+    .setTitle(`Hey, It's ${botName}!`)
     .setDescription(
-      `**Server Prefix:** \`${prefix}\`\n` +
-      `**Global Prefix:** \`${globalPfx}\`\n\n` +
-      `♫ Tone Vibes ───\n` +
-      `Your ultimate late-night voice channel companion.\n` +
-      `• 🪐 High-fidelity, lag-free audio streaming.\n` +
-      `• ☕️ Custom aesthetic filters (Lo-Fi, 8D, Bass).\n` +
-      `• ☁️ Minimalist, clutter-free design.\n` +
-      `Type \`/play\` to set the mood.`
-    );
+      `${botName} is an advanced premium music bot — high-fidelity streaming, aesthetic audio filters, and a clutter-free experience. Vibe with the tone.\n\n` +
+      `**Guild Settings**\n` +
+      `**My Prefix:** \`${prefix}\`\n\n` +
+      `**Need support?** Join our [Support Server](${support})`
+    )
+    .setImage('attachment://banner.webp');
 
   const linkRow = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
@@ -69,12 +72,12 @@ function buildMentionCard(client, author, prefix) {
       .setStyle(ButtonStyle.Link)
       .setURL(invite),
     new ButtonBuilder()
-      .setLabel('Support')
+      .setLabel('Support Server')
       .setStyle(ButtonStyle.Link)
       .setURL(support),
   );
 
-  return { embed, rows: [linkRow] };
+  return { embed, banner, rows: [linkRow] };
 }
 
 module.exports = {
@@ -163,9 +166,10 @@ module.exports = {
         return;
       }
 
-      const { embed, rows } = buildMentionCard(client, message.author, prefix);
+      const { embed, banner, rows } = buildMentionCard(client, message.author, prefix);
       await message.channel.send({
         embeds: [embed],
+        files: [banner],
         components: [...rows],
       }).catch(() => null);
       return;
