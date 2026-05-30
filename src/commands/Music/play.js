@@ -834,6 +834,57 @@ module.exports = {
   },
 };
 
+const IQ_PAGE_SIZE = 8;
+
+function iqFormatDur(ms) {
+  const s = Math.floor(ms / 1000);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+  return `${m}:${String(sec).padStart(2, '0')}`;
+}
+
+function buildInlineQueue(player, page) {
+  const queue = [...player.queue];
+  const total = queue.length;
+  const totalPages = Math.max(1, Math.ceil(total / IQ_PAGE_SIZE));
+  const safePage = Math.max(0, Math.min(page, totalPages - 1));
+  const slice = queue.slice(safePage * IQ_PAGE_SIZE, safePage * IQ_PAGE_SIZE + IQ_PAGE_SIZE);
+
+  const current = player.queue.current;
+  const nowLine = current
+    ? `🎵 **Now Playing:** ${current.title.length > 45 ? current.title.slice(0, 42) + '…' : current.title}\n\n`
+    : '';
+
+  const lines = slice.map((t, i) => {
+    const num = safePage * IQ_PAGE_SIZE + i + 1;
+    const title = t.title.length > 50 ? t.title.slice(0, 47) + '…' : t.title;
+    return `\`${String(num).padStart(2)}\` **[${title}](${t.uri})** — \`${iqFormatDur(t.length)}\``;
+  });
+
+  const footer = `\nPage \`${safePage + 1}/${totalPages}\` • \`${total}\` track${total !== 1 ? 's' : ''} in queue`;
+
+  const container = new ContainerBuilder().addTextDisplayComponents(
+    new TextDisplayBuilder().setContent(
+      nowLine +
+      (lines.length > 0 ? `**Upcoming**\n${lines.join('\n')}` : '*No upcoming tracks.*') +
+      footer
+    )
+  );
+
+  return { container, totalPages, safePage };
+}
+
+function buildIQNavRow(page, totalPages) {
+  return new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId('iq_prev').setLabel('◀ Prev').setStyle(ButtonStyle.Secondary).setDisabled(page === 0),
+    new ButtonBuilder().setCustomId('iq_next').setLabel('Next ▶').setStyle(ButtonStyle.Secondary).setDisabled(page >= totalPages - 1),
+    new ButtonBuilder().setCustomId('iq_clear').setLabel('🗑 Clear Queue').setStyle(ButtonStyle.Danger),
+    new ButtonBuilder().setCustomId('iq_close').setLabel('✕ Close').setStyle(ButtonStyle.Secondary),
+  );
+}
+
 async function sendTrackAdded({ guildId, requester, track, position, player, replyFn }) {
   const { convertTime } = require('../../utils/convert.js');
   const setup = require('../../schema/setup');
@@ -935,7 +986,7 @@ async function sendTrackAdded({ guildId, requester, track, position, player, rep
       if (idx === -1) return;
       const removed = player.queue[idx];
       player.queue.splice(idx, 1);
-      await i.message.edit({ components: [done(`**Removed [${removed.title}](${removed.uri}) from queue.**`)], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
+      await msg.edit({ components: [done(`**Removed [${removed.title}](${removed.uri}) from queue.**`)], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
       msg.actionTaken = true;
       collector.stop();
 
@@ -945,18 +996,88 @@ async function sendTrackAdded({ guildId, requester, track, position, player, rep
       player.queue.splice(idx, 1);
       player.queue.unshift(moved);
       await player.skip().catch(() => {});
-      await i.message.edit({ components: [done(`**Now playing [${moved.title}](${moved.uri}).**`)], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
+      await msg.edit({ components: [done(`**Now playing [${moved.title}](${moved.uri}).**`)], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
       msg.actionTaken = true;
       collector.stop();
 
     } else if (action === 'upcoming') {
-      if (idx === -1 || idx === 0) return;
-      const moved = player.queue[idx];
-      player.queue.splice(idx, 1);
-      player.queue.unshift(moved);
-      await i.message.edit({ components: [done(`**[${moved.title}](${moved.uri}) will play next.**`)], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
+      // Move to next if not already first
+      if (idx > 0) {
+        const moved = player.queue[idx];
+        player.queue.splice(idx, 1);
+        player.queue.unshift(moved);
+      }
+
       msg.actionTaken = true;
       collector.stop();
+
+      // Show inline live-updating queue view
+      let iqPage = 0;
+      const { container: iqC, totalPages: iqTp, safePage: iqSp } = buildInlineQueue(player, iqPage);
+      iqPage = iqSp;
+
+      await msg.edit({
+        components: [iqC, buildIQNavRow(iqPage, iqTp)],
+        flags: MessageFlags.IsComponentsV2,
+      }).catch(() => {});
+
+      // Auto-refresh every 5 seconds
+      const iqInterval = setInterval(async () => {
+        const tp = Math.max(1, Math.ceil(player.queue.length / IQ_PAGE_SIZE));
+        iqPage = Math.min(iqPage, tp - 1);
+        const { container } = buildInlineQueue(player, iqPage);
+        await msg.edit({
+          components: [container, buildIQNavRow(iqPage, tp)],
+          flags: MessageFlags.IsComponentsV2,
+        }).catch(() => clearInterval(iqInterval));
+      }, 5000);
+
+      const iqCollector = msg.createMessageComponentCollector({ time: 120000, idle: 60000 });
+
+      iqCollector.on('collect', async (iqI) => {
+        await iqI.deferUpdate().catch(() => {});
+        const tp = Math.max(1, Math.ceil(player.queue.length / IQ_PAGE_SIZE));
+
+        if (iqI.customId === 'iq_prev') {
+          iqPage = Math.max(0, iqPage - 1);
+        } else if (iqI.customId === 'iq_next') {
+          iqPage = Math.min(tp - 1, iqPage + 1);
+        } else if (iqI.customId === 'iq_clear') {
+          player.queue.splice(0, player.queue.length);
+          clearInterval(iqInterval);
+          iqCollector.stop('cleared');
+          await msg.edit({
+            components: [done(`**${emoji.check} Queue cleared.**`)],
+            flags: MessageFlags.IsComponentsV2,
+          }).catch(() => {});
+          return;
+        } else if (iqI.customId === 'iq_close') {
+          clearInterval(iqInterval);
+          iqCollector.stop('closed');
+          await msg.edit({
+            components: [buildCard(false)],
+            flags: MessageFlags.IsComponentsV2,
+          }).catch(() => {});
+          return;
+        }
+
+        const newTp = Math.max(1, Math.ceil(player.queue.length / IQ_PAGE_SIZE));
+        const { container } = buildInlineQueue(player, iqPage);
+        await msg.edit({
+          components: [container, buildIQNavRow(iqPage, newTp)],
+          flags: MessageFlags.IsComponentsV2,
+        }).catch(() => {});
+      });
+
+      iqCollector.on('end', (_, reason) => {
+        clearInterval(iqInterval);
+        if (reason !== 'cleared' && reason !== 'closed') {
+          msg.edit({
+            components: [buildCard(false)],
+            flags: MessageFlags.IsComponentsV2,
+          }).catch(() => {});
+        }
+      });
     }
   });
 
