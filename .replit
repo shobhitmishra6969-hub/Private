@@ -32,7 +32,7 @@ args = "node run.js"
 [userenv]
 
 [userenv.shared]
-DISCORD_TOKEN = "MTQ3ODI4NTMxMzg3NTkwMjUwNg.G0U0-H.TTZUzV8oRZd2ngU_0AcpRjyNVbVtL9z0pw5IE8"
+DISCORD_TOKEN = "MTQ4NDYwNjk2MjYyMzcwOTQwNQ.Gr37Jl.V7wRrdtJZzXtY3rkw6N5eUQiI5vw-0Xgb3laoY"
 MONGO_URL = "mongodb+srv://codex:codex@cdx-us-1.zunskft.mongodb.net/?appName=cdx-us-1"
 LAVALINK_NODE_NAME = "Node1"
 LAVALINK_URL = "lavalink.jirayu.net"
