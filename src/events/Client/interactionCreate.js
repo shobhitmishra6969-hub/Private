@@ -5,6 +5,8 @@ const {
   PermissionsBitField,
   ContainerBuilder,
   TextDisplayBuilder,
+  ActionRowBuilder,
+  StringSelectMenuBuilder,
   MessageFlags,
 } = require("discord.js");
 
@@ -572,6 +574,85 @@ module.exports = {
             await interaction.editReply({ components }).catch(() => {});
             break;
           }
+
+          case "np_lyrics": {
+            const track = player.queue.current;
+            if (!track) {
+              await interaction.followUp({ content: `**${client.emoji.cross} Nothing is currently playing.**`, ephemeral: true }).catch(() => {});
+              break;
+            }
+            const lyricsCmd = require("../../commands/Music/lyrics");
+            const lyricsMsgWrapper = {
+              guild: interaction.guild,
+              channel: interaction.channel,
+              author: interaction.user,
+              member: interaction.member,
+              createdTimestamp: interaction.createdTimestamp,
+              reply: async (options) => interaction.followUp(options).catch(() => {}),
+            };
+            await lyricsCmd.execute(lyricsMsgWrapper, [], client, client.prefix).catch(console.error);
+            break;
+          }
+
+          case "np_audio_filters": {
+            const filterCmd = require("../../commands/Filters/filter");
+            const filterMsgWrapper = {
+              guild: interaction.guild,
+              channel: interaction.channel,
+              author: interaction.user,
+              member: interaction.member,
+              createdTimestamp: interaction.createdTimestamp,
+              reply: async (options) => interaction.followUp({ ...options, ephemeral: true }).catch(() => {}),
+            };
+            await filterCmd.execute(filterMsgWrapper, [], client, client.prefix).catch(console.error);
+            break;
+          }
+
+          case "np_playlist": {
+            const track = player.queue.current;
+            if (!track) {
+              await interaction.followUp({ content: `**${client.emoji.cross} Nothing is currently playing.**`, ephemeral: true }).catch(() => {});
+              break;
+            }
+            const { getUserData } = require("../../utils/playlistHelper");
+            const userId = interaction.user.id;
+            const userData = await getUserData(userId).catch(() => null);
+            const playlists = userData?.playlists || [];
+
+            if (playlists.length === 0) {
+              await interaction.followUp({
+                content: `**${client.emoji.cross} You have no playlists. Create one with \`${client.prefix}pl-create <name>\`**`,
+                ephemeral: true,
+              }).catch(() => {});
+              break;
+            }
+
+            const menu = new StringSelectMenuBuilder()
+              .setCustomId("np_playlist_select")
+              .setPlaceholder("Choose a playlist to add the song to...")
+              .addOptions(
+                playlists.slice(0, 25).map(pl => ({
+                  label: pl.name.slice(0, 100),
+                  value: pl.name.slice(0, 100),
+                  description: `${pl.tracks?.length || 0} track${pl.tracks?.length !== 1 ? "s" : ""}`,
+                }))
+              );
+
+            player.data.set("pendingAddTrack", {
+              title: track.title,
+              url: track.uri,
+              duration: track.length,
+              thumbnail: track.thumbnail,
+              author: track.author,
+            });
+
+            await interaction.followUp({
+              content: `**Select a playlist to add \`${track.title}\` to:**`,
+              components: [new ActionRowBuilder().addComponents(menu)],
+              ephemeral: true,
+            }).catch(() => {});
+            break;
+          }
         }
         return;
       }
@@ -586,6 +667,51 @@ module.exports = {
     }
 
     if (interaction.isStringSelectMenu()) {
+      if (interaction.customId === "np_playlist_select") {
+        const player = client.manager.players.get(interaction.guildId);
+        const pending = player?.data?.get("pendingAddTrack");
+
+        if (!player || !pending) {
+          return interaction.reply({ content: `**${client.emoji.cross} Session expired. Please try again.**`, ephemeral: true }).catch(() => {});
+        }
+
+        const playlistName = interaction.values[0];
+        await interaction.deferUpdate().catch(() => {});
+
+        try {
+          const { getUserData, findPlaylist, MAX_TRACKS } = require("../../utils/playlistHelper");
+          const Playlist = require("../../schema/playlist");
+
+          const userData = await getUserData(interaction.user.id);
+          const pl = findPlaylist(userData, playlistName);
+
+          if (!pl) {
+            return interaction.followUp({ content: `**${client.emoji.cross} Playlist \`${playlistName}\` not found.**`, ephemeral: true }).catch(() => {});
+          }
+          if (pl.tracks.length >= MAX_TRACKS) {
+            return interaction.followUp({ content: `**${client.emoji.cross} Playlist \`${playlistName}\` is full (${MAX_TRACKS} tracks max).**`, ephemeral: true }).catch(() => {});
+          }
+
+          const alreadyIn = pl.tracks.find(t => t.url === pending.url);
+          if (alreadyIn) {
+            return interaction.followUp({ content: `**${client.emoji.warn} \`${pending.title}\` is already in \`${playlistName}\`.**`, ephemeral: true }).catch(() => {});
+          }
+
+          pl.tracks.push(pending);
+          await userData.save();
+          player.data.delete("pendingAddTrack");
+
+          await interaction.followUp({
+            content: `**${client.emoji.check} Added \`${pending.title}\` to playlist \`${playlistName}\` (${pl.tracks.length} tracks).**`,
+            ephemeral: true,
+          }).catch(() => {});
+        } catch (err) {
+          console.error("[np_playlist_select]", err);
+          await interaction.followUp({ content: `**${client.emoji.cross} Failed to add to playlist. Please try again.**`, ephemeral: true }).catch(() => {});
+        }
+        return;
+      }
+
       if (interaction.customId === "np_settings_menu") {
         const player = client.manager.players.get(interaction.guildId);
         if (!player || player.data.get("nowPlayingMessage")?.id !== interaction.message.id) return;
