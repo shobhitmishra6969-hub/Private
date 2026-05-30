@@ -12,6 +12,7 @@
   MessageFlags
 } = require("discord.js");
 const path = require("path");
+const fs = require("fs");
 const PrefixSchema = require("../../schema/prefix.js");
 const BlacklistSchema = require("../../schema/blacklist");
 const IgnoreChannelModel = require("../../schema/ignorechannel");
@@ -50,10 +51,8 @@ function buildMentionCard(client, author, prefix) {
   const support   = client.config?.links?.support || 'https://discord.gg/your-invite';
   const invite    = client.config?.links?.invite  || support;
 
-  const banner = new AttachmentBuilder(
-    path.join(process.cwd(), 'attached_assets', 'banner.webp'),
-    { name: 'banner.webp' }
-  );
+  const bannerBuf = fs.readFileSync(path.join(process.cwd(), 'attached_assets', 'banner.webp'));
+  const banner = new AttachmentBuilder(bannerBuf, { name: 'banner.webp' });
 
   const embed = new EmbedBuilder()
     .setColor(0x1a1a2e)
