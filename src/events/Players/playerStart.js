@@ -118,34 +118,72 @@ function buildDefaultContainer(client, player, track, isPaused = false, buttonsE
 
 // ── Card style helpers ──────────────────────────────────────────────────────────
 
+function buildCardButtons(client, player, isPaused) {
+  const currentLoop = player.loop || "none";
+  const isAutoplay  = player.data?.get?.("autoplay") || false;
+
+  const row1 = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId("np_pause").setEmoji(isPaused ? client.emoji.play : client.emoji.pause).setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId("np_skip").setEmoji(client.emoji.skip).setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId("np_loop").setEmoji(client.emoji.loop).setStyle(currentLoop !== "none" ? ButtonStyle.Primary : ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId("np_stop").setLabel("Stop").setStyle(ButtonStyle.Danger),
+    new ButtonBuilder().setCustomId("np_like").setEmoji(client.emoji.like).setStyle(ButtonStyle.Success),
+  );
+
+  const row2 = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId("np_vol_down").setLabel("−").setStyle(ButtonStyle.Secondary).setDisabled((player.volume ?? 100) <= 0),
+    new ButtonBuilder().setCustomId("np_vol_up").setLabel("+").setStyle(ButtonStyle.Secondary).setDisabled((player.volume ?? 100) >= 100),
+    new ButtonBuilder().setCustomId("np_lyrics").setLabel("Lyrics").setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId("np_autoplay").setLabel("Autoplay").setStyle(isAutoplay ? ButtonStyle.Primary : ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId("np_shuffle").setLabel("Shuffle").setStyle(ButtonStyle.Secondary),
+  );
+
+  return [row1, row2];
+}
+
+async function generateCardBuffer(track, player) {
+  const { generateNowPlayingCard } = require("../../utils/canvasCard");
+  const thumbnail  = getCleanThumbnail(track.thumbnail || track.artworkUrl);
+  const requester  = track.requester?.username || track.requester?.globalName || null;
+  return generateNowPlayingCard({
+    title:    track.title    || "Unknown Title",
+    artist:   cleanAuthorName(track.author),
+    requester,
+    thumbnail,
+    position: player.position || 0,
+    duration: track.length   || 0,
+  });
+}
+
 async function sendCardStyle(client, channel, player, track, buttonsEnabled) {
   try {
-    const { generateMusicCard } = require("../../utils/musicCard");
-    const imageBuffer = await generateMusicCard(track, player);
-    const attachment = new AttachmentBuilder(imageBuffer, { name: "nowplaying.png" });
-    const container = buildDefaultContainer(client, player, track, false, buttonsEnabled);
-    return await channel.send({
-      files: [attachment],
-      components: [container],
-      flags: MessageFlags.IsComponentsV2,
-    });
+    const buf        = await generateCardBuffer(track, player);
+    const attachment = new AttachmentBuilder(buf, { name: "nowplaying.png" });
+
+    const msgOptions = { files: [attachment] };
+    if (buttonsEnabled) msgOptions.components = buildCardButtons(client, player, false);
+
+    return await channel.send(msgOptions);
   } catch (err) {
     console.error("Card style error, falling back to default:", err);
     const container = buildDefaultContainer(client, player, track, false, buttonsEnabled);
-    return await channel.send({
-      components: [container],
-      flags: MessageFlags.IsComponentsV2,
-    });
+    return await channel.send({ components: [container], flags: MessageFlags.IsComponentsV2 });
   }
 }
 
 async function updateCardStyle(client, message, player, track, isPaused, buttonsEnabled) {
   try {
-    const container = buildDefaultContainer(client, player, track, isPaused, buttonsEnabled);
-    await message.edit({
-      components: [container],
-      flags: MessageFlags.IsComponentsV2,
-    }).catch(() => {});
+    const buf        = await generateCardBuffer(track, player);
+    const attachment = new AttachmentBuilder(buf, { name: "nowplaying.png" });
+
+    const editOptions = { files: [attachment], attachments: [] };
+    if (buttonsEnabled) {
+      editOptions.components = buildCardButtons(client, player, isPaused);
+    } else {
+      editOptions.components = [];
+    }
+
+    await message.edit(editOptions).catch(() => {});
   } catch (err) {
     console.error("Card style update error:", err);
   }
