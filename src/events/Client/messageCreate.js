@@ -166,10 +166,6 @@ module.exports = {
     // ── Bot mention reply (runs before ignore-channel check) ────────────────
     const mention = new RegExp(`^<@!?${client.user.id}>\\s*$`);
     if (message.mentions.users.has(client.user.id) && mention.test(message.content.trim())) {
-      const canSend = message.guild.members.me?.permissions.has(PermissionsBitField.Flags.SendMessages)
-        && message.guild.members.me?.permissions.has(PermissionsBitField.Flags.EmbedLinks);
-      if (!canSend) return;
-
       const { embed, banner, rows } = buildMentionCard(client, message.author, prefix);
       await message.channel.send({
         embeds: [embed],
