@@ -1,10 +1,8 @@
 const {
-  ContainerBuilder,
-  TextDisplayBuilder,
-  SeparatorBuilder,
-  SectionBuilder,
-  ThumbnailBuilder,
-  MessageFlags
+  EmbedBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
 } = require("discord.js");
 const emoji = require("../../emojis.js");
 
@@ -40,6 +38,49 @@ function getSourceName(uri = "") {
 function truncate(str, max) {
   if (!str) return "";
   return str.length > max ? str.slice(0, max) + "..." : str;
+}
+
+function buildEmbeds(track, player) {
+  const artist = cleanAuthorName(track.author);
+  const durationHMS = formatHMS(track.length);
+  const durationShort = formatMSS(track.length);
+  const sourceName = getSourceName(track.uri);
+  const thumbnail = track.thumbnail || track.artworkUrl || null;
+  const position = player.position || 0;
+  const posFormatted = formatMSS(position);
+  const username = track.requester?.username || "Unknown";
+
+  const percentage = track.length > 0 ? position / track.length : 0;
+  const barLen = 20;
+  const filled = Math.floor(barLen * percentage);
+  const bar = "▬".repeat(filled) + "🔘" + "▬".repeat(barLen - filled);
+
+  const mainEmbed = new EmbedBuilder()
+    .setColor(0x000000)
+    .setTitle("🎵 Now Playing...")
+    .setDescription(
+      `[${track.title}](${track.uri})\n\n` +
+      `**Artist:** ${artist}\n` +
+      `**Duration:** ${durationHMS}\n` +
+      `**Requested by** \`${username}\``
+    );
+
+  const cardEmbed = new EmbedBuilder()
+    .setColor(0x2b2d31)
+    .setAuthor({ name: `Playing from ${sourceName}` })
+    .setTitle(truncate(track.title, 20))
+    .setURL(track.uri)
+    .setDescription(
+      `${artist}\n\n` +
+      `${bar}\n` +
+      `\`${posFormatted}\` / \`${durationShort}\`\n` +
+      `Artist: ${artist}\n` +
+      `Duration: ${durationShort}`
+    );
+
+  if (thumbnail) cardEmbed.setThumbnail(thumbnail);
+
+  return [mainEmbed, cardEmbed];
 }
 
 module.exports = {
@@ -84,83 +125,13 @@ module.exports = {
     const player = client.manager.players.get(message.guild.id);
 
     if (!player.queue.current) {
-      const container = new ContainerBuilder()
-        .addTextDisplayComponents(
-          new TextDisplayBuilder().setContent(`**${emoji.cross} Nothing is playing right now.**`)
-        );
-      return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+      return message.reply({ content: `**${emoji.cross} Nothing is playing right now.**` });
     }
 
     const track = player.queue.current;
-    const duration = track.length;
-    const durationHMS = formatHMS(duration);
-    const durationShort = formatMSS(duration);
-    const artist = cleanAuthorName(track.author);
-    const sourceName = getSourceName(track.uri);
-    const thumbnail = track.thumbnail || track.artworkUrl || null;
 
-    const generateProgressBar = () => {
-      const position = player.position || 0;
-      const posFormatted = formatMSS(position);
-      const percentage = duration > 0 ? position / duration : 0;
-      const barLen = 20;
-      const filled = Math.floor(barLen * percentage);
-      const bar = "▬".repeat(filled) + "🔘" + "▬".repeat(barLen - filled);
-      return { bar, posFormatted };
-    };
-
-    const buildComponents = (prog) => {
-      const header = new TextDisplayBuilder()
-        .setContent(`🎵 **Now Playing...**\n[${track.title}](${track.uri})`);
-
-      const separator = new SeparatorBuilder();
-
-      const info = new TextDisplayBuilder()
-        .setContent(
-          `**Artist:** ${artist}\n` +
-          `**Duration:** ${durationHMS}\n` +
-          `**Requested by** \`${track.requester?.username || "Unknown"}\``
-        );
-
-      const cardText = new TextDisplayBuilder()
-        .setContent(
-          `Playing from ${sourceName}\n` +
-          `**${truncate(track.title, 20)}**\n` +
-          `${artist}\n\n` +
-          `${prog.bar}\n` +
-          `\`${prog.posFormatted}\` / \`${durationShort}\`\n` +
-          `Artist: ${artist}\n` +
-          `Duration: ${durationShort}`
-        );
-
-      const components = [header, separator, info, separator];
-
-      if (thumbnail) {
-        const section = new SectionBuilder()
-          .addTextDisplayComponents(cardText)
-          .setThumbnailAccessory(
-            new ThumbnailBuilder().setURL(thumbnail)
-          );
-        return new ContainerBuilder()
-          .addTextDisplayComponents(header)
-          .addSeparatorComponents(new SeparatorBuilder())
-          .addTextDisplayComponents(info)
-          .addSeparatorComponents(new SeparatorBuilder())
-          .addSectionComponents(section);
-      } else {
-        return new ContainerBuilder()
-          .addTextDisplayComponents(header)
-          .addSeparatorComponents(new SeparatorBuilder())
-          .addTextDisplayComponents(info)
-          .addSeparatorComponents(new SeparatorBuilder())
-          .addTextDisplayComponents(cardText);
-      }
-    };
-
-    const prog = generateProgressBar();
     const npmsg = await message.reply({
-      components: [buildComponents(prog)],
-      flags: MessageFlags.IsComponentsV2
+      embeds: buildEmbeds(track, player),
     });
 
     const interval = setInterval(() => {
@@ -169,11 +140,7 @@ module.exports = {
         return;
       }
       try {
-        const newProg = generateProgressBar();
-        npmsg.edit({
-          components: [buildComponents(newProg)],
-          flags: MessageFlags.IsComponentsV2
-        }).catch(() => clearInterval(interval));
+        npmsg.edit({ embeds: buildEmbeds(track, player) }).catch(() => clearInterval(interval));
       } catch {
         clearInterval(interval);
       }
