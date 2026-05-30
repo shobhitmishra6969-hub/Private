@@ -203,28 +203,45 @@ function buildCardButtons(client, player, forcePaused = null) {
 
 // ── Default style helpers ───────────────────────────────────────────────────────
 
-function buildVolumeBar(volume) {
-  const filled = Math.round(volume / 10);
-  const bar = "█".repeat(filled) + "░".repeat(10 - filled);
-  return `\`${bar}\` **${volume}%**`;
+function formatHMS(ms) {
+  const totalSec = Math.floor(ms / 1000);
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  return [h, m, s].map(n => String(n).padStart(2, "0")).join(":");
 }
 
-function getSourceEmoji(client, track) {
+function formatMSS(ms) {
+  const totalSec = Math.floor(ms / 1000);
+  const m = Math.floor(totalSec / 60);
+  const s = totalSec % 60;
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
+function getSourceName(track) {
   const uri = track.uri || "";
-  if (uri.includes("spotify.com")) return client.emoji.spotify;
-  if (uri.includes("youtube.com") || uri.includes("youtu.be")) {
-    if (uri.includes("music.youtube.com")) return client.emoji.ytmusic;
-    return client.emoji.ytmusic;
+  if (uri.includes("spotify.com")) return "spotify";
+  if (uri.includes("music.youtube.com")) return "youtube music";
+  if (uri.includes("youtube.com") || uri.includes("youtu.be")) return "youtube";
+  if (uri.includes("deezer.com")) return "deezer";
+  if (uri.includes("jiosaavn.com")) return "jiosaavn";
+  return track.sourceName || "unknown";
+}
+
+function truncate(str, max) {
+  if (!str) return "";
+  return str.length > max ? str.slice(0, max) + "..." : str;
+}
+
+function getCleanThumbnail(thumbnailUrl) {
+  if (!thumbnailUrl) return null;
+  if (thumbnailUrl.includes("i.ytimg.com") || thumbnailUrl.includes("img.youtube.com")) {
+    const videoIdMatch = thumbnailUrl.match(/vi\/([^/]+)\//);
+    if (videoIdMatch && videoIdMatch[1]) {
+      return `https://i.ytimg.com/vi/${videoIdMatch[1]}/maxresdefault.jpg`;
+    }
   }
-  if (uri.includes("music.apple.com")) return client.emoji.Music;
-  if (uri.includes("deezer.com")) return client.emoji.deezer;
-  if (uri.includes("jiosaavn.com")) return client.emoji.jiosaavn;
-  const sourceName = track.sourceName || "";
-  if (sourceName === "spotify") return client.emoji.spotify;
-  if (sourceName === "youtube" || sourceName === "youtube music") return client.emoji.ytmusic;
-  if (sourceName === "deezer") return client.emoji.deezer;
-  if (sourceName === "jiosaavn") return client.emoji.jiosaavn;
-  return client.emoji.ytmusic;
+  return thumbnailUrl;
 }
 
 async function createNowPlayingContainer(client, player, track, forcePaused = null, buttonsEnabled = true) {
@@ -235,47 +252,57 @@ async function createNowPlayingContainer(client, player, track, forcePaused = nu
     return author.replace(/\s*-\s*Topic\s*$/i, "").trim();
   };
 
-  const getCleanThumbnail = (thumbnailUrl) => {
-    if (!thumbnailUrl) return null;
-    if (thumbnailUrl.includes("i.ytimg.com") || thumbnailUrl.includes("img.youtube.com")) {
-      const videoIdMatch = thumbnailUrl.match(/vi\/([^\/]+)\//);
-      if (videoIdMatch && videoIdMatch[1]) {
-        return `https://i.ytimg.com/vi/${videoIdMatch[1]}/maxresdefault.jpg`;
-      }
-    }
-    return thumbnailUrl;
-  };
-
-  const sourceEmoji = getSourceEmoji(client, track);
-  const authorName = cleanAuthorName(track.author);
-  const duration = convertTime(track.length);
-  const requesterMention = track.requester ? `<@${track.requester.id}>` : "Unknown";
-
-  const statusBar = isPaused ? "⏸️ **Paused**" : "▶️ **Now Playing**";
-  const headerDisplay = new TextDisplayBuilder().setContent(statusBar);
-
-  const queueSize = player.queue?.size ?? 0;
-  const volumeBar = buildVolumeBar(player.volume ?? 100);
-
-  const infoDisplay = new TextDisplayBuilder().setContent(
-    `${client.emoji.play} **[${track.title}](${track.uri})**\n` +
-    `┣ 🎵 **Artist:** ${authorName}\n` +
-    `┣ 🕒 **Duration:** ${duration}\n` +
-    `┣ 🔊 **Volume:** ${volumeBar}\n` +
-    `┣ 📋 **Queue:** ${queueSize} track${queueSize !== 1 ? 's' : ''} remaining\n` +
-    `┗ 👤 **Requested by:** ${requesterMention}`
-  );
-
-  const section = new SectionBuilder().addTextDisplayComponents(headerDisplay, infoDisplay);
-
+  const artist = cleanAuthorName(track.author);
+  const durationHMS = formatHMS(track.length);
+  const durationShort = formatMSS(track.length);
+  const sourceName = getSourceName(track);
   const thumbnail = getCleanThumbnail(track.thumbnail || track.artworkUrl);
-  if (thumbnail) {
-    section.setThumbnailAccessory((thumb) => thumb.setURL(thumbnail));
-  }
+  const statusPrefix = isPaused ? "⏸️" : "🎵";
+  const statusLabel = isPaused ? "Paused" : "Now Playing...";
 
-  const container = new ContainerBuilder()
-    .addSectionComponents(section)
-    .addSeparatorComponents(new SeparatorBuilder());
+  const header = new TextDisplayBuilder()
+    .setContent(`${statusPrefix} **${statusLabel}**\n[${track.title}](${track.uri})`);
+
+  const info = new TextDisplayBuilder()
+    .setContent(
+      `**Artist:** ${artist}\n` +
+      `**Duration:** ${durationHMS}\n` +
+      `**Requested by** \`${track.requester?.username || "Unknown"}\``
+    );
+
+  const cardText = new TextDisplayBuilder()
+    .setContent(
+      `Playing from ${sourceName}\n` +
+      `**${truncate(track.title, 20)}**\n` +
+      `${artist}\n\n` +
+      `▬▬▬▬▬▬▬▬▬▬🔘▬▬▬▬▬▬▬▬▬▬\n` +
+      `\`0:00\` / \`${durationShort}\`\n` +
+      `Artist: ${artist}\n` +
+      `Duration: ${durationShort}`
+    );
+
+  let container;
+
+  if (thumbnail) {
+    const { ThumbnailBuilder } = require("discord.js");
+    const section = new SectionBuilder()
+      .addTextDisplayComponents(cardText)
+      .setThumbnailAccessory(new ThumbnailBuilder().setURL(thumbnail));
+
+    container = new ContainerBuilder()
+      .addTextDisplayComponents(header)
+      .addSeparatorComponents(new SeparatorBuilder())
+      .addTextDisplayComponents(info)
+      .addSeparatorComponents(new SeparatorBuilder())
+      .addSectionComponents(section);
+  } else {
+    container = new ContainerBuilder()
+      .addTextDisplayComponents(header)
+      .addSeparatorComponents(new SeparatorBuilder())
+      .addTextDisplayComponents(info)
+      .addSeparatorComponents(new SeparatorBuilder())
+      .addTextDisplayComponents(cardText);
+  }
 
   if (buttonsEnabled) {
     const currentLoop = player.loop || "none";
