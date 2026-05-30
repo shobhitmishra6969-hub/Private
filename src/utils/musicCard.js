@@ -101,7 +101,7 @@ async function generateMusicCard(track, player) {
     ctx.fillText(requesterText, textX, HEIGHT - PADDING);
   }
 
-  return canvas.toBuffer('image/png');
+  return await canvas.toBuffer('image/png');
 }
 
 function drawPlaceholderArt(ctx, x, y, size) {

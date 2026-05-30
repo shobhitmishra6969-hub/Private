@@ -175,7 +175,7 @@ async function generateNowPlayingCard({ title, artist, requester, thumbnail, pos
   ctx.textAlign = 'right';
   ctx.fillText(formatTime(duration), bX + bW, bY + 16);
 
-  return canvas.toBuffer('image/png');
+  return await canvas.toBuffer('image/png');
 }
 
 module.exports = { generateNowPlayingCard };
