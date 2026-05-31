@@ -17,13 +17,13 @@ if (!fs.existsSync('node_modules')) {
     console.log('[+] Packages already installed');
 }
 
-console.log('[+] Starting Bot');
+console.log('[+] Starting a Bot');
 const child = spawn('node', ['psycho.js'], { stdio: 'inherit' });
 
 child.on('error', (err) => {
     if (err.code === 'ENOENT') {
         console.error('[!] Error: "node" command not found. Please ensure Node.js is installed and in your PATH.');
     } else {
-        console.error(`[!] Failed to start bot: ${err.message}`);
+        console.error(`[!] Failed to a start bot: ${err.message}`);
     }
 });
