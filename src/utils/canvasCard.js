@@ -134,47 +134,6 @@ async function generateNowPlayingCard({ title, artist, requester, thumbnail, pos
     ctx.fillText('Requested by ' + truncate(requester, 28), tx, 112);
   }
 
-  // ── Progress bar ──────────────────────────────────────────────────────────────
-  const bX = tx;
-  const bY = 160;
-  const bW = tw;
-  const bH = 5;
-  const pct = duration > 0 ? Math.max(0, Math.min(1, position / duration)) : 0;
-
-  // Track (background)
-  ctx.fillStyle = '#1e1e30';
-  ctx.beginPath();
-  ctx.roundRect(bX, bY, bW, bH, 3);
-  ctx.fill();
-
-  // Fill (gradient)
-  const barGrad = ctx.createLinearGradient(bX, 0, bX + bW, 0);
-  barGrad.addColorStop(0, '#5b21b6');
-  barGrad.addColorStop(1, '#a78bfa');
-  ctx.fillStyle = barGrad;
-  const fillW = Math.max(bH, bW * pct);
-  ctx.beginPath();
-  ctx.roundRect(bX, bY, fillW, bH, 3);
-  ctx.fill();
-
-  // Knob
-  const knobX = bX + bW * pct;
-  ctx.fillStyle = '#c4b5fd';
-  ctx.shadowColor = 'rgba(167,139,250,0.6)';
-  ctx.shadowBlur = 8;
-  ctx.beginPath();
-  ctx.arc(knobX, bY + bH / 2, 7, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.shadowBlur = 0;
-
-  // Time labels
-  ctx.font = '13px sans-serif';
-  ctx.fillStyle = '#666680';
-  ctx.textAlign = 'left';
-  ctx.fillText(formatTime(position), bX, bY + 16);
-  ctx.textAlign = 'right';
-  ctx.fillText(formatTime(duration), bX + bW, bY + 16);
-
   return await canvas.toBuffer('image/png');
 }
 

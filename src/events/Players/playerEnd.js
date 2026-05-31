@@ -2,12 +2,6 @@ module.exports = {
   name: "playerEnd",
   run: async (client, player) => {
     try {
-      const cardInterval = player.data.get("cardInterval");
-      if (cardInterval) {
-        clearInterval(cardInterval);
-        player.data.delete("cardInterval");
-      }
-
       const message = player.data.get("nowPlayingMessage");
       if (message) {
         await message.delete().catch(() => { });
