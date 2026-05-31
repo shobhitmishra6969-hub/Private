@@ -14,6 +14,9 @@ class MusicBot extends Client {
   constructor() {
     super({
       intents: 34803,
+      rest: {
+        timeout: 60000,
+      },
       properties: {
         browser: "Discord Android",
       },
@@ -44,13 +47,6 @@ class MusicBot extends Client {
     this.spamMap = new Map();
     this.cooldowns = new Collection();
     this.voiceHealthMonitor = new VoiceHealthMonitor(this);
-
-    // [DEBUG] Monitor raw voice updates to verify Discord connectivity
-    this.on("raw", (packet) => {
-      if (["VOICE_SERVER_UPDATE", "VOICE_STATE_UPDATE"].includes(packet.t)) {
-        console.log(`[RAW DEBUG] Discord ${packet.t} received:`, JSON.stringify(packet.d, null, 2));
-      }
-    });
 
     this._initDatabase();
     this._startWebServer();
