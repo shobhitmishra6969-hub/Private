@@ -4,10 +4,11 @@ const {
   SectionBuilder,
   ThumbnailBuilder,
   MessageFlags,
-  AttachmentBuilder,
+  EmbedBuilder,
 } = require("discord.js");
 const emoji = require("../../emojis.js");
 const { generateNowPlayingCard } = require("../../utils/canvasCard.js");
+const { storeCard, getPublicUrl } = require("../../utils/cardStore.js");
 const setup = require("../../schema/setup");
 
 function formatMSS(ms) {
@@ -71,7 +72,7 @@ function buildComponentsContainer(track, player) {
     );
 }
 
-async function buildCardAttachment(track, player) {
+async function buildCardEmbed(track, player) {
   const thumbnail = getCleanThumbnail(track.thumbnail || track.artworkUrl);
   const requester = track.requester?.username || track.requester?.globalName || null;
 
@@ -84,7 +85,10 @@ async function buildCardAttachment(track, player) {
     duration: track.length || 0,
   });
 
-  return new AttachmentBuilder(buf, { name: "nowplaying.png" });
+  const id  = storeCard(buf);
+  const url = getPublicUrl(id);
+  if (!url) throw new Error("REPLIT_DEV_DOMAIN not set");
+  return new EmbedBuilder().setImage(url).setColor(0x0c0c14);
 }
 
 module.exports = {
@@ -139,12 +143,11 @@ module.exports = {
 
     if (npStyle === 'card') {
       // ── Canvas card style ────────────────────────────────────────────────────
-      let attachment;
+      let embed;
       try {
-        attachment = await buildCardAttachment(track, player);
+        embed = await buildCardEmbed(track, player);
       } catch (err) {
         console.error('[NP Card] Canvas error:', err);
-        // Fallback to components
         const npmsg = await message.reply({
           components: [buildComponentsContainer(track, player)],
           flags: MessageFlags.IsComponentsV2,
@@ -153,16 +156,13 @@ module.exports = {
         return;
       }
 
-      const npmsg = await message.reply({ files: [attachment] });
+      const npmsg = await message.reply({ embeds: [embed] });
 
       const interval = setInterval(async () => {
         if (!player || !player.playing || !npmsg) return clearInterval(interval);
         try {
-          const newAttachment = await buildCardAttachment(track, player);
-          await npmsg.edit({
-            files: [newAttachment],
-            attachments: [],
-          });
+          const newEmbed = await buildCardEmbed(track, player);
+          await npmsg.edit({ embeds: [newEmbed] });
         } catch {
           clearInterval(interval);
         }

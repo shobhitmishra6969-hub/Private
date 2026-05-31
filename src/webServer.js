@@ -4,9 +4,18 @@ const express = require('express');
 const axios = require('axios');
 const config = require('./config');
 const { resolvePending, rejectPending, getRedirectUri } = require('./spotifyOAuth');
+const { getCard } = require('./utils/cardStore');
 
 const app = express();
 const PORT = config.webPort || 3000;
+
+app.get('/np-card/:id', (req, res) => {
+  const buf = getCard(req.params.id);
+  if (!buf) return res.status(404).send('Not found');
+  res.setHeader('Content-Type', 'image/png');
+  res.setHeader('Cache-Control', 'no-store');
+  res.send(buf);
+});
 
 app.get('/auth/spotify/callback', async (req, res) => {
     const { code, state, error } = req.query;

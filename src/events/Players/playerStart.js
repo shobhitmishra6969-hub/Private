@@ -8,10 +8,11 @@ const {
   ButtonBuilder,
   ButtonStyle,
   MessageFlags,
-  AttachmentBuilder,
+  EmbedBuilder,
 } = require("discord.js");
 const setup = require("../../schema/setup");
 const { createMainPlayerUI } = require("../../utils/playerUI");
+const { storeCard, getPublicUrl } = require("../../utils/cardStore");
 
 // ── Helpers ─────────────────────────────────────────────────────────────────────
 
@@ -157,10 +158,14 @@ async function generateCardBuffer(track, player) {
 
 async function sendCardStyle(client, channel, player, track, buttonsEnabled) {
   try {
-    const buf        = await generateCardBuffer(track, player);
-    const attachment = new AttachmentBuilder(buf, { name: "nowplaying.png" });
+    const buf = await generateCardBuffer(track, player);
+    const id  = storeCard(buf);
+    const url = getPublicUrl(id);
 
-    const msgOptions = { files: [attachment] };
+    if (!url) throw new Error("REPLIT_DEV_DOMAIN not set");
+
+    const embed = new EmbedBuilder().setImage(url).setColor(0x0c0c14);
+    const msgOptions = { embeds: [embed] };
     if (buttonsEnabled) msgOptions.components = buildCardButtons(client, player, false);
 
     return await channel.send(msgOptions);
@@ -173,10 +178,14 @@ async function sendCardStyle(client, channel, player, track, buttonsEnabled) {
 
 async function updateCardStyle(client, message, player, track, isPaused, buttonsEnabled) {
   try {
-    const buf        = await generateCardBuffer(track, player);
-    const attachment = new AttachmentBuilder(buf, { name: "nowplaying.png" });
+    const buf = await generateCardBuffer(track, player);
+    const id  = storeCard(buf);
+    const url = getPublicUrl(id);
 
-    const editOptions = { files: [attachment], attachments: [] };
+    if (!url) return;
+
+    const embed = new EmbedBuilder().setImage(url).setColor(0x0c0c14);
+    const editOptions = { embeds: [embed] };
     if (buttonsEnabled) {
       editOptions.components = buildCardButtons(client, player, isPaused);
     } else {
