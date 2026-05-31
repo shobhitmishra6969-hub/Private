@@ -254,6 +254,16 @@ module.exports = {
       player.data.set("nowPlayingMessage", message);
       player.data.set("npStyle", npStyle);
 
+      if (npStyle === "card" && message) {
+        const cardInterval = setInterval(async () => {
+          const current = player.queue?.current;
+          const msg = player.data.get("nowPlayingMessage");
+          if (!current || !msg || !player.playing) return clearInterval(cardInterval);
+          await updateCardStyle(client, msg, player, current, player.shoukaku?.paused || false, buttonsEnabled);
+        }, 5000);
+        player.data.set("cardInterval", cardInterval);
+      }
+
     } catch (error) {
       console.error("Error in playerStart event:", error);
     }
