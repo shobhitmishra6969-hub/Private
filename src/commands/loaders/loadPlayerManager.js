@@ -1,6 +1,7 @@
 const { Kazagumo, Plugins, KazagumoTrack } = require("kazagumo");
 const { Connectors, LoadType } = require("shoukaku");
 const axios = require("axios");
+const { getBestNode } = require("../../utils/nodeUtils");
 
 const LASTFM_BASE = "https://ws.audioscrobbler.com/2.0/";
 
@@ -63,7 +64,7 @@ module.exports = function loadPlayerManager(client) {
   manager.defaultSearchEngine = client.config.node_source;
 
   manager.search = async function (query, options = {}) {
-    const node = [...this.shoukaku.nodes.values()][0];
+    const node = getBestNode(this);
     if (!node) return { type: "SEARCH", tracks: [] };
 
     const isUrl = /^https?:\/\//.test(query);

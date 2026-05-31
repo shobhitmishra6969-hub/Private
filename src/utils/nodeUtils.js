@@ -45,8 +45,68 @@ function getAvailableNode(manager) {
     return nodes.length > 0 ? nodes[0] : null;
 }
 
+/**
+ * Gets the best Lavalink node using Shoukaku's penalty system.
+ * Penalty factors in player count, CPU load, and memory pressure.
+ * Lower penalty = healthier node. Falls back to first connected node.
+ * @param {Object} manager - The Kazagumo manager instance
+ * @returns {Object|null} - The least-loaded node or null
+ */
+function getBestNode(manager) {
+    const connectedNodes = [...manager.shoukaku.nodes.values()].filter(
+        node => node.state === 2
+    );
+
+    if (connectedNodes.length === 0) {
+        return getAvailableNode(manager);
+    }
+
+    if (connectedNodes.length === 1) {
+        return connectedNodes[0];
+    }
+
+    let bestNode = null;
+    let lowestPenalty = Infinity;
+
+    for (const node of connectedNodes) {
+        let penalty = 0;
+
+        const stats = node.stats;
+        if (stats) {
+            penalty += (stats.playingPlayers || 0) * 2;
+
+            const cpu = stats.cpu;
+            if (cpu) {
+                const systemLoad = cpu.systemLoad || 0;
+                const lavalinkLoad = cpu.lavalinkLoad || 0;
+                penalty += Math.round(Math.pow(1.05, 100 * lavalinkLoad) * 10 - 10);
+                penalty += Math.round(systemLoad * 100);
+            }
+
+            const memory = stats.memory;
+            if (memory && memory.reservable > 0) {
+                const memUsage = memory.used / memory.reservable;
+                if (memUsage > 0.9) penalty += 50;
+                else if (memUsage > 0.7) penalty += 20;
+            }
+        }
+
+        if (node.penalties !== undefined) {
+            penalty = node.penalties;
+        }
+
+        if (penalty < lowestPenalty) {
+            lowestPenalty = penalty;
+            bestNode = node;
+        }
+    }
+
+    return bestNode || connectedNodes[0];
+}
+
 module.exports = {
     waitForNodeConnection,
     hasAvailableNodes,
-    getAvailableNode
+    getAvailableNode,
+    getBestNode,
 };
