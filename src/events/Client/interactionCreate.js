@@ -667,6 +667,111 @@ module.exports = {
     }
 
     if (interaction.isStringSelectMenu()) {
+      if (interaction.customId === "vibe_select") {
+        await interaction.deferUpdate().catch(() => {});
+
+        const spotifyUrl = interaction.values[0];
+        const voiceChannel = interaction.member?.voice?.channel;
+
+        if (!voiceChannel) {
+          return interaction.followUp({
+            content: `**${client.emoji.warn} You left the voice channel! Please rejoin and try again.**`,
+            flags: MessageFlags.Ephemeral,
+          }).catch(() => {});
+        }
+
+        try {
+          const { SpotifyClient } = require("../../spotifyClient");
+          const spotify = new SpotifyClient();
+
+          let player = client.manager.players.get(interaction.guildId);
+          if (!player) {
+            player = await client.manager.createPlayer({
+              guildId: interaction.guildId,
+              voiceId: voiceChannel.id,
+              textId: interaction.channelId,
+              volume: 80,
+              deaf: true,
+            });
+            client.voiceHealthMonitor?.startMonitoring(player);
+          }
+
+          const { EmbedBuilder } = require("discord.js");
+
+          const loadingEmbed = new EmbedBuilder()
+            .setColor(0x00D4FF)
+            .setTitle('⏳ Loading your vibe...')
+            .setDescription(`Fetching tracks from Spotify and starting playback.\nThis may take a moment — sit tight!`)
+            .setFooter({ text: 'Tone Vibes • Vibe with the tone', iconURL: client.user.displayAvatarURL() });
+
+          await interaction.editReply({ embeds: [loadingEmbed], components: [] }).catch(() => {});
+
+          const tracks = await spotify.getPlaylistTracks(spotifyUrl, 30);
+
+          if (!tracks || tracks.length === 0) {
+            const errEmbed = new EmbedBuilder()
+              .setColor(0xFF4444)
+              .setTitle(`${client.emoji.cross} Couldn't load playlist`)
+              .setDescription('No tracks found for this playlist. Your Spotify credentials may not be configured.\nTry using `/play <song name>` instead.')
+              .setFooter({ text: 'Tone Vibes • Vibe with the tone', iconURL: client.user.displayAvatarURL() });
+            return interaction.editReply({ embeds: [errEmbed], components: [] }).catch(() => {});
+          }
+
+          let queued = 0;
+          let started = false;
+
+          for (const track of tracks) {
+            if (!track?.name || !track?.artists?.length) continue;
+            const query = `ytmsearch:${track.artists[0].name} - ${track.name}`;
+            try {
+              const result = await client.manager.search(query, { requester: interaction.user });
+              if (result?.tracks?.length > 0) {
+                player.queue.add(result.tracks[0]);
+                queued++;
+                if (!started && !player.playing && !player.paused) {
+                  await player.play().catch(() => {});
+                  started = true;
+                }
+              }
+            } catch { }
+          }
+
+          const playlistLabel = require('../../commands/Information/setup').VIBE_PLAYLISTS
+            ?.find(p => p.value === spotifyUrl)?.label || 'Spotify Playlist';
+
+          if (queued === 0) {
+            const errEmbed = new EmbedBuilder()
+              .setColor(0xFF4444)
+              .setTitle(`${client.emoji.cross} Nothing could be queued`)
+              .setDescription('Could not find any playable tracks. Try `/play <song name>` instead.')
+              .setFooter({ text: 'Tone Vibes • Vibe with the tone', iconURL: client.user.displayAvatarURL() });
+            return interaction.editReply({ embeds: [errEmbed], components: [] }).catch(() => {});
+          }
+
+          const successEmbed = new EmbedBuilder()
+            .setColor(0x1DB954)
+            .setTitle('🎵 Now Vibing!')
+            .setDescription(
+              `Added **${queued} tracks** from ${playlistLabel} to the queue!\n\n` +
+              `🔊 Connected to **${voiceChannel.name}**\n\n` +
+              `-# Use \`/queue\` to see what's coming up or \`/nowplaying\` for the current track.`
+            )
+            .setFooter({ text: 'Tone Vibes • Vibe with the tone', iconURL: client.user.displayAvatarURL() })
+            .setTimestamp();
+
+          return interaction.editReply({ embeds: [successEmbed], components: [] }).catch(() => {});
+
+        } catch (err) {
+          client.logger?.log(`[VibeSelect Error] ${err.message}`, 'error');
+          const errEmbed = new EmbedBuilder()
+            .setColor(0xFF4444)
+            .setTitle(`${client.emoji.cross} Failed to start vibe`)
+            .setDescription(`${err.message}\n\nTry using \`/play <song name>\` instead.`)
+            .setFooter({ text: 'Tone Vibes • Vibe with the tone', iconURL: client.user.displayAvatarURL() });
+          return interaction.editReply({ embeds: [errEmbed], components: [] }).catch(() => {});
+        }
+      }
+
       if (interaction.customId === "np_playlist_select") {
         const player = client.manager.players.get(interaction.guildId);
         const pending = player?.data?.get("pendingAddTrack");
