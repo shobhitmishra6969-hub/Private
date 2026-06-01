@@ -341,6 +341,39 @@ module.exports = {
     }
 
     if (interaction.isButton()) {
+      // ── Vibe flow buttons (no command file needed) ───────────────────────
+      if (interaction.customId === 'setup_getstarted' || interaction.customId === 'setup_joined') {
+        const {
+          buildVcPromptEmbed,
+          buildVcPromptRow,
+          buildVibeSelectEmbed,
+          buildVibeSelectRow,
+          buildPlayHintRow,
+          getGuildVcNames,
+        } = require('../../utils/vibeData');
+        const { MessageFlags } = require('discord.js');
+
+        const voiceChannel = interaction.member?.voice?.channel;
+        const action = interaction.customId.split('_')[1];
+
+        if (!voiceChannel) {
+          const vcNames = getGuildVcNames(interaction.guild);
+          const embed = buildVcPromptEmbed(client, vcNames);
+          const row = buildVcPromptRow();
+          if (action === 'joined') {
+            return interaction.update({ embeds: [embed], components: [row] }).catch(() => {});
+          }
+          return interaction.reply({ embeds: [embed], components: [row], flags: MessageFlags.Ephemeral }).catch(() => {});
+        }
+
+        const embed = buildVibeSelectEmbed(client, voiceChannel.name);
+        const opts = { embeds: [embed], components: [buildVibeSelectRow(), buildPlayHintRow()] };
+        if (action === 'joined') {
+          return interaction.update(opts).catch(() => {});
+        }
+        return interaction.reply({ ...opts, flags: MessageFlags.Ephemeral }).catch(() => {});
+      }
+
       const customIdParts = interaction.customId.split('_');
       const potentialCommandName = customIdParts[0];
 
@@ -736,7 +769,8 @@ module.exports = {
             } catch { }
           }
 
-          const playlistLabel = require('../../commands/Information/setup').VIBE_PLAYLISTS
+          const { VIBE_PLAYLISTS } = require('../../utils/vibeData');
+          const playlistLabel = VIBE_PLAYLISTS
             ?.find(p => p.value === spotifyUrl)?.label || 'Spotify Playlist';
 
           if (queued === 0) {

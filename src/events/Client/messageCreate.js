@@ -104,20 +104,13 @@ module.exports = {
     const prefixData = await PrefixSchema.findOne({ Guild: message.guild.id });
     if (prefixData?.Prefix) prefix = prefixData.Prefix;
 
-    // ── Bot mention reply (runs before ignore-channel check) ────────────────
-    // Triggers on bare @mention OR "@bot setup" — any message that is ONLY
-    // the bot mention with optional whitespace and an optional "setup" keyword.
+    // ── Bot mention reply ────────────────────────────────────────────────────
     const mentionOnly = new RegExp(`^<@!?${client.user.id}>\\s*$`);
-    const mentionSetup = new RegExp(`^<@!?${client.user.id}>\\s*setup\\s*$`, 'i');
-    const isMentionTrigger =
-      message.mentions.users.has(client.user.id) &&
-      (mentionOnly.test(message.content.trim()) || mentionSetup.test(message.content.trim()));
-
-    if (isMentionTrigger) {
-      const { embed, rows } = buildSetupEmbed(client, prefix);
+    if (message.mentions.users.has(client.user.id) && mentionOnly.test(message.content.trim())) {
+      const { buildInfoEmbed, buildInfoRows } = require('../../utils/vibeData');
       await message.channel.send({
-        embeds: [embed],
-        components: rows,
+        embeds: [buildInfoEmbed(client, prefix)],
+        components: buildInfoRows(client),
       }).catch(e => console.error('[Mention Reply Error]', e.message));
       return;
     }
