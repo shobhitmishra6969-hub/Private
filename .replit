@@ -47,7 +47,6 @@ LAVALINK_NODE_2_NAME = "Node 2"
 LAVALINK_NODE_2_URL = "lavalinkv4.serenetia.com:443"
 LAVALINK_NODE_2_AUTH = "https://seretia.link/discord"
 LAVALINK_NODE_2_SECURE = "true"
-DISCORD_TOKEN = "MTQ4NDYwNjk2MjYyMzcwOTQwNQ.GKLm-F.64RlFd8ebr8OoKBoRK10yZ4ihi3tCrTlAVR4CA"
 
 [[ports]]
 localPort = 3000
