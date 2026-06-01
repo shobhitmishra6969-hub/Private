@@ -33,46 +33,63 @@ const RATELIMIT_WINDOW = 20000;
 
 // ── Mention card helpers ───────────────────────────────────────────────────────
 
-function formatUptime(ms) {
-  const s = Math.floor(ms / 1000);
-  const m = Math.floor(s / 60);
-  const h = Math.floor(m / 60);
-  const d = Math.floor(h / 24);
-  if (d > 0) return `${d} day${d !== 1 ? 's' : ''} ago`;
-  if (h > 0) return `${h} hour${h !== 1 ? 's' : ''} ago`;
-  if (m > 0) return `${m} minute${m !== 1 ? 's' : ''} ago`;
-  return `${s} second${s !== 1 ? 's' : ''} ago`;
-}
+function buildSetupEmbed(client, prefix) {
+  const inviteUrl =
+    client.config?.links?.invite ||
+    `https://discord.com/api/oauth2/authorize?client_id=${client.user?.id}&permissions=8&scope=bot%20applications.commands`;
 
-function buildMentionCard(client, author, prefix) {
-  const botName = client.user.username;
-  const support = client.config?.links?.support || '';
-  const invite  = client.config?.links?.invite  || '';
-  const bgUrl   = client.config?.links?.BG       || '';
+  const supportUrl =
+    (client.config?.links?.support && !client.config.links.support.includes('your-invite'))
+      ? client.config.links.support
+      : 'https://discord.gg/your-invite-code';
+
+  const imageUrl = client.config?.links?.BG || null;
 
   const embed = new EmbedBuilder()
-    .setColor(0x1a1a2e)
-    .setTitle(`Hey, It's ${botName}!`)
+    .setColor(0x00D4FF)
+    .setTitle('🎵 Tone Vibes Info')
     .setDescription(
-      `${botName} is an advanced premium music bot — high-fidelity streaming, aesthetic audio filters, and a clutter-free experience. Vibe with the tone.\n\n` +
-      `**Guild Settings**\n` +
-      `**My Prefix:** \`${prefix}\`\n\n` +
-      (support && !support.includes('your-invite') ? `**Need support?** Join our [Support Server](${support})` : '')
-    );
+      `Tone Vibes is the easiest way to listen to music with your friends on Discord.\n` +
+      `Use \`/play\` to add tracks to the queue & \`/help\` to see the list of all commands.\n\n` +
+      `**My Prefix:** \`${prefix}\``
+    )
+    .addFields({
+      name: 'Features:',
+      value: [
+        '🔵 High-quality music streaming',
+        '🔷 Easy-to-use commands',
+        '🟡 Optional no-command button system',
+        '🟢 24/7 uptime',
+      ].join('\n'),
+    })
+    .setFooter({
+      text: 'Tone Vibes • Vibe with the tone',
+      iconURL: client.user?.displayAvatarURL({ dynamic: true }),
+    })
+    .setTimestamp();
 
-  if (bgUrl) embed.setImage(bgUrl);
+  if (imageUrl) embed.setImage(imageUrl);
 
-  const btns = [];
-  if (invite && !invite.includes('your-invite') && invite.startsWith('http')) {
-    btns.push(new ButtonBuilder().setLabel('Invite Me').setStyle(ButtonStyle.Link).setURL(invite));
-  }
-  if (support && !support.includes('your-invite') && support.startsWith('http')) {
-    btns.push(new ButtonBuilder().setLabel('Support Server').setStyle(ButtonStyle.Link).setURL(support));
-  }
+  const row1 = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId('setup_getstarted')
+      .setLabel('Get Started')
+      .setStyle(ButtonStyle.Primary)
+      .setEmoji('🎵'),
+    new ButtonBuilder()
+      .setLabel('Add To Server')
+      .setStyle(ButtonStyle.Link)
+      .setURL(inviteUrl),
+  );
 
-  const rows = btns.length > 0 ? [new ActionRowBuilder().addComponents(btns)] : [];
+  const row2 = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setLabel('Support')
+      .setStyle(ButtonStyle.Link)
+      .setURL(supportUrl),
+  );
 
-  return { embed, rows };
+  return { embed, rows: [row1, row2] };
 }
 
 module.exports = {
@@ -148,12 +165,19 @@ module.exports = {
     if (prefixData?.Prefix) prefix = prefixData.Prefix;
 
     // ── Bot mention reply (runs before ignore-channel check) ────────────────
-    const mention = new RegExp(`^<@!?${client.user.id}>\\s*$`);
-    if (message.mentions.users.has(client.user.id) && mention.test(message.content.trim())) {
-      const { embed, rows } = buildMentionCard(client, message.author, prefix);
+    // Triggers on bare @mention OR "@bot setup" — any message that is ONLY
+    // the bot mention with optional whitespace and an optional "setup" keyword.
+    const mentionOnly = new RegExp(`^<@!?${client.user.id}>\\s*$`);
+    const mentionSetup = new RegExp(`^<@!?${client.user.id}>\\s*setup\\s*$`, 'i');
+    const isMentionTrigger =
+      message.mentions.users.has(client.user.id) &&
+      (mentionOnly.test(message.content.trim()) || mentionSetup.test(message.content.trim()));
+
+    if (isMentionTrigger) {
+      const { embed, rows } = buildSetupEmbed(client, prefix);
       await message.channel.send({
         embeds: [embed],
-        components: [...rows],
+        components: rows,
       }).catch(e => console.error('[Mention Reply Error]', e.message));
       return;
     }
