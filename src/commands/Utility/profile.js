@@ -17,6 +17,7 @@ const PremiumUser = require('../../schema/premiumuser.js');
 const Liked = require('../../schema/liked.js');
 const Playlist = require('../../schema/playlist.js');
 const LastFM = require('../../schema/lastfm.js');
+const SpotifyProfile = require('../../schema/spotifyprofile.js');
 const emoji = require('../../emojis');
 const { AVAILABLE_BADGES } = require('../Owner/add-badge.js');
 
@@ -92,7 +93,7 @@ module.exports = {
             ? await message.guild.members.fetch({ user: target.id, withPresences: true }).catch(() => null)
             : null;
 
-        const [badgeDoc, prefs, stats, premium, likedDoc, playlistDoc, lfm] = await Promise.all([
+        const [badgeDoc, prefs, stats, premium, likedDoc, playlistDoc, lfm, spotifyDoc] = await Promise.all([
             UserBadges.findOne({ userId: target.id }),
             UserPrefs.findOne({ userId: target.id }),
             UserStats.findOne({ userId: target.id }),
@@ -100,6 +101,7 @@ module.exports = {
             Liked.findOne({ userId: target.id }),
             Playlist.findOne({ userId: target.id }),
             LastFM.findOne({ userId: target.id }),
+            SpotifyProfile.findOne({ userId: target.id }),
         ]);
 
         const badges       = Array.isArray(badgeDoc?.badges) ? badgeDoc.badges : [];
@@ -136,8 +138,8 @@ module.exports = {
                 `\`${numFmt(likedCount)}\` Liked`,
                 `\`${numFmt(commandsRun)}\` Commands`,
                 `\`${playlists.length}\` Playlists`,
-                lfmUsername ? `[\`last.fm\`](https://open.spotify.com/user/${SpotifyUsername})` : null,
-                spotifUsername ? `[\`Spotify\`](https://www.spotify/user/${lfmUsername})` : null,
+                lfmUsername ? `[\`last.fm\`](https://www.last.fm/user/${lfmUsername})` : null,
+                spotifyDoc?.spotifyUserId ? `[\`Spotify\`](https://open.spotify.com/user/${spotifyDoc.spotifyUserId})` : null,
             ].filter(Boolean).join('  ·  ');
 
             const footerParts = [
