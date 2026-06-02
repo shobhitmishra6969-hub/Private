@@ -714,8 +714,8 @@ module.exports = {
         }
 
         try {
-          const { SpotifyClient } = require("../../spotifyClient");
-          const spotify = new SpotifyClient();
+          const { EmbedBuilder } = require("discord.js");
+          const { VIBE_PLAYLISTS } = require('../../utils/vibeData');
 
           let player = client.manager.players.get(interaction.guildId);
           if (!player) {
@@ -729,64 +729,40 @@ module.exports = {
             client.voiceHealthMonitor?.startMonitoring(player);
           }
 
-          const { EmbedBuilder } = require("discord.js");
-
           const loadingEmbed = new EmbedBuilder()
             .setColor(0x00D4FF)
             .setTitle('⏳ Loading your vibe...')
-            .setDescription(`Fetching tracks from Spotify and starting playback.\nThis may take a moment — sit tight!`)
+            .setDescription('Fetching tracks and starting playback. Sit tight!')
             .setFooter({ text: 'Tone Vibes • Vibe with the tone', iconURL: client.user.displayAvatarURL() });
 
           await interaction.editReply({ embeds: [loadingEmbed], components: [] }).catch(() => {});
 
-          const tracks = await spotify.getPlaylistTracks(spotifyUrl, 30);
+          const searchResult = await player.search(spotifyUrl, { requester: interaction.user });
 
-          if (!tracks || tracks.length === 0) {
+          if (!searchResult || !searchResult.tracks?.length) {
             const errEmbed = new EmbedBuilder()
               .setColor(0xFF4444)
               .setTitle(`${client.emoji.cross} Couldn't load playlist`)
-              .setDescription('No tracks found for this playlist. Your Spotify credentials may not be configured.\nTry using `/play <song name>` instead.')
+              .setDescription('No tracks found. Try using `/play <song name>` instead.')
               .setFooter({ text: 'Tone Vibes • Vibe with the tone', iconURL: client.user.displayAvatarURL() });
             return interaction.editReply({ embeds: [errEmbed], components: [] }).catch(() => {});
           }
 
-          let queued = 0;
-          let started = false;
-
-          for (const track of tracks) {
-            if (!track?.name || !track?.artists?.length) continue;
-            const query = `ytmsearch:${track.artists[0].name} - ${track.name}`;
-            try {
-              const result = await client.manager.search(query, { requester: interaction.user });
-              if (result?.tracks?.length > 0) {
-                player.queue.add(result.tracks[0]);
-                queued++;
-                if (!started && !player.playing && !player.paused) {
-                  await player.play().catch(() => {});
-                  started = true;
-                }
-              }
-            } catch { }
+          for (const track of searchResult.tracks) {
+            player.queue.add(track);
           }
 
-          const { VIBE_PLAYLISTS } = require('../../utils/vibeData');
-          const playlistLabel = VIBE_PLAYLISTS
-            ?.find(p => p.value === spotifyUrl)?.label || 'Spotify Playlist';
-
-          if (queued === 0) {
-            const errEmbed = new EmbedBuilder()
-              .setColor(0xFF4444)
-              .setTitle(`${client.emoji.cross} Nothing could be queued`)
-              .setDescription('Could not find any playable tracks. Try `/play <song name>` instead.')
-              .setFooter({ text: 'Tone Vibes • Vibe with the tone', iconURL: client.user.displayAvatarURL() });
-            return interaction.editReply({ embeds: [errEmbed], components: [] }).catch(() => {});
+          if (!player.playing && !player.paused) {
+            await player.play().catch(() => {});
           }
+
+          const playlistLabel = VIBE_PLAYLISTS.find(p => p.value === spotifyUrl)?.label || 'Spotify Playlist';
 
           const successEmbed = new EmbedBuilder()
             .setColor(0x1DB954)
             .setTitle('🎵 Now Vibing!')
             .setDescription(
-              `Added **${queued} tracks** from ${playlistLabel} to the queue!\n\n` +
+              `Added **${searchResult.tracks.length} tracks** from ${playlistLabel} to the queue!\n\n` +
               `🔊 Connected to **${voiceChannel.name}**\n\n` +
               `-# Use \`/queue\` to see what's coming up or \`/nowplaying\` for the current track.`
             )
@@ -797,6 +773,7 @@ module.exports = {
 
         } catch (err) {
           client.logger?.log(`[VibeSelect Error] ${err.message}`, 'error');
+          const { EmbedBuilder } = require("discord.js");
           const errEmbed = new EmbedBuilder()
             .setColor(0xFF4444)
             .setTitle(`${client.emoji.cross} Failed to start vibe`)
