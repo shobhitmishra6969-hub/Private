@@ -70,9 +70,9 @@ async function applyFilter(value, player) {
     switch (value) {
         case "clear":           await player.shoukaku.clearFilters(); return "None";
         case "8d_but":          await player.shoukaku.setFilters({ rotation: { rotationHz: 0.2 } }); return "8D Audio";
-        case "bass_but":        await player.shoukaku.setFilters({ equalizer: [{ band: 0, gain: 0.3 }, { band: 1, gain: 0.25 }, { band: 2, gain: 0.2 }, { band: 3, gain: 0.1 }] }); return "BassBoost";
-        case "deepbass_but":    await player.shoukaku.setFilters({ equalizer: [{ band: 0, gain: 0.6 }, { band: 1, gain: 0.5 }, { band: 2, gain: 0.4 }, { band: 3, gain: 0.3 }, { band: 4, gain: 0.2 }] }); return "Deep Bass";
-        case "treble_but":      await player.shoukaku.setFilters({ equalizer: [{ band: 10, gain: 0.3 }, { band: 11, gain: 0.35 }, { band: 12, gain: 0.4 }, { band: 13, gain: 0.45 }] }); return "Treble Boost";
+        case "bass_but":        await player.shoukaku.setFilters({ volume: 0.85, equalizer: [{ band: 0, gain: 0.18 }, { band: 1, gain: 0.14 }, { band: 2, gain: 0.10 }, { band: 3, gain: 0.05 }] }); return "BassBoost";
+        case "deepbass_but":    await player.shoukaku.setFilters({ volume: 0.75, equalizer: [{ band: 0, gain: 0.30 }, { band: 1, gain: 0.22 }, { band: 2, gain: 0.16 }, { band: 3, gain: 0.10 }, { band: 4, gain: 0.05 }] }); return "Deep Bass";
+        case "treble_but":      await player.shoukaku.setFilters({ equalizer: [{ band: 10, gain: 0.15 }, { band: 11, gain: 0.18 }, { band: 12, gain: 0.20 }, { band: 13, gain: 0.22 }] }); return "Treble Boost";
         case "night_but":       await player.shoukaku.setFilters({ timescale: { speed: 1.15, pitch: 1.2, rate: 1.0 } }); return "NightCore";
         case "daycore_but":     await player.shoukaku.setFilters({ timescale: { speed: 0.85, pitch: 0.85, rate: 1.0 } }); return "Daycore";
         case "slowed_but":      await player.shoukaku.setFilters({ timescale: { speed: 0.88, pitch: 0.9 }, reverb: { roomSize: 0.7, damping: 0.5, wet: 0.33, dry: 0.4 } }); return "Slowed+Reverb";
@@ -82,9 +82,9 @@ async function applyFilter(value, player) {
         case "soft_but":        await player.shoukaku.setFilters({ lowPass: { smoothing: 20.0 } }); return "Soft";
         case "china_but":       await player.shoukaku.setFilters({ timescale: { speed: 0.75, pitch: 1.25, rate: 1.25 } }); return "China";
         case "vibrato_but":     await player.shoukaku.setFilters({ vibrato: { frequency: 4.0, depth: 0.75 } }); return "Vibrato";
-        case "clear_voice_but": await player.shoukaku.setFilters({ equalizer: [{ band: 0, gain: -0.1 }, { band: 1, gain: -0.1 }, { band: 2, gain: -0.05 }, { band: 5, gain: 0.1 }, { band: 6, gain: 0.2 }, { band: 7, gain: 0.25 }, { band: 8, gain: 0.2 }, { band: 9, gain: 0.1 }] }); return "Clear Voice";
-        case "crystal_but":     await player.shoukaku.setFilters({ equalizer: [{ band: 10, gain: 0.3 }, { band: 11, gain: 0.35 }, { band: 12, gain: 0.4 }, { band: 13, gain: 0.45 }, { band: 14, gain: 0.4 }] }); return "Crystal Voice";
-        case "realistic_but":   await player.shoukaku.setFilters({ equalizer: [{ band: 0, gain: 0.1 }, { band: 1, gain: 0.1 }, { band: 2, gain: 0.05 }, { band: 3, gain: 0.05 }, { band: 4, gain: 0.05 }, { band: 5, gain: 0.1 }, { band: 6, gain: 0.15 }, { band: 7, gain: 0.15 }, { band: 8, gain: 0.15 }, { band: 9, gain: 0.15 }, { band: 10, gain: 0.2 }, { band: 11, gain: 0.2 }, { band: 12, gain: 0.2 }, { band: 13, gain: 0.2 }, { band: 14, gain: 0.2 }] }); return "Realistic";
+        case "clear_voice_but": await player.shoukaku.setFilters({ equalizer: [{ band: 0, gain: -0.05 }, { band: 1, gain: -0.05 }, { band: 2, gain: -0.02 }, { band: 5, gain: 0.08 }, { band: 6, gain: 0.12 }, { band: 7, gain: 0.15 }, { band: 8, gain: 0.12 }, { band: 9, gain: 0.08 }] }); return "Clear Voice";
+        case "crystal_but":     await player.shoukaku.setFilters({ equalizer: [{ band: 10, gain: 0.15 }, { band: 11, gain: 0.18 }, { band: 12, gain: 0.20 }, { band: 13, gain: 0.22 }, { band: 14, gain: 0.20 }] }); return "Crystal Voice";
+        case "realistic_but":   await player.shoukaku.setFilters({ equalizer: [{ band: 0, gain: 0.05 }, { band: 1, gain: 0.05 }, { band: 2, gain: 0.03 }, { band: 3, gain: 0.03 }, { band: 4, gain: 0.03 }, { band: 5, gain: 0.05 }, { band: 6, gain: 0.08 }, { band: 7, gain: 0.08 }, { band: 8, gain: 0.08 }, { band: 9, gain: 0.08 }, { band: 10, gain: 0.10 }, { band: 11, gain: 0.10 }, { band: 12, gain: 0.10 }, { band: 13, gain: 0.10 }, { band: 14, gain: 0.10 }] }); return "Realistic";
         default: return null;
     }
 }
@@ -151,7 +151,13 @@ module.exports = {
             idle: 30000,
         });
 
+        let applying = false;
         collector.on("collect", async (i) => {
+            if (applying) {
+                await i.deferUpdate().catch(() => {});
+                return;
+            }
+            applying = true;
             await i.deferUpdate();
             const value = i.customId.replace("filter_", "");
             const newFilter = await applyFilter(value, player);
@@ -163,6 +169,7 @@ module.exports = {
                 components: [buildFilterContainer(currentFilter)],
                 flags: MessageFlags.IsComponentsV2,
             });
+            applying = false;
         });
 
         collector.on("end", async () => {
