@@ -105,10 +105,6 @@ module.exports = {
   },
 
   async execute(message, args, client) {
-    if (!config.SpotifyID || !config.SpotifySecret) {
-      return message.reply({ content: '**Spotify API credentials are not configured. Please contact the bot owner.**' });
-    }
-
     const existing = await SpotifyProfile.findOne({ userId: message.author.id }).catch(() => null);
 
     if (existing?.spotifyUserId) {
@@ -246,40 +242,57 @@ module.exports = {
 
     await interaction.deferReply();
 
-    const rawInput = interaction.fields.getTextInputValue('spotify_url_input');
+    const rawInput = interaction.fields.getTextInputValue('spotify_url_input').trim();
+    if (!rawInput) {
+      return interaction.editReply({
+        embeds: [new EmbedBuilder().setColor('#E31B23').setDescription('**Please enter a valid Spotify profile URL or username.**')],
+      });
+    }
+
     const spotifyUserId = parseSpotifyUserId(rawInput);
 
-    let token;
+    // Fallback values derived purely from the URL — used if the API is unavailable
+    const fallbackDisplayName = spotifyUserId;
+    const fallbackProfileUrl = `https://open.spotify.com/user/${encodeURIComponent(spotifyUserId)}`;
+
+    let token = null;
     try {
       token = await getClientCredentialsToken();
     } catch (err) {
-      console.error('[Spotify Login] Token error:', err?.response?.data || err.message);
-      return interaction.editReply({
-        embeds: [new EmbedBuilder().setColor('#E31B23').setDescription('**Failed to connect to Spotify. Please try again later.**')],
-      });
+      console.warn('[Spotify Login] Token error (non-fatal):', err?.response?.data || err.message);
     }
 
-    let profile;
-    try {
-      profile = await fetchPublicProfile(spotifyUserId, token);
-    } catch (err) {
-      const status = err?.response?.status;
-      const msg = status === 404
-        ? `**Could not find Spotify user \`${spotifyUserId}\`. Make sure the URL or username is correct.**`
-        : `**Failed to fetch Spotify profile. Please check the URL and try again.**`;
-      return interaction.editReply({
-        embeds: [new EmbedBuilder().setColor('#E31B23').setDescription(msg)],
-      });
+    let profile = null;
+    if (token) {
+      try {
+        profile = await fetchPublicProfile(spotifyUserId, token);
+      } catch (err) {
+        const status = err?.response?.status;
+        if (status === 404) {
+          return interaction.editReply({
+            embeds: [new EmbedBuilder().setColor('#E31B23').setDescription(
+              `**Could not find Spotify user \`${spotifyUserId}\`.**\nMake sure the URL or username is correct.`
+            )],
+          });
+        }
+        // 403 / 429 / network error — fall back to URL-derived data
+        console.warn(`[Spotify Login] Profile fetch failed (${status}), using URL fallback:`, err?.response?.data?.error?.message || err.message);
+      }
     }
 
-    let playlistData;
-    try {
-      playlistData = await fetchPublicPlaylists(profile.id, token, 50);
-    } catch {}
+    let playlistData = null;
+    if (token) {
+      try {
+        playlistData = await fetchPublicPlaylists(profile?.id || spotifyUserId, token, 50);
+      } catch {
+        // Non-fatal — playlists just won't be stored
+      }
+    }
 
-    const displayName = profile.display_name || profile.id;
-    const profileUrl = profile.external_urls?.spotify || `https://open.spotify.com/user/${profile.id}`;
-    const avatarUrl = profile.images?.[0]?.url || null;
+    const resolvedId = profile?.id || spotifyUserId;
+    const displayName = profile?.display_name || fallbackDisplayName;
+    const profileUrl = profile?.external_urls?.spotify || fallbackProfileUrl;
+    const avatarUrl = profile?.images?.[0]?.url || null;
     const publicPlaylistCount = playlistData?.total ?? 0;
 
     const playlistsToSave = (playlistData?.items || []).map(p => ({
@@ -293,7 +306,7 @@ module.exports = {
         { userId },
         {
           userId,
-          spotifyUserId: profile.id,
+          spotifyUserId: resolvedId,
           displayName,
           profileUrl,
           avatarUrl,
