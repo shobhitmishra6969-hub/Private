@@ -730,7 +730,7 @@ module.exports = {
           }
 
           const loadingEmbed = new EmbedBuilder()
-            .setColor(0x00D4FF)
+            .setColor(0x7B2FBE)
             .setTitle('⏳ Loading your vibe...')
             .setDescription('Fetching tracks and starting playback. Sit tight!')
             .setFooter({ text: 'Tone Vibes • Vibe with the tone', iconURL: client.user.displayAvatarURL() });
@@ -741,7 +741,7 @@ module.exports = {
 
           if (!searchResult || !searchResult.tracks?.length) {
             const errEmbed = new EmbedBuilder()
-              .setColor(0xFF4444)
+              .setColor(0x7B2FBE)
               .setTitle(`${client.emoji.cross} Couldn't load playlist`)
               .setDescription('No tracks found. Try using `/play <song name>` instead.')
               .setFooter({ text: 'Tone Vibes • Vibe with the tone', iconURL: client.user.displayAvatarURL() });
@@ -759,7 +759,7 @@ module.exports = {
           const playlistLabel = VIBE_PLAYLISTS.find(p => p.value === spotifyUrl)?.label || 'Spotify Playlist';
 
           const successEmbed = new EmbedBuilder()
-            .setColor(0x1DB954)
+            .setColor(0x7B2FBE)
             .setTitle('🎵 Now Vibing!')
             .setDescription(
               `Added **${searchResult.tracks.length} tracks** from ${playlistLabel} to the queue!\n\n` +
@@ -775,7 +775,7 @@ module.exports = {
           client.logger?.log(`[VibeSelect Error] ${err.message}`, 'error');
           const { EmbedBuilder } = require("discord.js");
           const errEmbed = new EmbedBuilder()
-            .setColor(0xFF4444)
+            .setColor(0x7B2FBE)
             .setTitle(`${client.emoji.cross} Failed to start vibe`)
             .setDescription(`${err.message}\n\nTry using \`/play <song name>\` instead.`)
             .setFooter({ text: 'Tone Vibes • Vibe with the tone', iconURL: client.user.displayAvatarURL() });

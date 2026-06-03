@@ -27,7 +27,7 @@ const FIELDS = [
 ];
 
 function buildEmbedFromData(data, fallbackColor) {
-    const embed = new EmbedBuilder().setColor(data.color || fallbackColor || '#00D4FF');
+    const embed = new EmbedBuilder().setColor(data.color || fallbackColor || '#7B2FBE');
 
     if (data.title) embed.setTitle(data.title);
     if (data.description) embed.setDescription(data.description);
@@ -133,7 +133,7 @@ module.exports = {
             image: '',
             footer_text: '',
             footer_icon: '',
-            color: client.color || '#00D4FF',
+            color: client.color || '#7B2FBE',
         };
 
         const previewEmbed = buildEmbedFromData(data, client.color);
@@ -165,7 +165,7 @@ module.exports = {
             if (id === 'embed_reset') {
                 await interaction.deferUpdate().catch(() => {});
                 for (const key of Object.keys(data)) {
-                    data[key] = key === 'color' ? (client.color || '#00D4FF') : '';
+                    data[key] = key === 'color' ? (client.color || '#7B2FBE') : '';
                 }
                 const refreshed = buildEmbedFromData(data, client.color);
                 await builderMsg.edit({ embeds: [refreshed], components: buildControlRows() }).catch(() => {});
@@ -293,7 +293,7 @@ module.exports = {
                     if (value) {
                         if (fieldId === 'color') {
                             const hexMatch = value.match(/^#?([0-9A-Fa-f]{6})$/);
-                            data[fieldId] = hexMatch ? `#${hexMatch[1].toUpperCase()}` : (client.color || '#00D4FF');
+                            data[fieldId] = hexMatch ? `#${hexMatch[1].toUpperCase()}` : (client.color || '#7B2FBE');
                         } else {
                             data[fieldId] = value;
                         }

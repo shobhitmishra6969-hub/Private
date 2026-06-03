@@ -16,7 +16,7 @@ const SUBCOMMANDS = ['embed', 'anon', 'role'];
 // Build the rich embed that gets sent to the target's DMs
 const buildDMEmbed = ({ guild, sender, title, body, anonymous, color }) => {
     const embed = new EmbedBuilder()
-        .setColor(color || "#9B59B6")
+        .setColor(color || "#7B2FBE")
         .setTitle(title || '📨 New Message')
         .setDescription(body)
         .setTimestamp();

@@ -19,7 +19,7 @@ module.exports = {
     SpotifySecret: process.env.SPOTIFY_CLIENT_SECRET || "20828fb042414cf5b62e727d15712ba1",
     spotifyRedirectUri: process.env.SPOTIFY_REDIRECT_URI || null,
     mongourl: process.env.MONGO_URL || null,
-    color: process.env.BOT_COLOR || "#00D4FF",
+    color: process.env.BOT_COLOR || "#7B2FBE",
     logs: process.env.LOGS_CHANNEL || "",
     node_source: process.env.NODE_SOURCE || "ytmsearch",
     lastfmKey: process.env.LASTFM_API_KEY || "",

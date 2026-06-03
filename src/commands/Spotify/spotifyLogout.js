@@ -25,7 +25,7 @@ module.exports = {
 
     if (!existing) {
       const notLinkedEmbed = new EmbedBuilder()
-        .setColor('#E31B23')
+        .setColor('#7B2FBE')
         .setDescription("**You don't have a Spotify account linked to the bot.**\n\nRun `" + client.prefix + "spotify-login` to link one.");
       return message.reply({ embeds: [notLinkedEmbed] });
     }
@@ -34,7 +34,7 @@ module.exports = {
     const profileUrl = existing.profileUrl || `https://open.spotify.com/user/${existing.spotifyUserId}`;
 
     const confirmEmbed = new EmbedBuilder()
-      .setColor('#E31B23')
+      .setColor('#7B2FBE')
       .setTitle('⚠️ Unlink Spotify Account?')
       .setDescription(
         `Are you sure you want to unlink **[${displayName}](${profileUrl})** from the bot?\n\n` +
@@ -65,7 +65,7 @@ module.exports = {
       });
     } catch {
       return prompt.edit({
-        embeds: [new EmbedBuilder().setColor('#5c5c5c').setDescription('**Unlink cancelled** — confirmation timed out.')],
+        embeds: [new EmbedBuilder().setColor('#7B2FBE').setDescription('**Unlink cancelled** — confirmation timed out.')],
         components: [],
       }).catch(() => {});
     }
@@ -74,7 +74,7 @@ module.exports = {
 
     if (interaction.customId === 'spotify_logout_cancel') {
       return prompt.edit({
-        embeds: [new EmbedBuilder().setColor('#5c5c5c').setDescription('**Unlink cancelled.**')],
+        embeds: [new EmbedBuilder().setColor('#7B2FBE').setDescription('**Unlink cancelled.**')],
         components: [],
       }).catch(() => {});
     }
@@ -84,13 +84,13 @@ module.exports = {
     } catch (err) {
       console.error('[Spotify Logout] DB delete error:', err.message);
       return prompt.edit({
-        embeds: [new EmbedBuilder().setColor('#E31B23').setDescription('**Failed to unlink your account. Please try again.**')],
+        embeds: [new EmbedBuilder().setColor('#7B2FBE').setDescription('**Failed to unlink your account. Please try again.**')],
         components: [],
       }).catch(() => {});
     }
 
     const successEmbed = new EmbedBuilder()
-      .setColor('#1DB954')
+      .setColor('#7B2FBE')
       .setTitle('✅ Spotify Unlinked')
       .setDescription(
         `**${displayName}** has been unlinked from your Discord account.\n\n` +

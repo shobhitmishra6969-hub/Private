@@ -10,9 +10,9 @@ const GiveawayModel = require('../../schema/giveaway');
 const GiveawayConfig = require('../../schema/giveawayconfig');
 const emoji = require('../../emojis');
 
-const THEME_COLORS = { blue: 0x5865F2, white: 0xFFFFFF };
-const ENDED_COLOR = 0x2b2d31;
-const CANCELLED_COLOR = 0xED4245;
+const THEME_COLORS = { blue: 0x7B2FBE, white: 0x7B2FBE };
+const ENDED_COLOR = 0x7B2FBE;
+const CANCELLED_COLOR = 0x7B2FBE;
 const ENTER_EMOJI = '<:giveaway:1484568305606983893>';
 const ENTER_EMOJI_ID = '1484568305606983893';
 const ENTER_EMOJI_NAME = 'giveaway';

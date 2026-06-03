@@ -31,7 +31,7 @@ function buildPage(pl, page, author, color) {
         ).join('\n');
 
     return new EmbedBuilder()
-        .setColor(color || '#00D4FF')
+        .setColor(color || '#7B2FBE')
         .setTitle(`🎵 ${pl.name}`)
         .setDescription(trackList)
         .addFields(

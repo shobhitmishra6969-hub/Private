@@ -25,7 +25,7 @@ module.exports = {
         if (!pl) return reply(message, `**${emoji.cross} Playlist \`${name}\` not found.**`);
 
         const embed = new EmbedBuilder()
-            .setColor('#FF4444')
+            .setColor('#7B2FBE')
             .setTitle('⚠️ Confirm Deletion')
             .setDescription(`Are you sure you want to delete **\`${pl.name}\`**?\nThis will remove **${pl.tracks.length} track(s)** permanently.`)
             .setFooter({ text: 'You have 30 seconds to confirm.' });
@@ -50,14 +50,14 @@ module.exports = {
                 await fresh.save();
 
                 const done = new EmbedBuilder()
-                    .setColor(client.color || '#00D4FF')
+                    .setColor(client.color || '#7B2FBE')
                     .setTitle('🗑️ Playlist Deleted')
                     .setDescription(`**\`${pl.name}\`** has been deleted.`)
                     .setTimestamp();
                 await i.update({ embeds: [done], components: [] });
             } else {
                 const cancelled = new EmbedBuilder()
-                    .setColor(client.color || '#00D4FF')
+                    .setColor(client.color || '#7B2FBE')
                     .setDescription(`**${emoji.cross} Deletion cancelled.**`);
                 await i.update({ embeds: [cancelled], components: [] });
             }

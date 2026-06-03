@@ -48,7 +48,7 @@ module.exports = {
             .setTitle('Tone Vibes | Bot Statistics')
             .setDescription('**Advanced Music Bot For Your Server**')
             .setThumbnail(client.user.displayAvatarURL({ size: 256 }))
-            .setColor('#8A2BE2')
+            .setColor('#7B2FBE')
             .addFields(
                 {
                     name: ' Statistics',

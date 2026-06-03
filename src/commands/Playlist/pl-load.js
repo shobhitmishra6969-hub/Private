@@ -61,7 +61,7 @@ module.exports = {
             }
 
             const embed = new EmbedBuilder()
-                .setColor(client.color || '#00D4FF')
+                .setColor(client.color || '#7B2FBE')
                 .setTitle('▶️ Playlist Loaded')
                 .setDescription(`Loaded **\`${name}\`** into the queue!`)
                 .addFields(

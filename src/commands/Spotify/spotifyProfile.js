@@ -52,7 +52,7 @@ async function buildProfileReply(userId, client) {
 
   if (!linked) {
     const embed = new EmbedBuilder()
-      .setColor("#E31B23")
+      .setColor("#7B2FBE")
       .setDescription(
         `**You haven't linked a Spotify account yet.**\n` +
         `Run \`${client?.prefix || ">"}spotify-login\` to link your account.`
@@ -129,7 +129,7 @@ async function buildProfileReply(userId, client) {
     : "_Top tracks require Spotify OAuth login._";
 
   const embed = new EmbedBuilder()
-    .setColor("#1DB954")
+    .setColor("#7B2FBE")
     .setTitle("<:spotify:1357041816106541156> Spotify Profile")
     .setDescription(`**[${displayName}](${profileUrl || "https://spotify.com"})**`)
     .setThumbnail(avatarUrl);

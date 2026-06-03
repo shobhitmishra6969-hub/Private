@@ -78,7 +78,7 @@ async function handleLogin(message, args, client) {
     const cancelId  = `lfm_cancel_${message.author.id}_${Date.now()}`;
 
     const embed = new EmbedBuilder()
-        .setColor('#E31B23')
+        .setColor('#7B2FBE')
         .setTitle('🔑 Link your Last.fm Account')
         .setDescription(
             `**Step 1 —** Click **"Authorize on Last.fm"** and approve the bot on Last.fm\n` +
@@ -114,7 +114,7 @@ async function handleLogin(message, args, client) {
         });
     } catch {
         return prompt.edit({
-            embeds: [new EmbedBuilder().setColor('#E31B23').setDescription(`**${emoji.cross} Authorization timed out. Run the command again to try linking.**`)],
+            embeds: [new EmbedBuilder().setColor('#7B2FBE').setDescription(`**${emoji.cross} Authorization timed out. Run the command again to try linking.**`)],
             components: [],
         }).catch(() => {});
     }
@@ -123,7 +123,7 @@ async function handleLogin(message, args, client) {
 
     if (interaction.customId === cancelId) {
         return prompt.edit({
-            embeds: [new EmbedBuilder().setColor('#E31B23').setDescription(`**Linking cancelled.**`)],
+            embeds: [new EmbedBuilder().setColor('#7B2FBE').setDescription(`**Linking cancelled.**`)],
             components: [],
         }).catch(() => {});
     }
@@ -133,7 +133,7 @@ async function handleLogin(message, args, client) {
     if (!sessionData?.session?.key || !sessionData?.session?.name) {
         return prompt.edit({
             embeds: [new EmbedBuilder()
-                .setColor('#E31B23')
+                .setColor('#7B2FBE')
                 .setTitle('❌ Authorization Failed')
                 .setDescription(
                     `Could not get your session from Last.fm. This usually means:\n` +
@@ -158,13 +158,13 @@ async function handleLogin(message, args, client) {
         );
     } catch (err) {
         return prompt.edit({
-            embeds: [new EmbedBuilder().setColor('#E31B23').setDescription(`**${emoji.cross} Failed to save your account. Please try again.**`)],
+            embeds: [new EmbedBuilder().setColor('#7B2FBE').setDescription(`**${emoji.cross} Failed to save your account. Please try again.**`)],
             components: [],
         }).catch(() => {});
     }
 
     const successEmbed = new EmbedBuilder()
-        .setColor('#E31B23')
+        .setColor('#7B2FBE')
         .setTitle('🎵 Last.fm Linked!')
         .setDescription(`Your Discord account is now linked to **[${lfmName}](https://www.last.fm/user/${lfmName})**\n\nYou're fully authenticated — all Last.fm features are ready!`)
         .setThumbnail(info?.user?.image?.[2]?.['#text'] || null)
@@ -194,7 +194,7 @@ async function handleLogout(message, args, client) {
     await LastFM.deleteOne({ userId: message.author.id });
 
     const embed = new EmbedBuilder()
-        .setColor('#E31B23')
+        .setColor('#7B2FBE')
         .setDescription(`**${emoji.check} Successfully unlinked your Last.fm account (\`${doc.username}\`).**`)
         .setTimestamp();
 
@@ -240,7 +240,7 @@ async function handleNowPlaying(message, args, client, targetUser) {
         .join('\n') || 'None';
 
     const embed = new EmbedBuilder()
-        .setColor('#E31B23')
+        .setColor('#7B2FBE')
         .setAuthor({
             name: `${doc.username} on Last.fm`,
             url: `https://www.last.fm/user/${doc.username}`,
@@ -316,7 +316,7 @@ async function handleScrobble(message, args, client) {
         }
 
         const embed = new EmbedBuilder()
-            .setColor('#E31B23')
+            .setColor('#7B2FBE')
             .setTitle('✅ Scrobbled to Last.fm')
             .setDescription(`**${trackName}**\nby **${artistName}**`)
             .setThumbnail(song.thumbnail || null)
@@ -355,7 +355,7 @@ async function handleProfile(message, args, client, targetUser) {
         .join('\n') || 'None';
 
     const embed = new EmbedBuilder()
-        .setColor('#E31B23')
+        .setColor('#7B2FBE')
         .setAuthor({
             name: `${u.name}'s Last.fm Profile`,
             url: u.url,
@@ -420,7 +420,7 @@ module.exports = {
         }
 
         const embed = new EmbedBuilder()
-            .setColor('#E31B23')
+            .setColor('#7B2FBE')
             .setTitle('🎵 Last.fm Commands')
             .setDescription('Connect your Last.fm account and track your music scrobbles.')
             .addFields({

@@ -24,7 +24,7 @@ module.exports = {
     const own = await guild.fetchOwner().catch(() => null);
 
     const embed = new EmbedBuilder()
-      .setColor("#ff0000")
+      .setColor("#7B2FBE")
       .setThumbnail(guild.iconURL({ size: 1024 }))
       .setDescription(
         `**${client.emoji.cross} Left a Guild**\n\n` +

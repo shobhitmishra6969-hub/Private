@@ -164,7 +164,7 @@ async function sendCardStyle(client, channel, player, track, buttonsEnabled) {
 
     if (!url) throw new Error("REPLIT_DEV_DOMAIN not set");
 
-    const embed = new EmbedBuilder().setImage(url).setColor(0x0c0c14);
+    const embed = new EmbedBuilder().setImage(url).setColor(0x7B2FBE);
     const msgOptions = { embeds: [embed] };
     if (buttonsEnabled) msgOptions.components = buildCardButtons(client, player, false);
 
@@ -184,7 +184,7 @@ async function updateCardStyle(client, message, player, track, isPaused, buttons
 
     if (!url) return;
 
-    const embed = new EmbedBuilder().setImage(url).setColor(0x0c0c14);
+    const embed = new EmbedBuilder().setImage(url).setColor(0x7B2FBE);
     const editOptions = { embeds: [embed] };
     if (buttonsEnabled) {
       editOptions.components = buildCardButtons(client, player, isPaused);

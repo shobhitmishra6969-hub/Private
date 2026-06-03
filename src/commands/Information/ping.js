@@ -60,7 +60,7 @@ module.exports = {
                 `\`${pad('Database')}-  ${dbLatency}ms\`\n` +
                 `\`${pad('WebSocket')}-  ${wsLatency}ms\``
             )
-            .setColor(config.color || '#9B59B6')
+            .setColor(config.color || '#7B2FBE')
             .setFooter({ text: config.links?.power || `Powered By ${client.user.username}` });
 
         return message.reply({ embeds: [embed] });

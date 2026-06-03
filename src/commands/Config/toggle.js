@@ -52,7 +52,7 @@ module.exports = {
         // ── No args: show toggle menu ─────────────────────────────────────
         if (!sub) {
             const embed = new EmbedBuilder()
-                .setColor(client.color || '#9B59B6')
+                .setColor(client.color || '#7B2FBE')
                 .setTitle('Toggle Commands')
                 .setDescription(
                     `\`<:dots:1484507998695985173> ${prefix}toggle 247\`\nToggle the 24/7 mode for your server.\n\n` +
@@ -85,7 +85,7 @@ module.exports = {
             const statusText = buttonsEnabled ? '**Enabled**' : '**Disabled**';
 
             const embed = new EmbedBuilder()
-                .setColor(client.color || '#9B59B6')
+                .setColor(client.color || '#7B2FBE')
                 .setTitle('<:Arrow_arrow:1484506070935273563> Button Controls Configuration')
                 .setDescription(
                     `Button Controls are currently ${statusText}\n\n` +
@@ -129,7 +129,7 @@ module.exports = {
                 const newStatus = enabling ? '**Enabled**' : '**Disabled**';
 
                 const updatedEmbed = new EmbedBuilder()
-                    .setColor(client.color || '#9B59B6')
+                    .setColor(client.color || '#7B2FBE')
                     .setTitle('Button Controls Configuration')
                     .setDescription(
                         `Button Controls are now ${newStatus}\n\n` +
@@ -177,7 +177,7 @@ module.exports = {
 
         // ── Unknown subcommand ────────────────────────────────────────────
         const embed = new EmbedBuilder()
-            .setColor(client.color || '#9B59B6')
+            .setColor(client.color || '#7B2FBE')
             .setTitle('Toggle Commands')
             .setDescription(
                 `\`<:dots:1484507998695985173> ${prefix}toggle 247\`\nToggle the 24/7 mode for your server.\n\n` +

@@ -53,14 +53,14 @@ function parseSpotifyUserId(input) {
 
 function buildConnectEmbed() {
   return new EmbedBuilder()
-    .setColor('#1DB954')
+    .setColor('#7B2FBE')
     .setTitle(`${emoji.spotify} Connect Spotify`)
     .setDescription('Click the button below to link your Spotify profile');
 }
 
 function buildProfileCard(displayName, publicPlaylistCount, avatarUrl) {
   const embed = new EmbedBuilder()
-    .setColor('#1DB954')
+    .setColor('#7B2FBE')
     .setTitle(`${emoji.spotify} Spotify Profile`)
     .setDescription(`**${displayName}**\n${publicPlaylistCount} public playlist${publicPlaylistCount !== 1 ? 's' : ''}`)
     .setTimestamp();
@@ -209,7 +209,7 @@ module.exports = {
         .join('\n');
 
       const embed = new EmbedBuilder()
-        .setColor('#1DB954')
+        .setColor('#7B2FBE')
         .setTitle(`${emoji.spotify} Public Playlists`)
         .setDescription(listText)
         .setFooter({ text: `Showing ${showCount} of ${playlistData.total} public playlists` });
@@ -230,7 +230,7 @@ module.exports = {
       return interaction.editReply({
         embeds: [
           new EmbedBuilder()
-            .setColor('#1DB954')
+            .setColor('#7B2FBE')
             .setDescription(`**Your Spotify profile has been disconnected.**\nRun \`spotify-login\` again to reconnect.`),
         ],
       });
@@ -245,7 +245,7 @@ module.exports = {
     const rawInput = interaction.fields.getTextInputValue('spotify_url_input').trim();
     if (!rawInput) {
       return interaction.editReply({
-        embeds: [new EmbedBuilder().setColor('#E31B23').setDescription('**Please enter a valid Spotify profile URL or username.**')],
+        embeds: [new EmbedBuilder().setColor('#7B2FBE').setDescription('**Please enter a valid Spotify profile URL or username.**')],
       });
     }
 
@@ -270,7 +270,7 @@ module.exports = {
         const status = err?.response?.status;
         if (status === 404) {
           return interaction.editReply({
-            embeds: [new EmbedBuilder().setColor('#E31B23').setDescription(
+            embeds: [new EmbedBuilder().setColor('#7B2FBE').setDescription(
               `**Could not find Spotify user \`${spotifyUserId}\`.**\nMake sure the URL or username is correct.`
             )],
           });
@@ -321,7 +321,7 @@ module.exports = {
     } catch (dbErr) {
       console.error('[Spotify Login] DB save error:', dbErr.message);
       return interaction.editReply({
-        embeds: [new EmbedBuilder().setColor('#E31B23').setDescription('**Failed to save your Spotify profile. Please try again.**')],
+        embeds: [new EmbedBuilder().setColor('#7B2FBE').setDescription('**Failed to save your Spotify profile. Please try again.**')],
       });
     }
 

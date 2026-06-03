@@ -23,7 +23,7 @@ module.exports = {
             const prefs = await UserPrefs.findOne({ userId: message.author.id });
             const current = prefs?.bio || 'Not set';
             const embed = new EmbedBuilder()
-                .setColor(client.color || '#00D4FF')
+                .setColor(client.color || '#7B2FBE')
                 .setTitle('📝 Your Bio')
                 .setDescription(current === 'Not set' ? '*No bio set. Use `>bioset <text>` to set one.*' : current)
                 .setFooter({ text: `Use ${client.prefix}bioset <text> to update • max 200 chars` });
@@ -46,7 +46,7 @@ module.exports = {
         );
 
         const embed = new EmbedBuilder()
-            .setColor(client.color || '#00D4FF')
+            .setColor(client.color || '#7B2FBE')
             .setTitle('✅ Bio Updated')
             .setDescription(bio)
             .setFooter({ text: `Updated by ${message.author.username}` })

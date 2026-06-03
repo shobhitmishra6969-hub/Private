@@ -28,7 +28,7 @@ module.exports = {
         await doc.save();
 
         const embed = new EmbedBuilder()
-            .setColor(client.color || '#00D4FF')
+            .setColor(client.color || '#7B2FBE')
             .setTitle('🎵 Playlist Created')
             .setDescription(`Successfully created playlist **\`${name}\`**!`)
             .addFields(

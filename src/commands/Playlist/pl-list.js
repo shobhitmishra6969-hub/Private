@@ -24,7 +24,7 @@ module.exports = {
         const playlists = doc.playlists || [];
 
         const embed = new EmbedBuilder()
-            .setColor(client.color || '#00D4FF')
+            .setColor(client.color || '#7B2FBE')
             .setAuthor({ name: `${message.author.username}'s Playlists`, iconURL: message.author.displayAvatarURL({ dynamic: true }) })
             .setTitle('📋 Playlist List')
             .setTimestamp();

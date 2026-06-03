@@ -88,7 +88,7 @@ async function buildCardEmbed(track, player) {
   const id  = storeCard(buf);
   const url = getPublicUrl(id);
   if (!url) throw new Error("REPLIT_DEV_DOMAIN not set");
-  return new EmbedBuilder().setImage(url).setColor(0x0c0c14);
+  return new EmbedBuilder().setImage(url).setColor(0x7B2FBE);
 }
 
 module.exports = {
