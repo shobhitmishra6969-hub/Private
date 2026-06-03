@@ -515,7 +515,7 @@ async function showLiveSyncLyrics(client, message, track, syncedLines, player, s
     };
 
     await updateLyrics();
-    updateInterval = setInterval(updateLyrics, 5);
+    updateInterval = setInterval(updateLyrics, 2000);
 
     const collector = message.createMessageComponentCollector({
         componentType: ComponentType.Button,

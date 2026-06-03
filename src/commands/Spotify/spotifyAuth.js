@@ -185,7 +185,7 @@ module.exports = {
 
       let playlistData;
       try {
-        playlistData = await fetchPublicPlaylists(linked.spotifyUserId, token, 10);
+        playlistData = await fetchPublicPlaylists(linked.spotifyUserId, token, 50);
       } catch {
         return interaction.editReply({ content: '**Could not fetch playlists. The profile may be private.**' });
       }
@@ -195,7 +195,20 @@ module.exports = {
         return interaction.editReply({ content: '**No public playlists found for this profile.**' });
       }
 
-      const listText = playlists
+      const playlistsToSave = playlists.map(p => ({
+        name: p.name || 'Untitled Playlist',
+        url: p.external_urls?.spotify || `https://open.spotify.com/playlist/${p.id}`,
+        trackCount: p.tracks?.total ?? 0,
+      }));
+
+      SpotifyProfile.findOneAndUpdate(
+        { userId },
+        { playlists: playlistsToSave, updatedAt: Date.now() },
+        { upsert: false }
+      ).catch(() => {});
+
+      const showCount = Math.min(playlists.length, 10);
+      const listText = playlists.slice(0, showCount)
         .map((p, i) => `\`${i + 1}.\` [${p.name}](${p.external_urls?.spotify}) — ${p.tracks?.total ?? '?'} tracks`)
         .join('\n');
 
@@ -203,7 +216,7 @@ module.exports = {
         .setColor('#1DB954')
         .setTitle(`${emoji.spotify} Public Playlists`)
         .setDescription(listText)
-        .setFooter({ text: `Showing ${playlists.length} of ${playlistData.total} public playlists` });
+        .setFooter({ text: `Showing ${showCount} of ${playlistData.total} public playlists` });
 
       return interaction.editReply({ embeds: [embed] });
     }
@@ -261,13 +274,19 @@ module.exports = {
 
     let playlistData;
     try {
-      playlistData = await fetchPublicPlaylists(profile.id, token, 1);
+      playlistData = await fetchPublicPlaylists(profile.id, token, 50);
     } catch {}
 
     const displayName = profile.display_name || profile.id;
     const profileUrl = profile.external_urls?.spotify || `https://open.spotify.com/user/${profile.id}`;
     const avatarUrl = profile.images?.[0]?.url || null;
     const publicPlaylistCount = playlistData?.total ?? 0;
+
+    const playlistsToSave = (playlistData?.items || []).map(p => ({
+      name: p.name || 'Untitled Playlist',
+      url: p.external_urls?.spotify || `https://open.spotify.com/playlist/${p.id}`,
+      trackCount: p.tracks?.total ?? 0,
+    }));
 
     try {
       await SpotifyProfile.findOneAndUpdate(
@@ -280,7 +299,7 @@ module.exports = {
           avatarUrl,
           accessToken: null,
           refreshToken: null,
-          playlists: [],
+          playlists: playlistsToSave,
           linkedAt: Date.now(),
           updatedAt: Date.now(),
         },

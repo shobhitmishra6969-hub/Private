@@ -60,43 +60,46 @@ async function buildProfileReply(userId, client) {
     return { embeds: [embed], components: [] };
   }
 
+  const hasOAuthToken = !!(linked.refreshToken || linked.accessToken);
+
   let accessToken = linked.accessToken;
-
-  if (linked.refreshToken) {
-    try {
-      accessToken = await refreshToken(linked.refreshToken);
-      await SpotifyProfile.findOneAndUpdate(
-        { userId },
-        { accessToken, updatedAt: Date.now() },
-        { upsert: false }
-      );
-    } catch {
-      // use existing token
-    }
-  }
-
   let profile = null;
   let playlists = [];
   let topTracks = [];
 
-  try {
-    profile = await spotifyGet("https://api.spotify.com/v1/me", accessToken);
-  } catch (err) {
-    console.warn("[SpotifyProfile] /v1/me failed:", err.response?.status, err.response?.data?.error?.message || err.message);
-  }
+  if (hasOAuthToken) {
+    if (linked.refreshToken) {
+      try {
+        accessToken = await refreshToken(linked.refreshToken);
+        await SpotifyProfile.findOneAndUpdate(
+          { userId },
+          { accessToken, updatedAt: Date.now() },
+          { upsert: false }
+        );
+      } catch {
+        // use existing token
+      }
+    }
 
-  try {
-    const pData = await spotifyGet("https://api.spotify.com/v1/me/playlists", accessToken, { limit: 5 });
-    playlists = pData.items || [];
-  } catch (err) {
-    console.warn("[SpotifyProfile] /v1/me/playlists failed:", err.response?.status);
-  }
+    try {
+      profile = await spotifyGet("https://api.spotify.com/v1/me", accessToken);
+    } catch (err) {
+      console.warn("[SpotifyProfile] /v1/me failed:", err.response?.status, err.response?.data?.error?.message || err.message);
+    }
 
-  try {
-    const tData = await spotifyGet("https://api.spotify.com/v1/me/top/tracks", accessToken, { limit: 5, time_range: "short_term" });
-    topTracks = tData.items || [];
-  } catch (err) {
-    console.warn("[SpotifyProfile] /v1/me/top/tracks failed:", err.response?.status);
+    try {
+      const pData = await spotifyGet("https://api.spotify.com/v1/me/playlists", accessToken, { limit: 5 });
+      playlists = pData.items || [];
+    } catch (err) {
+      console.warn("[SpotifyProfile] /v1/me/playlists failed:", err.response?.status);
+    }
+
+    try {
+      const tData = await spotifyGet("https://api.spotify.com/v1/me/top/tracks", accessToken, { limit: 5, time_range: "short_term" });
+      topTracks = tData.items || [];
+    } catch (err) {
+      console.warn("[SpotifyProfile] /v1/me/top/tracks failed:", err.response?.status);
+    }
   }
 
   const displayName = profile?.display_name || linked.displayName || "Unknown";
@@ -105,11 +108,17 @@ async function buildProfileReply(userId, client) {
   const followers = profile?.followers?.total;
   const linkedTs = Math.floor(new Date(linked.linkedAt).getTime() / 1000);
 
+  const storedPlaylists = Array.isArray(linked.playlists) ? linked.playlists : [];
+
   const playlistText = playlists.length
     ? playlists.map((p, i) =>
         `\`${i + 1}.\` ${p.external_urls?.spotify ? `[${p.name}](${p.external_urls.spotify})` : p.name} — **${p.tracks?.total ?? "?"}** tracks`
       ).join("\n")
-    : "_No playlists found._";
+    : storedPlaylists.length
+      ? storedPlaylists.slice(0, 5).map((p, i) =>
+          `\`${i + 1}.\` [${p.name}](${p.url}) — **${p.trackCount ?? "?"}** tracks`
+        ).join("\n")
+      : "_No playlists found._";
 
   const topTrackText = topTracks.length
     ? topTracks.map((t, i) => {
@@ -117,7 +126,7 @@ async function buildProfileReply(userId, client) {
         const url = t.external_urls?.spotify;
         return `\`${i + 1}.\` ${url ? `[${t.name}](${url})` : t.name} — ${artists}`;
       }).join("\n")
-    : "_No top tracks available._";
+    : "_Top tracks require Spotify OAuth login._";
 
   const embed = new EmbedBuilder()
     .setColor("#1DB954")
@@ -132,8 +141,10 @@ async function buildProfileReply(userId, client) {
     { name: "Linked", value: `<t:${linkedTs}:R>`, inline: true },
   );
 
-  embed.addFields({ name: `Top Playlists (${playlists.length})`, value: playlistText, inline: false });
-  embed.addFields({ name: "Top Songs This Month", value: topTrackText, inline: false });
+  embed.addFields({ name: `Top Playlists (${storedPlaylists.length || playlists.length})`, value: playlistText, inline: false });
+  if (hasOAuthToken) {
+    embed.addFields({ name: "Top Songs This Month", value: topTrackText, inline: false });
+  }
 
   embed.setFooter({ text: `Use ${client?.prefix || ">"}spotify-myplaylist to browse and play your playlists` });
 
