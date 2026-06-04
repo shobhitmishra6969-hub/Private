@@ -55,9 +55,9 @@ module.exports = {
                 .setColor(client.color || '#7B2FBE')
                 .setTitle('Toggle Commands')
                 .setDescription(
-                    `\`<:dots:1484507998695985173> ${prefix}toggle 247\`\nToggle the 24/7 mode for your server.\n\n` +
-                    `\`<:dots:1484507998695985173> ${prefix}toggle preset\`\nToggle the preset for your nowplaying embed.\n\n` +
-                    `\`<:dots:1484507998695985173> ${prefix}toggle buttons\`\nToggle the button mode for your server.`
+                    `\` ${prefix}toggle 247\`\nToggle the 24/7 mode for your server.\n\n` +
+                    `\`${prefix}toggle preset\`\nToggle the preset for your nowplaying embed.\n\n` +
+                    `\`${prefix}toggle buttons\`\nToggle the button mode for your server.`
                 );
             return message.reply({ embeds: [embed] });
         }
@@ -180,9 +180,9 @@ module.exports = {
             .setColor(client.color || '#7B2FBE')
             .setTitle('Toggle Commands')
             .setDescription(
-                `\`<:dots:1484507998695985173> ${prefix}toggle 247\`\nToggle the 24/7 mode for your server.\n\n` +
-                `\`<:dots:1484507998695985173> ${prefix}toggle preset\`\nToggle the preset for your nowplaying embed.\n\n` +
-                `\`<:dots:1484507998695985173>${prefix}toggle buttons\`\nToggle the button mode for your server.`
+                `\` ${prefix}toggle 247\`\nToggle the 24/7 mode for your server.\n\n` +
+                `\`${prefix}toggle preset\`\nToggle the preset for your nowplaying embed.\n\n` +
+                `\`${prefix}toggle buttons\`\nToggle the button mode for your server.`
             );
         return message.reply({ embeds: [embed] });
     },

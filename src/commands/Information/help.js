@@ -181,7 +181,7 @@ function buildHomeContainer(botUser) {
   if (thumbnail) {
     const section = new SectionBuilder()
       .addTextDisplayComponents(
-        new TextDisplayBuilder().setContent(`### 🎵 Tone Vibes\n${BOT_DESCRIPTION}`)
+        new TextDisplayBuilder().setContent(`### <:DJ_artist:1484967994256920687> Tone Vibes\n${BOT_DESCRIPTION}`)
       )
       .setThumbnailAccessory(
         new ThumbnailBuilder().setURL(thumbnail)
@@ -189,7 +189,7 @@ function buildHomeContainer(botUser) {
     container.addSectionComponents(section);
   } else {
     container.addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(`### 🎵 Tone Vibes\n${BOT_DESCRIPTION}`)
+      new TextDisplayBuilder().setContent(`### <:DJ_artist:1484967994256920687> Tone Vibes\n${BOT_DESCRIPTION}`)
     );
   }
 
