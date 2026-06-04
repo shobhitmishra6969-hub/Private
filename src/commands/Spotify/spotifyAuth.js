@@ -45,24 +45,47 @@ async function fetchPublicPlaylists(spotifyUserId, token, limit = 50) {
   return res.data;
 }
 
+async function fetchDisplayNameFromHTML(spotifyUserId) {
+  try {
+    const res = await axios.get(`https://open.spotify.com/user/${encodeURIComponent(spotifyUserId)}`, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+        'Accept': 'text/html',
+      },
+      timeout: 8000,
+    });
+    const match = res.data.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/);
+    return match?.[1] || null;
+  } catch {
+    return null;
+  }
+}
+
 function parseSpotifyUserId(input) {
   const urlMatch = input.match(/open\.spotify\.com\/user\/([^?/\s]+)/);
   if (urlMatch) return urlMatch[1];
   return input.trim();
 }
 
-function buildConnectEmbed() {
+function buildConnectEmbed(prefix = '+') {
   return new EmbedBuilder()
     .setColor('#7B2FBE')
     .setTitle(`${emoji.spotify} Connect Spotify`)
-    .setDescription('Click the button below to link your Spotify profile');
+    .setDescription(
+      'Click **Enter Spotify URL** and paste your Spotify profile link.\n\n' +
+      `-# After linking, add your playlists with \`${prefix}spotify-addplaylist <url>\``
+    );
 }
 
-function buildProfileCard(displayName, publicPlaylistCount, avatarUrl) {
+function buildProfileCard(displayName, playlistCount, avatarUrl, prefix = '+') {
+  const playlistLine = playlistCount > 0
+    ? `**${playlistCount}** playlist${playlistCount !== 1 ? 's' : ''} linked`
+    : `No playlists yet — use \`${prefix}spotify-addplaylist <url>\` to add some`;
+
   const embed = new EmbedBuilder()
     .setColor('#7B2FBE')
     .setTitle(`${emoji.spotify} Spotify Profile`)
-    .setDescription(`**${displayName}**\n${publicPlaylistCount} public playlist${publicPlaylistCount !== 1 ? 's' : ''}`)
+    .setDescription(`**${displayName}**\n${playlistLine}`)
     .setTimestamp();
 
   if (avatarUrl) embed.setThumbnail(avatarUrl);
@@ -108,29 +131,29 @@ module.exports = {
     const existing = await SpotifyProfile.findOne({ userId: message.author.id }).catch(() => null);
 
     if (existing?.spotifyUserId) {
-      let token;
-      try { token = await getClientCredentialsToken(); } catch {}
-
-      let profile = null;
-      let playlistData = null;
-
-      if (token) {
-        try { profile = await fetchPublicProfile(existing.spotifyUserId, token); } catch {}
-        try { playlistData = await fetchPublicPlaylists(existing.spotifyUserId, token, 1); } catch {}
+      // Try to get real display name from HTML if stored name is just the raw Spotify ID
+      let displayName = existing.displayName || existing.spotifyUserId;
+      if (!displayName || displayName === existing.spotifyUserId) {
+        const htmlName = await fetchDisplayNameFromHTML(existing.spotifyUserId);
+        if (htmlName) {
+          displayName = htmlName;
+          SpotifyProfile.findOneAndUpdate({ userId: message.author.id }, { displayName, updatedAt: Date.now() }, { upsert: false }).catch(() => {});
+        }
       }
 
-      const displayName = profile?.display_name || existing.displayName || existing.spotifyUserId;
-      const profileUrl = profile?.external_urls?.spotify || existing.profileUrl || `https://open.spotify.com/user/${existing.spotifyUserId}`;
-      const avatarUrl = profile?.images?.[0]?.url || existing.avatarUrl || null;
-      const publicPlaylistCount = playlistData?.total ?? 0;
+      const profileUrl = existing.profileUrl || `https://open.spotify.com/user/${existing.spotifyUserId}`;
+      const avatarUrl = existing.avatarUrl || null;
+      const playlistCount = Array.isArray(existing.playlists) ? existing.playlists.length : 0;
+      const prefix = client.prefix || '+';
 
-      const embed = buildProfileCard(displayName, publicPlaylistCount, avatarUrl);
+      const embed = buildProfileCard(displayName, playlistCount, avatarUrl, prefix);
       const row = buildProfileButtons(message.author.id, profileUrl);
 
       return message.reply({ embeds: [embed], components: [row] });
     }
 
-    const connectEmbed = buildConnectEmbed();
+    const prefix = client.prefix || '+';
+    const connectEmbed = buildConnectEmbed(prefix);
     const connectRow = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setCustomId(`spotify-login_enter_url_${message.author.id}`)
@@ -290,10 +313,16 @@ module.exports = {
     }
 
     const resolvedId = profile?.id || spotifyUserId;
-    const displayName = profile?.display_name || fallbackDisplayName;
+
+    // If API failed, try to scrape the real display name from Spotify's public HTML
+    let displayName = profile?.display_name || null;
+    if (!displayName) {
+      displayName = await fetchDisplayNameFromHTML(resolvedId);
+    }
+    displayName = displayName || fallbackDisplayName;
+
     const profileUrl = profile?.external_urls?.spotify || fallbackProfileUrl;
     const avatarUrl = profile?.images?.[0]?.url || null;
-    const publicPlaylistCount = playlistData?.total ?? 0;
 
     const playlistsToSave = (playlistData?.items || []).map(p => ({
       name: p.name || 'Untitled Playlist',
@@ -325,7 +354,8 @@ module.exports = {
       });
     }
 
-    const embed = buildProfileCard(displayName, publicPlaylistCount, avatarUrl);
+    const prefix = client?.prefix || '+';
+    const embed = buildProfileCard(displayName, playlistsToSave.length, avatarUrl, prefix);
     const row = buildProfileButtons(userId, profileUrl);
 
     return interaction.editReply({ embeds: [embed], components: [row] });
