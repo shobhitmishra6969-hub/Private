@@ -374,6 +374,60 @@ module.exports = {
         return interaction.reply({ ...opts, flags: MessageFlags.Ephemeral }).catch(() => {});
       }
 
+      // ── "I've Joined!" — join the user's VC via Kazagumo ────────────────────
+      if (interaction.customId === 'user_joined_vc') {
+        const { MessageFlags, PermissionsBitField } = require('discord.js');
+
+        const voiceChannel = interaction.member?.voice?.channel;
+
+        // Not in a VC
+        if (!voiceChannel) {
+          return interaction.reply({
+            content: '❌ Please join a voice channel first before clicking this button!',
+            flags: MessageFlags.Ephemeral,
+          }).catch(() => {});
+        }
+
+        // Permission check
+        const perms = voiceChannel.permissionsFor(interaction.guild.members.me);
+        if (!perms?.has(PermissionsBitField.Flags.Connect) || !perms?.has(PermissionsBitField.Flags.Speak)) {
+          return interaction.reply({
+            content: `❌ I don't have permission to **Connect** or **Speak** in **${voiceChannel.name}**. Please grant me those permissions and try again.`,
+            flags: MessageFlags.Ephemeral,
+          }).catch(() => {});
+        }
+
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral }).catch(() => {});
+
+        try {
+          // Use existing player if one exists for this guild, otherwise create one
+          let player = client.manager.players.get(interaction.guild.id);
+
+          if (!player) {
+            player = await client.manager.createPlayer({
+              guildId: interaction.guild.id,
+              voiceId: voiceChannel.id,
+              textId: interaction.channel.id,
+              deaf: true,
+              volume: 80,
+            });
+          } else if (player.voiceId !== voiceChannel.id) {
+            // Move to user's VC if bot is in a different one
+            await player.setVoiceChannel(voiceChannel.id).catch(() => {});
+          }
+
+          return interaction.editReply({
+            content: `🎵 **Tone Vibes has successfully joined ${voiceChannel.name}!** Ready to play music.\nUse \`/play\` or \`${client.prefix}play\` to queue a song.`,
+          }).catch(() => {});
+
+        } catch (err) {
+          client.logger?.log(`[user_joined_vc] Failed to join VC: ${err.message}`, 'error');
+          return interaction.editReply({
+            content: `❌ Something went wrong while joining **${voiceChannel.name}**. Please try again.`,
+          }).catch(() => {});
+        }
+      }
+
       const customIdParts = interaction.customId.split('_');
       const potentialCommandName = customIdParts[0];
 
