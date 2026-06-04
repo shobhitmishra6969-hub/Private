@@ -20,6 +20,12 @@ const AfkSchema = require("../../schema/afk");
 const cooldowns = new Map();
 const ratelimitHits = new Map();
 
+// ── Anti-ping-spam tracker ───────────────────────────────────────────────────
+const pingSpam = new Map();           // userId → { count, timer }
+const PING_LIMIT  = 4;               // pings before blacklist
+const PING_WINDOW = 60_000;          // 60-second sliding window
+const RETALIATION = 'Try too ratelimit lmao papa hi bolde randi';
+
 function safeResolvePerms(perms, commandName, type, logger) {
   try {
     return PermissionsBitField.resolve(perms || []);
@@ -37,6 +43,41 @@ module.exports = {
   once: false,
   run: async (client, message) => {
     if (message.author.bot || !message.guild) return;
+
+    // ── Anti-ping-spam: detect bot mentions ─────────────────────────────────
+    if (message.mentions.users.has(client.user.id)) {
+      const userId = message.author.id;
+
+      // Already blacklisted → edgy retaliation, stop all processing
+      const alreadyBanned = await BlacklistSchema.findOne({ userId }).catch(() => null);
+      if (alreadyBanned) {
+        await message.reply(RETALIATION).catch(() => {});
+        return;
+      }
+
+      // Track the ping
+      if (!pingSpam.has(userId)) {
+        pingSpam.set(userId, { count: 0, timer: null });
+      }
+      const entry = pingSpam.get(userId);
+      entry.count += 1;
+
+      // Reset window on each new ping
+      if (entry.timer) clearTimeout(entry.timer);
+      entry.timer = setTimeout(() => pingSpam.delete(userId), PING_WINDOW);
+
+      // Hit the limit → blacklist and warn
+      if (entry.count >= PING_LIMIT) {
+        pingSpam.delete(userId);
+        await BlacklistSchema.create({
+          userId,
+          reason: 'Auto-blacklisted for ping-spamming the bot',
+          timestamp: new Date(),
+        }).catch(() => {});
+        await message.reply(`⚠️ <@${userId}>, you have been blacklisted for spamming the bot!`).catch(() => {});
+        return;
+      }
+    }
 
     // ── AFK: auto-remove when the AFK user sends a message ──────────────────
     const afkRecord = await AfkSchema.findOne({ userId: message.author.id });
