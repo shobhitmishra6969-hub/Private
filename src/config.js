@@ -34,6 +34,7 @@ module.exports = {
         power: "Powered By Psychotic Development",
         vanity: process.env.VANITY_URL || "",
         guild: process.env.GUILD_ID || "",
+        sourcecode: process.env.SOURCE_CODE_URL || "https://github.com/",
     },
 
     Webhooks: {
