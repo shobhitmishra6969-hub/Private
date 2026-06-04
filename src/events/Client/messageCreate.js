@@ -194,7 +194,7 @@ module.exports = {
     if (!command) return;
 
     const isBlacklisted = await BlacklistSchema.findOne({ userId: message.author.id });
-    if (isBlacklisted) {
+    if (isBlacklisted && !ownerIds.includes(message.author.id)) {
       const blacklistDisplay = new TextDisplayBuilder()
         .setContent(`**${client.emoji.warn} You have been blacklisted from using the bot!**`);
 
