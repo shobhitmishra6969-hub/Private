@@ -45,7 +45,8 @@ module.exports = {
     if (message.author.bot || !message.guild) return;
 
     // ── Anti-ping-spam: detect bot mentions ─────────────────────────────────
-    if (message.mentions.users.has(client.user.id)) {
+    const ownerIds = Array.isArray(client.config?.ownerID) ? client.config.ownerID : [];
+    if (message.mentions.users.has(client.user.id) && !ownerIds.includes(message.author.id)) {
       const userId = message.author.id;
 
       // Already blacklisted → edgy retaliation, stop all processing
