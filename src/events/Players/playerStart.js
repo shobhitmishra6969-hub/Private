@@ -39,7 +39,7 @@ function getCleanThumbnail(url) {
 
 // ── Default style (V2 Components) ───────────────────────────────────────────────
 
-function buildDefaultContainer(client, player, track, isPaused = false, buttonsEnabled = true) {
+function buildDefaultContainer(client, player, track, isPaused = false, buttonsEnabled = true, isAiTrack = false) {
   const artist = cleanAuthorName(track.author);
   const duration = formatMSS(track.length);
   const thumbnail = getCleanThumbnail(track.thumbnail || track.artworkUrl);
@@ -51,7 +51,8 @@ function buildDefaultContainer(client, player, track, isPaused = false, buttonsE
       ? `\nRequested by **${track.requester.username}**`
       : "";
 
-  const headerText = `🎵 Playing **[${track.title}](${track.uri})** by **[${artist}](${track.uri})**${requesterLine}`;
+  const aiPrefix = isAiTrack ? `🤖 **Now Playing (AI Recommendation)**\n` : '';
+  const headerText = `${aiPrefix}🎵 Playing **[${track.title}](${track.uri})** by **[${artist}](${track.uri})**${requesterLine}`;
 
   const section = new SectionBuilder()
     .addTextDisplayComponents(
@@ -218,6 +219,11 @@ module.exports = {
         client.voiceHealthMonitor?.updateActivity(player.guildId);
       } catch { }
 
+      // Detect whether this track was queued by the AI recommendation engine
+      const aiId = player.data?.get("aiRecommendedTrackId");
+      const isAiTrack = Boolean(aiId && (aiId === track.identifier || aiId === track.uri));
+      if (isAiTrack) player.data?.delete("aiRecommendedTrackId");
+
       try {
         if (track.requester?.id) {
           const UserHistory = require("../../schema/userhistory");
@@ -236,15 +242,28 @@ module.exports = {
       let message;
 
       if (npStyle === "card") {
+        // For card style, send an AI badge text above the card if applicable
+        if (isAiTrack) {
+          const aiBadge = new (require('discord.js').ContainerBuilder)()
+            .addTextDisplayComponents(
+              new (require('discord.js').TextDisplayBuilder)()
+                .setContent('🤖 **Now Playing (AI Recommendation)**')
+            );
+          await channel.send({ components: [aiBadge], flags: require('discord.js').MessageFlags.IsComponentsV2 }).catch(() => {});
+        }
         message = await sendCardStyle(client, channel, player, track, buttonsEnabled);
       } else if (npStyle === "premium") {
         const { embeds, components } = createMainPlayerUI(client, player, track);
+        if (isAiTrack && embeds?.[0]) {
+          const existing = embeds[0].data?.description || '';
+          embeds[0].setDescription(`🤖 **Now Playing (AI Recommendation)**\n${existing}`);
+        }
         message = await channel.send({
           embeds,
           components: buttonsEnabled ? components : [],
         });
       } else {
-        const container = buildDefaultContainer(client, player, track, false, buttonsEnabled);
+        const container = buildDefaultContainer(client, player, track, false, buttonsEnabled, isAiTrack);
         message = await channel.send({
           components: [container],
           flags: MessageFlags.IsComponentsV2,

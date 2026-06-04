@@ -1,6 +1,7 @@
+const axios = require('axios');
+
 async function safeDestroyPlayer(player) {
     if (!player) return;
-
     try {
         await player.destroy();
     } catch (error) {
@@ -15,7 +16,6 @@ async function safeDestroyPlayer(player) {
 async function handleSessionError(error, player, client) {
     if (error.status === 404 && error.message && error.message.includes('Session not found')) {
         console.log(`Session lost for guild ${player.guildId}, cleaning up...`);
-
         try {
             if (client.manager.players.has(player.guildId)) {
                 client.manager.players.delete(player.guildId);
@@ -23,7 +23,6 @@ async function handleSessionError(error, player, client) {
         } catch (cleanupError) {
             console.error(`Error during session cleanup:`, cleanupError);
         }
-
         return true;
     }
     return false;
@@ -34,21 +33,15 @@ async function recreatePlayer(client, guildId, voiceId, textId) {
         if (client.manager.players.has(guildId)) {
             client.manager.players.delete(guildId);
         }
-
         const newPlayer = await client.manager.createPlayer({
-            guildId: guildId,
-            voiceId: voiceId,
-            textId: textId,
+            guildId, voiceId, textId,
             volume: 80,
             deaf: true,
         });
-
         await new Promise(resolve => setTimeout(resolve, 1000));
-
         if (!newPlayer || !client.manager.players.get(guildId)) {
             throw new Error("Failed to recreate player - connection timeout");
         }
-
         return newPlayer;
     } catch (error) {
         console.error(`Error recreating player:`, error);
@@ -56,135 +49,213 @@ async function recreatePlayer(client, guildId, voiceId, textId) {
     }
 }
 
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+function normalize(str) {
+    return (str || '')
+        .toLowerCase()
+        .replace(/\s*-\s*topic\s*$/gi, '')
+        .replace(/\(.*?(official|audio|video|lyrics).*?\)/gi, '')
+        .replace(/\[.*?(official|audio|video|lyrics).*?\]/gi, '')
+        .replace(/official|audio|video|lyrics|hd|4k|remastered|mv/gi, '')
+        .replace(/[^a-z0-9\s]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function extractYouTubeId(uri) {
+    if (!uri) return null;
+    const m = uri.match(/(?:v=|\/vi?\/|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+    return m ? m[1] : null;
+}
+
+function cleanAuthor(author) {
+    if (!author) return '';
+    return author.replace(/\s*-\s*Topic\s*$/i, '').trim();
+}
+
+function isSameTrack(a, b) {
+    try {
+        if (!a || !b) return false;
+        if (a.identifier && b.identifier && a.identifier === b.identifier) return true;
+        const aId = extractYouTubeId(a.uri);
+        const bId = extractYouTubeId(b.uri);
+        if (aId && bId && aId === bId) return true;
+        const at = normalize(a.title), bt = normalize(b.title);
+        const aa = normalize(a.author), ba = normalize(b.author);
+        if (at && bt && at === bt && aa && ba && aa === ba) {
+            if (Math.abs(Number(a.length || 0) - Number(b.length || 0)) <= 2000) return true;
+        }
+    } catch { }
+    return false;
+}
+
+// ── Last.fm similar-track recommendation ─────────────────────────────────────
+// Uses track.getSimilar to get songs similar to the one that just played.
+// Returns a "Artist - Title" query string, or null on failure.
+
+async function fetchLastFmSimilar(title, artist, apiKey) {
+    if (!apiKey) return null;
+    try {
+        const res = await axios.get('https://ws.audioscrobbler.com/2.0/', {
+            params: {
+                method: 'track.getSimilar',
+                track: title,
+                artist: cleanAuthor(artist),
+                api_key: apiKey,
+                format: 'json',
+                limit: 10,
+                autocorrect: 1,
+            },
+            timeout: 6000,
+        });
+
+        const tracks = res.data?.similartracks?.track;
+        if (!tracks || !tracks.length) return null;
+
+        // Pick randomly from top 5 for variety
+        const pool = tracks.slice(0, 5);
+        const pick = pool[Math.floor(Math.random() * pool.length)];
+        const artistName = pick.artist?.name || pick.artist || '';
+        if (!pick.name) return null;
+        return `${artistName} ${pick.name}`.trim();
+    } catch (e) {
+        console.error('[Autoplay] Last.fm getSimilar error:', e.message);
+        return null;
+    }
+}
+
+// ── Main autoplay function ────────────────────────────────────────────────────
+
 async function attemptAutoplay(client, player) {
     try {
         if (!player) return;
-        const autoplay = player.data?.get("autoplay");
+
+        const autoplay = player.data?.get('autoplay');
         if (!autoplay) return;
-        const loopMode = (player.loop || "none").toString().toLowerCase();
-        if (loopMode === "track" || loopMode === "queue") {
-            client.logger?.log(`[Autoplay] Skipping autoplay due to loop mode "${loopMode}" in guild ${player.guildId}`, "debug");
-            return;
-        }
+
+        const loopMode = (player.loop || 'none').toString().toLowerCase();
+        if (loopMode === 'track' || loopMode === 'queue') return;
+
         if (player.queue?.size > 0) return;
         if (player.playing || player.paused) return;
-        if (player.data?.get("autoplayInProgress")) return;
+        if (player.data?.get('autoplayInProgress')) return;
 
-        player.data?.set("autoplayInProgress", true);
+        player.data?.set('autoplayInProgress', true);
 
-        const lastTrack = player.data?.get("lastTrack") || null;
-        if (!lastTrack || !lastTrack.title) {
-            player.data?.delete("autoplayInProgress");
+        const lastTrack = player.data?.get('lastTrack');
+        if (!lastTrack?.title) {
+            player.data?.delete('autoplayInProgress');
             return;
         }
 
-        const normalize = (str) => (str || "")
-            .toLowerCase()
-            .replace(/\s*-\s*topic\s*$/gi, "")
-            .replace(/\(.*?(official|audio|video|lyrics).*?\)/gi, "")
-            .replace(/\[.*?(official|audio|video|lyrics).*?\]/gi, "")
-            .replace(/official|audio|video|lyrics|hd|4k|remastered|mv/gi, "")
-            .replace(/[^a-z0-9\s]/g, " ")
-            .replace(/\s+/g, " ")
-            .trim();
-
-        const extractYouTubeId = (uri) => {
-            if (!uri) return null;
-            const m = uri.match(/(?:v=|\/vi?\/|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
-            return m ? m[1] : null;
-        };
-
-        const isSameTrack = (a, b) => {
-            try {
-                if (!a || !b) return false;
-                if (a.identifier && b.identifier && a.identifier === b.identifier) return true;
-                const aId = extractYouTubeId(a.uri);
-                const bId = extractYouTubeId(b.uri);
-                if (aId && bId && aId === bId) return true;
-                const at = normalize(a.title);
-                const bt = normalize(b.title);
-                const aa = normalize(a.author);
-                const ba = normalize(b.author);
-                if (at && bt && at === bt && aa && ba && aa === ba) {
-                    const aLen = Number(a.length || 0);
-                    const bLen = Number(b.length || 0);
-                    if (Math.abs(aLen - bLen) <= 2000) return true;
-                }
-            } catch { }
-            return false;
-        };
-
-        const recentKey = "recentAutoplayIds";
+        // Recent-track memory — avoid repeating the last 5 autoplay picks
+        const recentKey = 'recentAutoplayIds';
         const recent = player.data?.get(recentKey) || [];
+
         const remember = (t) => {
-            const next = Array.from(new Set([t.identifier || extractYouTubeId(t.uri) || t.uri, ...recent])).filter(Boolean).slice(0, 5);
+            const id = t.identifier || extractYouTubeId(t.uri) || t.uri;
+            const next = Array.from(new Set([id, ...recent])).filter(Boolean).slice(0, 5);
             player.data?.set(recentKey, next);
         };
 
-        const cleanAuthor = (author) => {
-            if (!author) return "";
-            return author.replace(/\s*-\s*Topic\s*$/i, "").trim();
+        const isRecent = (t) => {
+            const id = t.identifier || extractYouTubeId(t.uri) || t.uri;
+            return recent.includes(id);
         };
 
-        const query = `${lastTrack.title} ${cleanAuthor(lastTrack.author)}`.trim();
-        const engines = ["ytmsearch", "ytsearch", "spsearch", "amsearch", "dzsearch", "jssearch"];
+        const pickBest = (tracks) =>
+            tracks.find(t => !isSameTrack(lastTrack, t) && !isRecent(t))
+            || tracks.find(t => !isSameTrack(lastTrack, t))
+            || null;
 
         let foundTrack = null;
-        for (const engine of engines) {
-            try {
-                const res = await player.search(query, {
-                    engine,
-                    requester: lastTrack.requester || client.user
-                });
-                const tracks = res?.tracks || [];
-                if (tracks.length > 0) {
-                    foundTrack = tracks.find(t =>
-                        !isSameTrack(lastTrack, t) &&
-                        !(recent || []).includes(t.identifier || extractYouTubeId(t.uri) || t.uri)
-                    ) || null;
-                    if (!foundTrack) {
-                        // Fallback to any track that's not exactly the same title+author even if identifier differs
-                        for (const t of tracks) {
-                            if (!isSameTrack(lastTrack, t)) {
-                                foundTrack = t;
-                                break;
-                            }
-                        }
-                    }
-                    if (foundTrack) {
-                        player.data?.set("lastAutoplaySource", engine);
+        let isAiPick = false;
+
+        // ── Phase 1: Last.fm getSimilar (primary AI recommendation) ─────────
+        const apiKey = client.config?.lastfmKey;
+        const lastFmQuery = await fetchLastFmSimilar(lastTrack.title, lastTrack.author, apiKey);
+
+        if (lastFmQuery) {
+            for (const engine of ['ytmsearch', 'ytsearch', 'spsearch']) {
+                try {
+                    const res = await player.search(lastFmQuery, {
+                        engine,
+                        requester: lastTrack.requester || client.user,
+                    });
+                    const best = pickBest(res?.tracks || []);
+                    if (best) {
+                        foundTrack = best;
+                        isAiPick = true;
+                        player.data?.set('lastAutoplaySource', `lastfm→${engine}`);
                         break;
                     }
-                }
-            } catch (e) {
-                // Continue to next engine
-                continue;
+                } catch { continue; }
+            }
+        }
+
+        // ── Phase 2: Fallback — smart query derived from last track ──────────
+        if (!foundTrack) {
+            const smartQuery = `${lastTrack.title} ${cleanAuthor(lastTrack.author)}`.trim();
+            for (const engine of ['ytmsearch', 'ytsearch', 'spsearch', 'amsearch', 'dzsearch', 'jssearch']) {
+                try {
+                    const res = await player.search(smartQuery, {
+                        engine,
+                        requester: lastTrack.requester || client.user,
+                    });
+                    const best = pickBest(res?.tracks || []);
+                    if (best) {
+                        foundTrack = best;
+                        player.data?.set('lastAutoplaySource', engine);
+                        break;
+                    }
+                } catch { continue; }
             }
         }
 
         if (!foundTrack) {
-            client.logger?.log(`[Autoplay] No related tracks found for "${lastTrack.title}" in guild ${player.guildId}`, "debug");
-            player.data?.delete("autoplayInProgress");
+            client.logger?.log(`[Autoplay] No track found for "${lastTrack.title}" in guild ${player.guildId}`, 'debug');
+            player.data?.delete('autoplayInProgress');
             return;
+        }
+
+        // Mark track so playerStart can show the AI badge
+        if (isAiPick) {
+            player.data?.set('aiRecommendedTrackId', foundTrack.identifier || foundTrack.uri);
         }
 
         player.queue.add(foundTrack);
         remember(foundTrack);
-        client.logger?.log(`[Autoplay] Queued "${foundTrack.title}" (source: ${player.data?.get("lastAutoplaySource") || "unknown"}) in guild ${player.guildId}`, "log");
+
+        const source = player.data?.get('lastAutoplaySource') || 'unknown';
+        client.logger?.log(
+            `[Autoplay] Queued "${foundTrack.title}" (${isAiPick ? 'AI via ' : ''}${source}) in guild ${player.guildId}`,
+            'log'
+        );
 
         if (!player.playing && !player.paused) {
-            try {
-                await player.play();
-            } catch (playErr) {
-                client.logger?.log(`[Autoplay] Failed to start playback: ${playErr.message}`, "error");
-            }
+            await player.play().catch(e => {
+                client.logger?.log(`[Autoplay] Play error: ${e.message}`, 'error');
+            });
         }
     } catch (err) {
-        client.logger?.log(`[Autoplay] Error: ${err.message}`, "error");
-    } finally {
+        client.logger?.log(`[Autoplay] Unexpected error: ${err.message}`, 'error');
+
+        // Notify the text channel so users know something went wrong
         try {
-            player?.data?.delete("autoplayInProgress");
-        } catch {}
+            const { ContainerBuilder, TextDisplayBuilder, MessageFlags } = require('discord.js');
+            const channel = client.channels.cache.get(player?.textId);
+            if (channel) {
+                const note = new ContainerBuilder().addTextDisplayComponents(
+                    new TextDisplayBuilder().setContent(
+                        `⚠️ Autoplay couldn't find a recommendation right now. Queue more songs with \`play\`!`
+                    )
+                );
+                await channel.send({ components: [note], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
+            }
+        } catch { }
+    } finally {
+        try { player?.data?.delete('autoplayInProgress'); } catch { }
     }
 }
 
