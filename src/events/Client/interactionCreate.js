@@ -366,6 +366,29 @@ module.exports = {
           return interaction.reply({ embeds: [embed], components: [row], flags: MessageFlags.Ephemeral }).catch(() => {});
         }
 
+        // ── Join the voice channel via Kazagumo ──────────────────────────────
+        try {
+          const { PermissionsBitField } = require('discord.js');
+          const perms = voiceChannel.permissionsFor(interaction.guild.members.me);
+
+          if (perms?.has(PermissionsBitField.Flags.Connect) && perms?.has(PermissionsBitField.Flags.Speak)) {
+            let player = client.manager.players.get(interaction.guild.id);
+            if (!player) {
+              player = await client.manager.createPlayer({
+                guildId: interaction.guild.id,
+                voiceId: voiceChannel.id,
+                textId: interaction.channel.id,
+                deaf: true,
+                volume: 80,
+              });
+            } else if (player.voiceId !== voiceChannel.id) {
+              await player.setVoiceChannel(voiceChannel.id).catch(() => {});
+            }
+          }
+        } catch (joinErr) {
+          client.logger?.log(`[setup_joined] VC join error: ${joinErr.message}`, 'error');
+        }
+
         const embed = buildVibeSelectEmbed(client, voiceChannel.name);
         const opts = { embeds: [embed], components: [buildVibeSelectRow(), buildPlayHintRow()] };
         if (action === 'joined') {
