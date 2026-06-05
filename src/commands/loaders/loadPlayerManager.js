@@ -15,7 +15,7 @@ const searchEngines = {
   LAST_FM: "lfsearch"
 };
 
-const fallbackEngines = ["ytmsearch", "amsearch", "spsearch", "ytsearch"];
+const fallbackEngines = ["ytmsearch", "ytsearch"];
 
 async function searchLastFm(query, apiKey) {
   try {
@@ -69,8 +69,14 @@ module.exports = function loadPlayerManager(client) {
 
     const isUrl = /^https?:\/\//.test(query);
 
+    const quickResolve = (q) =>
+      Promise.race([
+        node.rest.resolve(q).catch(() => null),
+        new Promise(resolve => setTimeout(() => resolve(null), 7000)),
+      ]);
+
     if (isUrl) {
-      const directRes = await node.rest.resolve(query).catch(() => null);
+      const directRes = await quickResolve(query);
       if (directRes && directRes.loadType !== LoadType.ERROR) {
         return processSearchResult(directRes, options.requester);
       }
@@ -90,26 +96,37 @@ module.exports = function loadPlayerManager(client) {
       if (apiKey) {
         const lfmQuery = await searchLastFm(query, apiKey);
         if (lfmQuery) {
-          const res = await node.rest.resolve(`ytmsearch:${lfmQuery}`).catch(() => null);
+          const res = await quickResolve(`ytmsearch:${lfmQuery}`);
           if (res && res.loadType !== LoadType.ERROR && res.data) {
             return processSearchResult(res, options.requester);
           }
         }
       }
-      const fallbackRes = await node.rest.resolve(`ytmsearch:${query}`).catch(() => null);
+      const fallbackRes = await quickResolve(`ytmsearch:${query}`);
       if (fallbackRes && fallbackRes.loadType !== LoadType.ERROR && fallbackRes.data) {
         return processSearchResult(fallbackRes, options.requester);
       }
       return { type: "SEARCH", tracks: [] };
     }
 
-    let searchEngineList = [selectedEngine];
-    searchEngineList = [...new Set([...searchEngineList, ...fallbackEngines])];
+    // ── Per-request timeout wrapper (7s hard cap per engine) ─────────────────
+    const timedResolve = (searchQuery) =>
+      Promise.race([
+        node.rest.resolve(searchQuery).catch(() => null),
+        new Promise(resolve => setTimeout(() => resolve(null), 7000)),
+      ]);
 
-    for (const engine of searchEngineList) {
-      const searchQuery = `${engine}:${query}`;
-      const res = await node.rest.resolve(searchQuery).catch(() => null);
+    // ── Race primary engine vs ytmsearch in parallel ──────────────────────────
+    const engines = [...new Set([selectedEngine, ...fallbackEngines])];
+    const primary   = engines[0];
+    const secondary = engines[1] || 'ytsearch';
 
+    const [res1, res2] = await Promise.all([
+      timedResolve(`${primary}:${query}`),
+      timedResolve(`${secondary}:${query}`),
+    ]);
+
+    for (const res of [res1, res2]) {
       if (res && res.loadType !== LoadType.ERROR && res.data) {
         return processSearchResult(res, options.requester);
       }
