@@ -7,8 +7,9 @@ const {
   EmbedBuilder,
 } = require("discord.js");
 const emoji = require("../../emojis.js");
-const { generateNowPlayingCard } = require("../../utils/canvasCard.js");
+const { generatePresetCard } = require("../../utils/canvasCard.js");
 const { storeCard, getPublicUrl } = require("../../utils/cardStore.js");
+const { detectPlatform } = require("../../utils/playerUtils.js");
 const setup = require("../../schema/setup");
 
 function formatMSS(ms) {
@@ -76,13 +77,14 @@ async function buildCardEmbed(track, player) {
   const thumbnail = getCleanThumbnail(track.thumbnail || track.artworkUrl);
   const requester = track.requester?.username || track.requester?.globalName || null;
 
-  const buf = await generateNowPlayingCard({
-    title: track.title || "Unknown Title",
-    artist: cleanAuthorName(track.author),
+  const buf = await generatePresetCard({
+    title:    track.title || "Unknown Title",
+    artist:   cleanAuthorName(track.author),
     requester,
     thumbnail,
     position: player.position || 0,
     duration: track.length || 0,
+    source:   detectPlatform(track),
   });
 
   const id  = storeCard(buf);

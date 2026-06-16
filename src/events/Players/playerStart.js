@@ -174,16 +174,18 @@ function buildCardButtons(client, player, isPaused) {
 }
 
 async function generateCardBuffer(track, player) {
-  const { generateNowPlayingCard } = require("../../utils/canvasCard");
+  const { generatePresetCard } = require("../../utils/canvasCard");
+  const { detectPlatform }     = require("../../utils/playerUtils");
   const thumbnail  = getCleanThumbnail(track.thumbnail || track.artworkUrl);
   const requester  = track.requester?.username || track.requester?.globalName || null;
-  return generateNowPlayingCard({
+  return generatePresetCard({
     title:    track.title    || "Unknown Title",
     artist:   cleanAuthorName(track.author),
     requester,
     thumbnail,
     position: player.position || 0,
     duration: track.length   || 0,
+    source:   detectPlatform(track),
   });
 }
 

@@ -24,8 +24,8 @@ const STYLES = {
     label: 'Canvas Card',
     icon: '🎨',
     badge: '[ CARD ]',
-    desc: 'Generates a stylish image card with album art,\ngradient background and animated progress.',
-    features: ['Custom canvas image', 'Album art with gradient', 'Visual progress bar', 'Aesthetic dark design'],
+    desc: 'Full blurred album art background with platform label,\nprogress bar, timestamps and artist info.',
+    features: ['Blurred album art background', 'Platform source label', 'Progress bar with knob', 'Time · Artist · Duration rows'],
   },
 };
 
