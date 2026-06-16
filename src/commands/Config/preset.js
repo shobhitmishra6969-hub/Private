@@ -1,82 +1,110 @@
+'use strict';
 const {
-  ContainerBuilder,
-  TextDisplayBuilder,
-  SeparatorBuilder,
-  SectionBuilder,
-  ThumbnailBuilder,
+  EmbedBuilder,
   ActionRowBuilder,
-  ButtonBuilder,
-  ButtonStyle,
+  StringSelectMenuBuilder,
+  StringSelectMenuOptionBuilder,
+  ComponentType,
   MessageFlags,
 } = require('discord.js');
 const setup = require('../../schema/setup');
-const emoji = require('../../emojis');
 
-const STYLES = {
-  default: {
-    label: 'Components',
-    icon: '🧩',
-    badge: '[ DEFAULT ]',
-    desc: 'Clean Discord UI — title, artist, progress bar.\nUpdates live every 3 seconds.',
-    features: ['Rich components layout', 'Inline album thumbnail', 'Live progress bar', 'Lightweight & fast'],
+const STYLES = [
+  {
+    value: 'default',
+    label: 'Default',
+    emoji: '🎵',
+    description: 'Classic layout with progress bar',
   },
-  card: {
-    label: 'Canvas Card',
-    icon: '🎨',
-    badge: '[ CARD ]',
-    desc: 'Full blurred album art background with platform label,\nprogress bar, timestamps and artist info.',
-    features: ['Blurred album art background', 'Platform source label', 'Progress bar with knob', 'Time · Artist · Duration rows'],
+  {
+    value: 'basic',
+    label: 'Basic',
+    emoji: '✨',
+    description: 'Simple and clean design',
   },
-};
+  {
+    value: 'detailed',
+    label: 'Detailed',
+    emoji: '📋',
+    description: 'Extended track information',
+  },
+  {
+    value: 'dynamic',
+    label: 'Dynamic',
+    emoji: '⚡',
+    description: 'Interactive with queue preview',
+  },
+  {
+    value: 'aesthetic',
+    label: 'Aesthetic',
+    emoji: '🌸',
+    description: 'Visually enhanced layout',
+  },
+  {
+    value: 'midnight',
+    label: 'Midnight',
+    emoji: '🌙',
+    description: 'Dark console layout with tight stats',
+  },
+  {
+    value: 'gallery',
+    label: 'Gallery',
+    emoji: '🖼️',
+    description: 'Artwork-first cover showcase',
+  },
+  {
+    value: 'broadcast',
+    label: 'Broadcast',
+    emoji: '📻',
+    description: 'Clean live-radio style card',
+  },
+  {
+    value: 'luxe',
+    label: 'Luxe',
+    emoji: '💎',
+    description: 'Compact gold-accent premium style',
+  },
+  {
+    value: 'card',
+    label: 'Canvas Luxe',
+    emoji: '🎨',
+    description: 'Full PNG canvas now-playing card',
+  },
+];
 
-function buildPresetPanel(currentStyle, prefix) {
-  const cur = STYLES[currentStyle] || STYLES.default;
-  const other = currentStyle === 'card' ? 'default' : 'card';
-  const oth = STYLES[other];
+function buildPresetEmbed(currentStyle) {
+  const current = STYLES.find(s => s.value === currentStyle) || STYLES[0];
 
-  // ── Header ────────────────────────────────────────────────────────────────────
-  const header = new TextDisplayBuilder().setContent(
-    `${emoji.Config} **Now-Playing Style Settings**\n` +
-    `-# Configure how the bot displays the currently playing track.`
-  );
+  const styleList = STYLES.map(s =>
+    `• **${s.label}** — ${s.description}`
+  ).join('\n');
 
-  // ── Active style card ─────────────────────────────────────────────────────────
-  const activeText =
-    `**${cur.icon} ${cur.label}** ${cur.badge} — ✅ **Active**\n` +
-    cur.features.map(f => `${emoji.dot} ${f}`).join('\n');
+  return new EmbedBuilder()
+    .setTitle('Player Style Configuration')
+    .setDescription(
+      `Select a style for the music player from the dropdown below.\n\n` +
+      `**Current Style: ${current.label}**\n` +
+      `**Available Styles:**\n${styleList}`
+    )
+    .setColor(0x2b2d31);
+}
 
-  const activeSection = new SectionBuilder()
-    .addTextDisplayComponents(new TextDisplayBuilder().setContent(activeText))
-    .setThumbnailAccessory(
-      new ThumbnailBuilder().setURL(
-        currentStyle === 'card'
-          ? 'https://cdn.discordapp.com/emojis/1484568142205161764.webp'
-          : 'https://cdn.discordapp.com/emojis/1484567998692855891.webp'
+function buildSelectMenu(currentStyle) {
+  const menu = new StringSelectMenuBuilder()
+    .setCustomId('preset_style_select')
+    .setPlaceholder('Select a player style...')
+    .addOptions(
+      STYLES.map(s =>
+        new StringSelectMenuOptionBuilder()
+          .setLabel(s.label)
+          .setValue(s.value)
+          .setDescription(s.description)
+          .setEmoji(s.emoji)
+          .setDefault(s.value === currentStyle)
       )
     );
 
-  // ── Other style preview ───────────────────────────────────────────────────────
-  const otherText =
-    `**${oth.icon} ${oth.label}** ${oth.badge}\n` +
-    `-# ${oth.desc.split('\n')[0]}\n` +
-    oth.features.map(f => `${emoji.dot} ${f}`).join('\n') +
-    `\n\n-# Switch with: \`${prefix}preset ${other}\``;
-
-  // ── Usage ────────────────────────────────────────────────────────────────────
-  const usageText =
-    `${emoji.dot} **Usage:** \`${prefix}preset <style>\`\n` +
-    `${emoji.dot} **Styles:** \`default\` · \`card\``;
-
-  const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
-    .addTextDisplayComponents(header)
-    .addSeparatorComponents(new SeparatorBuilder().setDivider(true))
-    .addSectionComponents(activeSection)
-    .addSeparatorComponents(new SeparatorBuilder().setDivider(false))
-    .addTextDisplayComponents(new TextDisplayBuilder().setContent(otherText))
-    .addSeparatorComponents(new SeparatorBuilder().setDivider(true))
-    .addTextDisplayComponents(new TextDisplayBuilder().setContent(usageText));
-
-  return container;
+  return new ActionRowBuilder().addComponents(menu);
 }
 
 module.exports = {
@@ -85,87 +113,62 @@ module.exports = {
   aliases: ['npstyle', 'nowplayingstyle'],
   description: 'Set the now-playing display style for this server.',
   args: false,
-  usage: '[default|card]',
-  userPerms: [],
+  usage: '[style]',
+  userPerms: ['ManageGuild'],
   owner: false,
   slashOptions: [],
 
   async execute(message, args, client) {
     const guild = message.guild;
-    const arg = args[0]?.toLowerCase();
-    const prefix = client.prefix || '.';
 
     const current = await setup.findOne({ Guild: guild.id });
     const currentStyle = current?.npStyle || 'default';
 
-    // ── No argument → show current panel ─────────────────────────────────────
-    if (!arg) {
-      return message.reply({
-        components: [buildPresetPanel(currentStyle, prefix)],
-        flags: MessageFlags.IsComponentsV2,
+    const embed = buildPresetEmbed(currentStyle);
+    const row = buildSelectMenu(currentStyle);
+
+    const sent = await message.reply({
+      embeds: [embed],
+      components: [row],
+    });
+
+    const collector = sent.createMessageComponentCollector({
+      componentType: ComponentType.StringSelect,
+      time: 60000,
+      filter: (i) => i.user.id === message.author.id,
+    });
+
+    collector.on('collect', async (interaction) => {
+      await interaction.deferUpdate();
+
+      const chosen = interaction.values[0];
+      const chosenStyle = STYLES.find(s => s.value === chosen) || STYLES[0];
+
+      await setup.findOneAndUpdate(
+        { Guild: guild.id },
+        { Guild: guild.id, npStyle: chosen, updatedAt: Date.now() },
+        { upsert: true, new: true }
+      );
+
+      const updatedEmbed = buildPresetEmbed(chosen);
+      const updatedRow = buildSelectMenu(chosen);
+
+      const confirmEmbed = new EmbedBuilder()
+        .setDescription(`✅ Player style updated to **${chosenStyle.label}**!`)
+        .setColor(0x7B2FBE);
+
+      await interaction.editReply({
+        embeds: [updatedEmbed, confirmEmbed],
+        components: [updatedRow],
       });
-    }
 
-    // ── Validate ──────────────────────────────────────────────────────────────
-    if (!STYLES[arg]) {
-      const errorText =
-        `**${emoji.cross} Invalid style \`${arg}\`.**\n` +
-        `-# Available: \`default\` · \`card\``;
+      collector.stop('selected');
+    });
 
-      return message.reply({
-        components: [
-          new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(
-            new TextDisplayBuilder().setContent(errorText)
-          )
-        ],
-        flags: MessageFlags.IsComponentsV2,
-      });
-    }
-
-    // ── Already set ───────────────────────────────────────────────────────────
-    if (arg === currentStyle) {
-      const sameText =
-        `**${emoji.info} Already using \`${STYLES[arg].icon} ${STYLES[arg].label}\` style.**\n` +
-        `-# No changes made.`;
-
-      return message.reply({
-        components: [
-          new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(
-            new TextDisplayBuilder().setContent(sameText)
-          )
-        ],
-        flags: MessageFlags.IsComponentsV2,
-      });
-    }
-
-    // ── Save ──────────────────────────────────────────────────────────────────
-    await setup.findOneAndUpdate(
-      { Guild: guild.id },
-      { Guild: guild.id, npStyle: arg, updatedAt: Date.now() },
-      { upsert: true, new: true }
-    );
-
-    const newStyle = STYLES[arg];
-    const oldStyle = STYLES[currentStyle];
-
-    const successHeader = new TextDisplayBuilder().setContent(
-      `**${emoji.check} Now-Playing Style Updated**\n` +
-      `-# Takes effect on the next \`${prefix}nowplaying\` or \`${prefix}np\` command.`
-    );
-
-    const changeText =
-      `${oldStyle.icon} ~~${oldStyle.label}~~ → **${newStyle.icon} ${newStyle.label}** ${newStyle.badge}\n\n` +
-      `**What you get:**\n` +
-      newStyle.features.map(f => `${emoji.dot} ${f}`).join('\n');
-
-    const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
-      .addTextDisplayComponents(successHeader)
-      .addSeparatorComponents(new SeparatorBuilder().setDivider(true))
-      .addTextDisplayComponents(new TextDisplayBuilder().setContent(changeText));
-
-    return message.reply({
-      components: [container],
-      flags: MessageFlags.IsComponentsV2,
+    collector.on('end', (_, reason) => {
+      if (reason === 'time') {
+        sent.edit({ components: [] }).catch(() => {});
+      }
     });
   },
 };
