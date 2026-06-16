@@ -16,6 +16,7 @@ const SOURCES = [
   { label: 'YT Music',    value: 'ytmsearch', emoji: emoji.ytmusic,  fullName: 'YouTube Music' },
   { label: 'YouTube',     value: 'ytsearch',  emoji: emoji.youtube,  fullName: 'YouTube'       },
   { label: 'Spotify',     value: 'spsearch',  emoji: emoji.spotify,  fullName: 'Spotify'       },
+  { label: 'SoundCloud',  value: 'scsearch',  emoji: '🔶',           fullName: 'SoundCloud'    },
   { label: 'Apple Music', value: 'amsearch',  emoji: '🍎',           fullName: 'Apple Music'   },
   { label: 'Deezer',      value: 'dzsearch',  emoji: emoji.deezer,   fullName: 'Deezer'        },
   { label: 'JioSaavn',    value: 'jssearch',  emoji: emoji.jiosaavn, fullName: 'JioSaavn'      },

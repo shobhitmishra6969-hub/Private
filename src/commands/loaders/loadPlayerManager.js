@@ -9,6 +9,7 @@ const searchEngines = {
   DEEZER: "dzsearch",
   SPOTIFY: "spsearch",
   YOUTUBE: "ytsearch",
+  SOUNDCLOUD: "scsearch",
   JIO_SAAVAN: "jssearch",
   APPLE_MUSIC: "amsearch",
   YOUTUBE_MUSIC: "ytmsearch",
