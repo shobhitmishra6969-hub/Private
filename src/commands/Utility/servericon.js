@@ -64,7 +64,7 @@ module.exports = {
                 const errorDisplay = new TextDisplayBuilder()
                     .setContent(`${emoji.cross} Could not find a server with ID: \`${args[0]}\``);
 
-                const errorContainer = new ContainerBuilder()
+                const errorContainer = new ContainerBuilder().setAccentColor(0x7B2FBE)
                     .addTextDisplayComponents(errorDisplay);
 
                 return message.reply({
@@ -83,7 +83,7 @@ module.exports = {
             const errorDisplay = new TextDisplayBuilder()
                 .setContent(`${emoji.warn} **\`${guild.name}\`** does not have a server icon set.`);
 
-            const errorContainer = new ContainerBuilder()
+            const errorContainer = new ContainerBuilder().setAccentColor(0x7B2FBE)
                 .addTextDisplayComponents(errorDisplay);
 
             return message.reply({
@@ -109,7 +109,7 @@ module.exports = {
         const mediaGallery = new MediaGalleryBuilder()
             .addItems(mediaItem);
 
-        const container = new ContainerBuilder()
+        const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
             .addTextDisplayComponents(header)
             .addSeparatorComponents(separator1)
             .addTextDisplayComponents(links)

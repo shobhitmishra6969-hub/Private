@@ -1,18 +1,31 @@
+'use strict';
 const {
   ContainerBuilder,
   TextDisplayBuilder,
-  MessageFlags
-} = require("discord.js");
-const Liked = require("../../schema/liked.js");
+  SeparatorBuilder,
+  MessageFlags,
+} = require('discord.js');
+const Liked = require('../../schema/liked.js');
 const emoji = require('../../emojis');
 
+function reply(message, content) {
+  return message.reply({
+    components: [
+      new ContainerBuilder()
+        .setAccentColor(0x7B2FBE)
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(content)),
+    ],
+    flags: MessageFlags.IsComponentsV2,
+  });
+}
+
 module.exports = {
-  name: "like",
-  category: "Favourite",
-  description: "Add current song to your favorites",
+  name: 'like',
+  category: 'Favourite',
+  description: 'Add current song to your favorites',
   args: false,
-  usage: "",
-  aliases: ["fav", "favourite", "favorite"],
+  usage: '',
+  aliases: ['fav', 'favourite', 'favorite'],
   userPerms: [],
   owner: false,
   player: true,
@@ -28,46 +41,21 @@ module.exports = {
       member: interaction.member,
       createdTimestamp: interaction.createdTimestamp,
       reply: async (options) => {
-        if (interaction.deferred) {
-          return await interaction.editReply(options);
-        } else if (interaction.replied) {
-          return await interaction.followUp(options);
-        } else {
-          return await interaction.reply(options);
-        }
+        if (interaction.deferred) return interaction.editReply(options);
+        else if (interaction.replied) return interaction.followUp(options);
+        else return interaction.reply(options);
       },
     };
-
-    const args = [];
-    if (interaction.options) {
-      const options = interaction.options.data;
-      for (const option of options) {
-        if (option.value !== undefined) {
-          args.push(option.value.toString());
-        }
-      }
-    }
-
-    const prefix = client.prefix;
-    return this.execute(interactionWrapper, args, client, prefix);
+    return this.execute(interactionWrapper, [], client);
   },
 
-  async execute(message, args, client, prefix) {
+  async execute(message, args, client) {
     const player = client.manager.players.get(message.guild.id);
     if (!player.queue.current) {
-      const errorDisplay = new TextDisplayBuilder()
-        .setContent(`**${emoji.cross} Nothing is playing right now.**`);
-
-      const container = new ContainerBuilder()
-        .addTextDisplayComponents(errorDisplay);
-
-      return message.reply({
-        components: [container],
-        flags: MessageFlags.IsComponentsV2
-      });
+      return reply(message, `**${emoji.cross} Nothing is playing right now.**`);
     }
 
-    const song = player.queue.current;
+    const song   = player.queue.current;
     const userId = message.author.id;
 
     try {
@@ -79,52 +67,37 @@ module.exports = {
 
       const songExists = userLiked.songs.find(s => s.url === song.uri);
       if (songExists) {
-        const infoDisplay = new TextDisplayBuilder()
-          .setContent(`**${emoji.info} This song is already in your favorites!**`);
-
-        const container = new ContainerBuilder()
-          .addTextDisplayComponents(infoDisplay);
-
-        return message.reply({
-          components: [container],
-          flags: MessageFlags.IsComponentsV2
-        });
+        return reply(message, `**${emoji.info} Already in your favourites!**\n-# [${song.title}](${song.uri})`);
       }
 
       userLiked.songs.push({
-        title: song.title,
-        url: song.uri,
-        duration: song.length || song.duration,
+        title:     song.title,
+        url:       song.uri,
+        duration:  song.length || song.duration,
         thumbnail: song.thumbnail,
-        author: song.author
+        author:    song.author,
       });
-
       await userLiked.save();
 
-      const successDisplay = new TextDisplayBuilder()
-        .setContent(`**${emoji.check} Added [${song.title}](${song.uri}) to your favorites!** `);
-
-      const container = new ContainerBuilder()
-        .addTextDisplayComponents(successDisplay);
-
       return message.reply({
-        components: [container],
-        flags: MessageFlags.IsComponentsV2
+        components: [
+          new ContainerBuilder()
+            .setAccentColor(0x7B2FBE)
+            .addTextDisplayComponents(
+              new TextDisplayBuilder().setContent(`### ${emoji.like} Added to Favourites`)
+            )
+            .addSeparatorComponents(new SeparatorBuilder().setDivider(true))
+            .addTextDisplayComponents(
+              new TextDisplayBuilder().setContent(
+                `**[${song.title}](${song.uri})**\n-# ${song.author}`
+              )
+            ),
+        ],
+        flags: MessageFlags.IsComponentsV2,
       });
-
     } catch (err) {
       console.error(err);
-
-      const errorDisplay = new TextDisplayBuilder()
-        .setContent(`**${emoji.cross} An error occurred while saving to favorites.**`);
-
-      const container = new ContainerBuilder()
-        .addTextDisplayComponents(errorDisplay);
-
-      return message.reply({
-        components: [container],
-        flags: MessageFlags.IsComponentsV2
-      });
+      return reply(message, `**${emoji.cross} An error occurred while saving to favourites.**`);
     }
-  }
+  },
 };

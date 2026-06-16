@@ -31,7 +31,7 @@ module.exports = {
     
     if (!isPremium) {
       const d = new TextDisplayBuilder().setContent(`**${emoji.warn} Premium-only command**\n> You need to be a global premium user or have the server's premium role to use this command.`);
-      const c = new ContainerBuilder().addTextDisplayComponents(d);
+      const c = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(d);
       return interaction.reply({ components: [c], flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2 });
     }
     return play.slashExecute(interaction, client);
@@ -41,7 +41,7 @@ module.exports = {
 
     if (!isPremium) {
       const d = new TextDisplayBuilder().setContent(`**${emoji.warn} Premium-only command**\n> You need to be a global premium user or have the server's premium role to use this command.`);
-      const c = new ContainerBuilder().addTextDisplayComponents(d);
+      const c = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(d);
       return message.reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
     }
     return play.execute(message, args, client, prefix);

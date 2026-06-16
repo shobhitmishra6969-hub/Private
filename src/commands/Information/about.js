@@ -1,6 +1,8 @@
+'use strict';
 const {
   ContainerBuilder,
   TextDisplayBuilder,
+  SeparatorBuilder,
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
@@ -18,31 +20,41 @@ module.exports = {
 
   async slashExecute(interaction, client) {
     await interaction.deferReply();
-    const container = this._build();
-    const row = this._row();
-    await interaction.editReply({ components: [container, row], flags: MessageFlags.IsComponentsV2 });
+    await interaction.editReply(this._build());
   },
 
   async execute(message, args, client) {
-    const container = this._build();
-    const row = this._row();
-    return message.reply({ components: [container, row], flags: MessageFlags.IsComponentsV2 });
+    return message.reply(this._build());
   },
 
   _build() {
-    const text = new TextDisplayBuilder().setContent(
-      'Click Below Button To Download My Source Code'
-    );
-    return new ContainerBuilder().addTextDisplayComponents(text);
-  },
-
-  _row() {
     const url = config.links?.sourcecode || 'https://github.com/';
-    return new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setLabel('Download')
-        .setStyle(ButtonStyle.Link)
-        .setURL(url),
-    );
+    return {
+      components: [
+        new ContainerBuilder()
+          .setAccentColor(0x7B2FBE)
+          .addTextDisplayComponents(
+            new TextDisplayBuilder().setContent(
+              '### 💾 Source Code\n' +
+              '-# Download or explore the bot\'s full source code.'
+            )
+          )
+          .addSeparatorComponents(new SeparatorBuilder().setDivider(true))
+          .addTextDisplayComponents(
+            new TextDisplayBuilder().setContent(
+              'Click the button below to access the source code repository.'
+            )
+          )
+          .addActionRowComponents(
+            new ActionRowBuilder().addComponents(
+              new ButtonBuilder()
+                .setLabel('Download Source')
+                .setStyle(ButtonStyle.Link)
+                .setURL(url)
+            )
+          ),
+      ],
+      flags: MessageFlags.IsComponentsV2,
+    };
   },
 };

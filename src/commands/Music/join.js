@@ -27,7 +27,7 @@ module.exports = {
       const errorDisplay = new TextDisplayBuilder()
         .setContent(`**${emoji.warn} You must be in a voice channel to use this command.**`);
 
-      const container = new ContainerBuilder()
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(errorDisplay);
 
       return interaction.reply({
@@ -43,7 +43,7 @@ module.exports = {
       const warnDisplay = new TextDisplayBuilder()
         .setContent(`**${emoji.warn} I'm already connected to <#${player.voiceId}>**`);
 
-      const container = new ContainerBuilder()
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(warnDisplay);
 
       return interaction.reply({
@@ -56,7 +56,7 @@ module.exports = {
       const errorDisplay = new TextDisplayBuilder()
         .setContent(`**${emoji.warn} I don't have enough permissions to execute this command! Please give me permission \`CONNECT\` or \`SPEAK\`.**`);
 
-      const container = new ContainerBuilder()
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(errorDisplay);
 
       return interaction.reply({
@@ -77,7 +77,7 @@ module.exports = {
     const successDisplay = new TextDisplayBuilder()
       .setContent(`**${emoji.check} Joined <#${channel.id}> and bound to <#${interaction.channel.id}>**`);
 
-    const container = new ContainerBuilder()
+    const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
       .addTextDisplayComponents(successDisplay);
 
     return interaction.reply({
@@ -103,7 +103,7 @@ module.exports = {
       const warnDisplay = new TextDisplayBuilder()
         .setContent(`**${emoji.warn} I'm already connected to <#${player.voiceId}>**`);
 
-      const container = new ContainerBuilder()
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(warnDisplay);
 
       return await message.channel.send({
@@ -122,7 +122,7 @@ module.exports = {
           `**${emoji.warn} I don't have enough permissions to execute this command! Please give me permission \`CONNECT\` or \`SPEAK\`.**`
         );
 
-      const container = new ContainerBuilder()
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(errorDisplay);
 
       return message.channel.send({
@@ -145,7 +145,7 @@ module.exports = {
         `**${emoji.check} Joined <#${channel.id}> and bound to <#${message.channel.id}>**`
       );
 
-    const container = new ContainerBuilder()
+    const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
       .addTextDisplayComponents(successDisplay);
 
     return message.reply({

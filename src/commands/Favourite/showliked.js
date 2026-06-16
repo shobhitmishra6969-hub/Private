@@ -65,7 +65,7 @@ module.exports = {
         const infoDisplay = new TextDisplayBuilder()
           .setContent(`**${emoji.info} You don't have any favorite songs yet!**`);
 
-        const container = new ContainerBuilder()
+        const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
           .addTextDisplayComponents(infoDisplay);
 
         return message.reply({
@@ -112,7 +112,7 @@ module.exports = {
             }).join('\n')
           );
 
-        return new ContainerBuilder()
+        return new ContainerBuilder().setAccentColor(0x7B2FBE)
           .addTextDisplayComponents(headerDisplay)
           .addSeparatorComponents(separator)
           .addTextDisplayComponents(songsDisplay);
@@ -186,7 +186,7 @@ module.exports = {
       const errorDisplay = new TextDisplayBuilder()
         .setContent(`**${emoji.cross} An error occurred while fetching your favorites.**`);
 
-      const container = new ContainerBuilder()
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(errorDisplay);
 
       return message.reply({

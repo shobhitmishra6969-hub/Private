@@ -1,39 +1,25 @@
+'use strict';
 const {
-  EmbedBuilder,
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
-} = require("discord.js");
-const axios = require("axios");
-const SpotifyProfile = require("../../schema/spotifyprofile");
-const config = require("../../config");
-
-module.exports = {
-  name: "spotify-profile",
-  aliases: ["spprofile", "spotifyprofile", "spme"],
-  category: "Spotify",
-  description: "View your linked Spotify profile info.",
-  cooldown: 5,
-  slashOptions: [],
-
-  async slashExecute(interaction, client) {
-    await interaction.deferReply();
-    const { embeds, components } = await buildProfileReply(interaction.user.id, client);
-    return interaction.editReply({ embeds, components });
-  },
-
-  async execute(message, args, client) {
-    const { embeds, components } = await buildProfileReply(message.author.id, client);
-    return message.reply({ embeds, components });
-  }
-};
+  ContainerBuilder,
+  TextDisplayBuilder,
+  SeparatorBuilder,
+  SectionBuilder,
+  ThumbnailBuilder,
+  MessageFlags,
+} = require('discord.js');
+const axios = require('axios');
+const SpotifyProfile = require('../../schema/spotifyprofile');
+const config = require('../../config');
 
 async function refreshToken(refreshTok) {
-  const credentials = Buffer.from(`${config.SpotifyID}:${config.SpotifySecret}`).toString("base64");
+  const credentials = Buffer.from(`${config.SpotifyID}:${config.SpotifySecret}`).toString('base64');
   const res = await axios.post(
-    "https://accounts.spotify.com/api/token",
-    new URLSearchParams({ grant_type: "refresh_token", refresh_token: refreshTok }).toString(),
-    { headers: { Authorization: `Basic ${credentials}`, "Content-Type": "application/x-www-form-urlencoded" }, timeout: 8000 }
+    'https://accounts.spotify.com/api/token',
+    new URLSearchParams({ grant_type: 'refresh_token', refresh_token: refreshTok }).toString(),
+    { headers: { Authorization: `Basic ${credentials}`, 'Content-Type': 'application/x-www-form-urlencoded' }, timeout: 8000 }
   );
   return res.data.access_token;
 }
@@ -51,115 +37,134 @@ async function buildProfileReply(userId, client) {
   const linked = await SpotifyProfile.findOne({ userId }).catch(() => null);
 
   if (!linked) {
-    const embed = new EmbedBuilder()
-      .setColor("#7B2FBE")
-      .setDescription(
-        `**You haven't linked a Spotify account yet.**\n` +
-        `Run \`${client?.prefix || ">"}spotify-login\` to link your account.`
-      );
-    return { embeds: [embed], components: [] };
+    return {
+      components: [
+        new ContainerBuilder()
+          .setAccentColor(0x7B2FBE)
+          .addTextDisplayComponents(
+            new TextDisplayBuilder().setContent(
+              `**You haven't linked a Spotify account yet.**\n-# Run \`${client?.prefix || '>'}spotify-login\` to link your account.`
+            )
+          ),
+      ],
+      flags: MessageFlags.IsComponentsV2,
+    };
   }
 
   const hasOAuthToken = !!(linked.refreshToken || linked.accessToken);
-
   let accessToken = linked.accessToken;
-  let profile = null;
-  let playlists = [];
-  let topTracks = [];
+  let profile = null, playlists = [], topTracks = [];
 
   if (hasOAuthToken) {
     if (linked.refreshToken) {
       try {
         accessToken = await refreshToken(linked.refreshToken);
-        await SpotifyProfile.findOneAndUpdate(
-          { userId },
-          { accessToken, updatedAt: Date.now() },
-          { upsert: false }
-        );
-      } catch {
-        // use existing token
-      }
+        await SpotifyProfile.findOneAndUpdate({ userId }, { accessToken, updatedAt: Date.now() }, { upsert: false });
+      } catch { /* use existing token */ }
     }
-
+    try { profile = await spotifyGet('https://api.spotify.com/v1/me', accessToken); } catch {}
     try {
-      profile = await spotifyGet("https://api.spotify.com/v1/me", accessToken);
-    } catch (err) {
-      console.warn("[SpotifyProfile] /v1/me failed:", err.response?.status, err.response?.data?.error?.message || err.message);
-    }
-
-    try {
-      const pData = await spotifyGet("https://api.spotify.com/v1/me/playlists", accessToken, { limit: 5 });
+      const pData = await spotifyGet('https://api.spotify.com/v1/me/playlists', accessToken, { limit: 5 });
       playlists = pData.items || [];
-    } catch (err) {
-      console.warn("[SpotifyProfile] /v1/me/playlists failed:", err.response?.status);
-    }
-
+    } catch {}
     try {
-      const tData = await spotifyGet("https://api.spotify.com/v1/me/top/tracks", accessToken, { limit: 5, time_range: "short_term" });
+      const tData = await spotifyGet('https://api.spotify.com/v1/me/top/tracks', accessToken, { limit: 5, time_range: 'short_term' });
       topTracks = tData.items || [];
-    } catch (err) {
-      console.warn("[SpotifyProfile] /v1/me/top/tracks failed:", err.response?.status);
-    }
+    } catch {}
   }
 
-  const displayName = profile?.display_name || linked.displayName || "Unknown";
-  const profileUrl = profile?.external_urls?.spotify || linked.profileUrl;
-  const avatarUrl = profile?.images?.[0]?.url || linked.avatarUrl || null;
-  const followers = profile?.followers?.total;
-  const linkedTs = Math.floor(new Date(linked.linkedAt).getTime() / 1000);
-
+  const displayName    = profile?.display_name || linked.displayName || 'Unknown';
+  const profileUrl     = profile?.external_urls?.spotify || linked.profileUrl;
+  const avatarUrl      = profile?.images?.[0]?.url || linked.avatarUrl || null;
+  const followers      = profile?.followers?.total;
+  const linkedTs       = Math.floor(new Date(linked.linkedAt).getTime() / 1000);
   const storedPlaylists = Array.isArray(linked.playlists) ? linked.playlists : [];
 
   const playlistText = playlists.length
     ? playlists.map((p, i) =>
-        `\`${i + 1}.\` ${p.external_urls?.spotify ? `[${p.name}](${p.external_urls.spotify})` : p.name} — **${p.tracks?.total ?? "?"}** tracks`
-      ).join("\n")
+        `\`${i + 1}.\` ${p.external_urls?.spotify ? `[${p.name}](${p.external_urls.spotify})` : p.name} — **${p.tracks?.total ?? '?'}** tracks`
+      ).join('\n')
     : storedPlaylists.length
       ? storedPlaylists.slice(0, 5).map((p, i) =>
-          `\`${i + 1}.\` [${p.name}](${p.url}) — **${p.trackCount ?? "?"}** tracks`
-        ).join("\n")
-      : "_No playlists found._";
+          `\`${i + 1}.\` [${p.name}](${p.url}) — **${p.trackCount ?? '?'}** tracks`
+        ).join('\n')
+      : '_No playlists found._';
 
   const topTrackText = topTracks.length
     ? topTracks.map((t, i) => {
-        const artists = t.artists?.map(a => a.name).join(", ") || "Unknown";
-        const url = t.external_urls?.spotify;
+        const artists = t.artists?.map(a => a.name).join(', ') || 'Unknown';
+        const url     = t.external_urls?.spotify;
         return `\`${i + 1}.\` ${url ? `[${t.name}](${url})` : t.name} — ${artists}`;
-      }).join("\n")
-    : "_Top tracks require Spotify OAuth login._";
+      }).join('\n')
+    : '_Top tracks require Spotify OAuth login._';
 
-  const embed = new EmbedBuilder()
-    .setColor("#7B2FBE")
-    .setTitle("<:spotify:1357041816106541156> Spotify Profile")
-    .setDescription(`**[${displayName}](${profileUrl || "https://spotify.com"})**`)
-    .setThumbnail(avatarUrl);
+  const statsLine =
+    (followers !== undefined ? `**Followers** — \`${followers.toLocaleString()}\`\n` : '') +
+    `**Linked** — <t:${linkedTs}:R>`;
 
-  if (followers !== undefined) {
-    embed.addFields({ name: "Followers", value: followers.toLocaleString(), inline: true });
-  }
-  embed.addFields(
-    { name: "Linked", value: `<t:${linkedTs}:R>`, inline: true },
+  const headerText = new TextDisplayBuilder().setContent(
+    `### <:spotify:1357041816106541156> Spotify Profile\n**[${displayName}](${profileUrl || 'https://spotify.com'})**\n${statsLine}`
   );
 
-  embed.addFields({ name: `Top Playlists (${storedPlaylists.length || playlists.length})`, value: playlistText, inline: false });
-  if (hasOAuthToken) {
-    embed.addFields({ name: "Top Songs This Month", value: topTrackText, inline: false });
+  const container = new ContainerBuilder().setAccentColor(0x7B2FBE);
+
+  if (avatarUrl) {
+    const thumb   = new ThumbnailBuilder().setURL(avatarUrl);
+    const section = new SectionBuilder().addTextDisplayComponents(headerText).setThumbnailAccessory(thumb);
+    container.addSectionComponents(section);
+  } else {
+    container.addTextDisplayComponents(headerText);
   }
 
-  embed.setFooter({ text: `Use ${client?.prefix || ">"}spotify-myplaylist to browse and play your playlists` });
+  container
+    .addSeparatorComponents(new SeparatorBuilder().setDivider(true))
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `**Top Playlists (${storedPlaylists.length || playlists.length})**\n${playlistText}`
+      )
+    );
 
-  const components = [];
+  if (hasOAuthToken) {
+    container
+      .addSeparatorComponents(new SeparatorBuilder().setDivider(true))
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(`**Top Songs This Month**\n${topTrackText}`)
+      );
+  }
+
+  container.addSeparatorComponents(new SeparatorBuilder().setDivider(true))
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `-# Use \`${client?.prefix || '>'}spotify-myplaylist\` to browse and play your playlists`
+      )
+    );
+
+  const components = [container];
   if (profileUrl) {
-    components.push(
+    container.addActionRowComponents(
       new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-          .setLabel("Open Profile")
-          .setStyle(ButtonStyle.Link)
-          .setURL(profileUrl)
-          .setEmoji("🎵")
+        new ButtonBuilder().setLabel('Open Profile').setStyle(ButtonStyle.Link).setURL(profileUrl).setEmoji('🎵')
       )
     );
   }
 
-  return { embeds: [embed], components };
+  return { components, flags: MessageFlags.IsComponentsV2 };
 }
+
+module.exports = {
+  name: 'spotify-profile',
+  aliases: ['spprofile', 'spotifyprofile', 'spme'],
+  category: 'Spotify',
+  description: 'View your linked Spotify profile info.',
+  cooldown: 5,
+  slashOptions: [],
+
+  async slashExecute(interaction, client) {
+    await interaction.deferReply();
+    return interaction.editReply(await buildProfileReply(interaction.user.id, client));
+  },
+
+  async execute(message, args, client) {
+    return message.reply(await buildProfileReply(message.author.id, client));
+  },
+};

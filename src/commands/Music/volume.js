@@ -39,7 +39,7 @@ module.exports = {
     const player = client.manager.players.get(interaction.guild.id);
     if (!player.queue.current) {
       const errorDisplay = new TextDisplayBuilder().setContent(`**${emoji.warn} Play a song first.**`);
-      const container = new ContainerBuilder().addTextDisplayComponents(errorDisplay);
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(errorDisplay);
       return interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
     }
 
@@ -48,19 +48,19 @@ module.exports = {
       const headerDisplay = new TextDisplayBuilder().setContent(`**${emoji.info} Volume Control**`);
       const separator = new SeparatorBuilder();
       const volumeDisplay = new TextDisplayBuilder().setContent(`**Current volume** \`:\` \`${player.volume}%\``);
-      const container = new ContainerBuilder().addTextDisplayComponents(headerDisplay).addSeparatorComponents(separator).addTextDisplayComponents(volumeDisplay);
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(headerDisplay).addSeparatorComponents(separator).addTextDisplayComponents(volumeDisplay);
       return interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
     }
 
     if (volume < 0 || volume > 100) {
       const errorDisplay = new TextDisplayBuilder().setContent(`**${emoji.cross} Volume must be between 0 and 100.**`);
-      const container = new ContainerBuilder().addTextDisplayComponents(errorDisplay);
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(errorDisplay);
       return interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
     }
 
     await player.setVolume(volume);
     const successDisplay = new TextDisplayBuilder().setContent(`**${emoji.check} Volume set to \`${volume}%\`**`);
-    const container = new ContainerBuilder().addTextDisplayComponents(successDisplay);
+    const container = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(successDisplay);
     return interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
   },
 
@@ -71,7 +71,7 @@ module.exports = {
       const errorDisplay = new TextDisplayBuilder()
         .setContent(`**${emoji.warn} Play a song first.**`);
 
-      const container = new ContainerBuilder()
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(errorDisplay);
 
       return message.channel.send({
@@ -90,7 +90,7 @@ module.exports = {
             `**Current volume** \`:\` \`${player.volume}%\``
           );
 
-        const container = new ContainerBuilder()
+        const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
           .addTextDisplayComponents(errorDisplay);
 
         return message.reply({
@@ -105,7 +105,7 @@ module.exports = {
       const successDisplay = new TextDisplayBuilder()
         .setContent(`**${emoji.check} Volume set to \`${volume}%\`**`);
 
-      const container = new ContainerBuilder()
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(successDisplay);
 
       return message.reply({
@@ -138,7 +138,7 @@ module.exports = {
           .setDisabled(currentVol >= 100)
       );
 
-      return new ContainerBuilder()
+      return new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(headerDisplay)
         .addSeparatorComponents(separator1)
         .addTextDisplayComponents(volumeDisplay)
@@ -163,7 +163,7 @@ module.exports = {
           const errorDisplay = new TextDisplayBuilder()
             .setContent(`**${emoji.cross} Player not found.**`);
 
-          const errorContainer = new ContainerBuilder()
+          const errorContainer = new ContainerBuilder().setAccentColor(0x7B2FBE)
             .addTextDisplayComponents(errorDisplay);
 
           await interaction.update({
@@ -198,7 +198,7 @@ module.exports = {
         const errorDisplay = new TextDisplayBuilder()
           .setContent(`**${emoji.cross} An error occurred while adjusting volume.**`);
 
-        const errorContainer = new ContainerBuilder()
+        const errorContainer = new ContainerBuilder().setAccentColor(0x7B2FBE)
           .addTextDisplayComponents(errorDisplay);
 
         await interaction.reply({
@@ -221,7 +221,7 @@ module.exports = {
         const volumeDisplay = new TextDisplayBuilder()
           .setContent(`**Current volume** \`:\` \`${finalVolume}%\``);
 
-        const finalContainer = new ContainerBuilder()
+        const finalContainer = new ContainerBuilder().setAccentColor(0x7B2FBE)
           .addTextDisplayComponents(headerDisplay)
           .addSeparatorComponents(separator)
           .addTextDisplayComponents(volumeDisplay);

@@ -1,0 +1,1 @@
+- [CV2 aesthetic system](cv2-aesthetic.md) — all commands use dark purple CV2 style with setAccentColor(0x7B2FBE); keep EmbedBuilder only for giveaway, nowplaying card, dm embeds, embed builder tool

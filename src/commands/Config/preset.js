@@ -67,7 +67,7 @@ function buildPresetPanel(currentStyle, prefix) {
     `${emoji.dot} **Usage:** \`${prefix}preset <style>\`\n` +
     `${emoji.dot} **Styles:** \`default\` · \`card\``;
 
-  const container = new ContainerBuilder()
+  const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
     .addTextDisplayComponents(header)
     .addSeparatorComponents(new SeparatorBuilder().setDivider(true))
     .addSectionComponents(activeSection)
@@ -114,7 +114,7 @@ module.exports = {
 
       return message.reply({
         components: [
-          new ContainerBuilder().addTextDisplayComponents(
+          new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(
             new TextDisplayBuilder().setContent(errorText)
           )
         ],
@@ -130,7 +130,7 @@ module.exports = {
 
       return message.reply({
         components: [
-          new ContainerBuilder().addTextDisplayComponents(
+          new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(
             new TextDisplayBuilder().setContent(sameText)
           )
         ],
@@ -158,7 +158,7 @@ module.exports = {
       `**What you get:**\n` +
       newStyle.features.map(f => `${emoji.dot} ${f}`).join('\n');
 
-    const container = new ContainerBuilder()
+    const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
       .addTextDisplayComponents(successHeader)
       .addSeparatorComponents(new SeparatorBuilder().setDivider(true))
       .addTextDisplayComponents(new TextDisplayBuilder().setContent(changeText));

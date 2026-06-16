@@ -51,7 +51,7 @@ module.exports = {
         const errContainer = (text) => ({
             components: [
                 new ContainerBuilder()
-                    .setAccentColor(0x26272F)
+                    .setAccentColor(0x7B2FBE)
                     .addTextDisplayComponents(
                         new TextDisplayBuilder().setContent(text)
                     ),
@@ -108,7 +108,7 @@ module.exports = {
             );
 
             const container = new ContainerBuilder()
-                .setAccentColor(0x26272F)
+                .setAccentColor(0x7B2FBE)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(`### ${user.username}'s ${label}`)
                 )

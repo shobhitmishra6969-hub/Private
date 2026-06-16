@@ -77,7 +77,7 @@ module.exports = {
     if (guilds.length === 0) {
       const separator = new SeparatorBuilder();
 
-      container = new ContainerBuilder()
+      container = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(confirmDisplay)
         .addSeparatorComponents(separator)
         .addActionRowComponents(row);
@@ -97,7 +97,7 @@ module.exports = {
 
       const separator3 = new SeparatorBuilder();
 
-      container = new ContainerBuilder()
+      container = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(headerDisplay)
         .addSeparatorComponents(separator)
         .addTextDisplayComponents(guildsDisplay)
@@ -119,7 +119,7 @@ module.exports = {
         const errorDisplay = new TextDisplayBuilder()
           .setContent(`**${emoji.warn} You can't use this button.**`);
 
-        const errorContainer = new ContainerBuilder()
+        const errorContainer = new ContainerBuilder().setAccentColor(0x7B2FBE)
           .addTextDisplayComponents(errorDisplay);
 
         i.reply({
@@ -155,7 +155,7 @@ module.exports = {
           );
 
 
-        const restartContainer = new ContainerBuilder()
+        const restartContainer = new ContainerBuilder().setAccentColor(0x7B2FBE)
           .addTextDisplayComponents(restartHeader)
           .addSeparatorComponents(separator)
           .addTextDisplayComponents(restartInfo);
@@ -173,7 +173,7 @@ module.exports = {
         const cancelDisplay = new TextDisplayBuilder()
           .setContent(`**${emoji.cross} Restart operation cancelled.**`);
 
-        const cancelContainer = new ContainerBuilder()
+        const cancelContainer = new ContainerBuilder().setAccentColor(0x7B2FBE)
           .addTextDisplayComponents(cancelDisplay);
 
         await msg.edit({
@@ -188,7 +188,7 @@ module.exports = {
         const timeoutDisplay = new TextDisplayBuilder()
           .setContent(`**${emoji.cross} Restart operation timed out.**`);
 
-        const timeoutContainer = new ContainerBuilder()
+        const timeoutContainer = new ContainerBuilder().setAccentColor(0x7B2FBE)
           .addTextDisplayComponents(timeoutDisplay);
 
         msg.edit({
@@ -256,7 +256,7 @@ module.exports = {
     if (guilds.length === 0) {
       const separator = new SeparatorBuilder();
 
-      container = new ContainerBuilder()
+      container = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(confirmDisplay)
         .addSeparatorComponents(separator)
         .addActionRowComponents(row);
@@ -276,7 +276,7 @@ module.exports = {
 
       const separator3 = new SeparatorBuilder();
 
-      container = new ContainerBuilder()
+      container = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(headerDisplay)
         .addSeparatorComponents(separator)
         .addTextDisplayComponents(guildsDisplay)
@@ -298,7 +298,7 @@ module.exports = {
         const errorDisplay = new TextDisplayBuilder()
           .setContent(`**${emoji.warn} You can't use this button.**`);
 
-        const errorContainer = new ContainerBuilder()
+        const errorContainer = new ContainerBuilder().setAccentColor(0x7B2FBE)
           .addTextDisplayComponents(errorDisplay);
 
         interaction.reply({
@@ -334,7 +334,7 @@ module.exports = {
           );
 
 
-        const restartContainer = new ContainerBuilder()
+        const restartContainer = new ContainerBuilder().setAccentColor(0x7B2FBE)
           .addTextDisplayComponents(restartHeader)
           .addSeparatorComponents(separator)
           .addTextDisplayComponents(restartInfo);
@@ -352,7 +352,7 @@ module.exports = {
         const cancelDisplay = new TextDisplayBuilder()
           .setContent(`**${emoji.cross} Restart operation cancelled.**`);
 
-        const cancelContainer = new ContainerBuilder()
+        const cancelContainer = new ContainerBuilder().setAccentColor(0x7B2FBE)
           .addTextDisplayComponents(cancelDisplay);
 
         await msg.edit({
@@ -367,7 +367,7 @@ module.exports = {
         const timeoutDisplay = new TextDisplayBuilder()
           .setContent(`**${emoji.cross} Restart operation timed out.**`);
 
-        const timeoutContainer = new ContainerBuilder()
+        const timeoutContainer = new ContainerBuilder().setAccentColor(0x7B2FBE)
           .addTextDisplayComponents(timeoutDisplay);
 
         msg.edit({

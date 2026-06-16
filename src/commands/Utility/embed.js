@@ -119,7 +119,7 @@ module.exports = {
                 `**${emoji.cross} You need \`Manage Messages\` permission to use the embed builder.**`
             );
             return message.reply({
-                components: [new ContainerBuilder().addTextDisplayComponents(display)],
+                components: [new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(display)],
                 flags: MessageFlags.IsComponentsV2,
             });
         }
@@ -181,7 +181,7 @@ module.exports = {
                         `**${emoji.warn} Your embed has no content. Add at least a title, description, or author before sending.**`
                     );
                     const tempMsg = await message.channel.send({
-                        components: [new ContainerBuilder().addTextDisplayComponents(display)],
+                        components: [new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(display)],
                         flags: MessageFlags.IsComponentsV2,
                     });
                     setTimeout(() => tempMsg.delete().catch(() => {}), 5000);
@@ -192,7 +192,7 @@ module.exports = {
                     `**📤 Which channel should this embed be sent to?**\nMention a channel or type its ID. You have **30 seconds**.\nType \`here\` to send in this channel.`
                 );
                 const promptMsg = await message.channel.send({
-                    components: [new ContainerBuilder().addTextDisplayComponents(channelDisplay)],
+                    components: [new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(channelDisplay)],
                     flags: MessageFlags.IsComponentsV2,
                 });
 
@@ -218,7 +218,7 @@ module.exports = {
                     promptMsg.delete().catch(() => {});
                     const display = new TextDisplayBuilder().setContent(`**${emoji.warn} Timed out. Embed not sent.**`);
                     const tempMsg = await message.channel.send({
-                        components: [new ContainerBuilder().addTextDisplayComponents(display)],
+                        components: [new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(display)],
                         flags: MessageFlags.IsComponentsV2,
                     });
                     setTimeout(() => tempMsg.delete().catch(() => {}), 5000);
@@ -237,7 +237,7 @@ module.exports = {
                     );
                     await builderMsg.edit({
                         embeds: [],
-                        components: [new ContainerBuilder().addTextDisplayComponents(doneDisplay)],
+                        components: [new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(doneDisplay)],
                         flags: MessageFlags.IsComponentsV2,
                     }).catch(() => {});
                     setTimeout(() => builderMsg.delete().catch(() => {}), 8000);
@@ -246,7 +246,7 @@ module.exports = {
                         `**${emoji.cross} Could not send to <#${targetChannel.id}>. Check my permissions.**`
                     );
                     const tempMsg = await message.channel.send({
-                        components: [new ContainerBuilder().addTextDisplayComponents(display)],
+                        components: [new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(display)],
                         flags: MessageFlags.IsComponentsV2,
                     });
                     setTimeout(() => tempMsg.delete().catch(() => {}), 5000);
@@ -313,7 +313,7 @@ module.exports = {
                 const display = new TextDisplayBuilder().setContent(`**${emoji.cross} Embed builder aborted.**`);
                 await builderMsg.edit({
                     embeds: [],
-                    components: [new ContainerBuilder().addTextDisplayComponents(display)],
+                    components: [new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(display)],
                     flags: MessageFlags.IsComponentsV2,
                 }).catch(() => {});
                 setTimeout(() => builderMsg.delete().catch(() => {}), 5000);
@@ -321,7 +321,7 @@ module.exports = {
                 const display = new TextDisplayBuilder().setContent(`**${emoji.warn} Embed builder timed out.**`);
                 await builderMsg.edit({
                     embeds: [],
-                    components: [new ContainerBuilder().addTextDisplayComponents(display)],
+                    components: [new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(display)],
                     flags: MessageFlags.IsComponentsV2,
                 }).catch(() => {});
                 setTimeout(() => builderMsg.delete().catch(() => {}), 5000);

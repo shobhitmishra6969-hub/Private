@@ -37,7 +37,7 @@ module.exports = {
             const infoDisplay = new TextDisplayBuilder()
                 .setContent(`There is no track currently playing to find similar songs for.`);
 
-            const container = new ContainerBuilder()
+            const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
                 .addTextDisplayComponents(errorDisplay)
                 .addSeparatorComponents(separator)
                 .addTextDisplayComponents(infoDisplay);
@@ -84,7 +84,7 @@ module.exports = {
             const noResultsInfo = new TextDisplayBuilder()
                 .setContent(`No similar tracks found for "${currentTrack.title}" across any platform.`);
 
-            const noResultsContainer = new ContainerBuilder()
+            const noResultsContainer = new ContainerBuilder().setAccentColor(0x7B2FBE)
                 .addTextDisplayComponents(noResultsDisplay)
                 .addSeparatorComponents(noResultsSeparator)
                 .addTextDisplayComponents(noResultsInfo);
@@ -180,7 +180,7 @@ module.exports = {
         const sourceRow = new ActionRowBuilder().addComponents(sourceMenu);
         const songRow = new ActionRowBuilder().addComponents(songMenu);
 
-        const container = new ContainerBuilder()
+        const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
             .addTextDisplayComponents(mainDisplay)
             .addSeparatorComponents(separator1)
             .addTextDisplayComponents(instructionDisplay)
@@ -224,7 +224,7 @@ module.exports = {
                 const updatedSourceRow = new ActionRowBuilder().addComponents(sourceMenu);
                 const updatedSongRow = new ActionRowBuilder().addComponents(updatedSongMenu);
 
-                const updatedContainer = new ContainerBuilder()
+                const updatedContainer = new ContainerBuilder().setAccentColor(0x7B2FBE)
                     .addTextDisplayComponents(mainDisplay)
                     .addSeparatorComponents(separator1)
                     .addTextDisplayComponents(updatedInstructionDisplay)
@@ -275,7 +275,7 @@ module.exports = {
                 const tracksDisplay = new TextDisplayBuilder()
                     .setContent(tracksList + (addedTracks.length > 5 ? `\n\n*...and ${addedTracks.length - 5} more tracks*` : ''));
 
-                const successContainer = new ContainerBuilder()
+                const successContainer = new ContainerBuilder().setAccentColor(0x7B2FBE)
                     .addTextDisplayComponents(successDisplay)
                     .addSeparatorComponents(successSeparator)
                     .addTextDisplayComponents(resultDisplay)
@@ -305,7 +305,7 @@ module.exports = {
                 const timeoutInfo = new TextDisplayBuilder()
                     .setContent(`The similar songs menu has timed out. Please run the command again to search for similar tracks.`);
 
-                const timeoutContainer = new ContainerBuilder()
+                const timeoutContainer = new ContainerBuilder().setAccentColor(0x7B2FBE)
                     .addTextDisplayComponents(timeoutDisplay)
                     .addSeparatorComponents(timeoutSeparator)
                     .addTextDisplayComponents(timeoutInfo);
@@ -330,7 +330,7 @@ module.exports = {
             const infoDisplay = new TextDisplayBuilder()
                 .setContent(`There is no track currently playing to find similar songs for.`);
 
-            const container = new ContainerBuilder()
+            const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
                 .addTextDisplayComponents(errorDisplay)
                 .addSeparatorComponents(separator)
                 .addTextDisplayComponents(infoDisplay);
@@ -375,7 +375,7 @@ module.exports = {
             const noResultsInfo = new TextDisplayBuilder()
                 .setContent(`No similar tracks found for "${currentTrack.title}" across any platform.`);
 
-            const noResultsContainer = new ContainerBuilder()
+            const noResultsContainer = new ContainerBuilder().setAccentColor(0x7B2FBE)
                 .addTextDisplayComponents(noResultsDisplay)
                 .addSeparatorComponents(noResultsSeparator)
                 .addTextDisplayComponents(noResultsInfo);
@@ -471,7 +471,7 @@ module.exports = {
         const sourceRow = new ActionRowBuilder().addComponents(sourceMenu);
         const songRow = new ActionRowBuilder().addComponents(songMenu);
 
-        const container = new ContainerBuilder()
+        const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
             .addTextDisplayComponents(mainDisplay)
             .addSeparatorComponents(separator1)
             .addTextDisplayComponents(instructionDisplay)
@@ -515,7 +515,7 @@ module.exports = {
                 const updatedSourceRow = new ActionRowBuilder().addComponents(sourceMenu);
                 const updatedSongRow = new ActionRowBuilder().addComponents(updatedSongMenu);
 
-                const updatedContainer = new ContainerBuilder()
+                const updatedContainer = new ContainerBuilder().setAccentColor(0x7B2FBE)
                     .addTextDisplayComponents(mainDisplay)
                     .addSeparatorComponents(separator1)
                     .addTextDisplayComponents(updatedInstructionDisplay)
@@ -566,7 +566,7 @@ module.exports = {
                 const tracksDisplay = new TextDisplayBuilder()
                     .setContent(tracksList + (addedTracks.length > 5 ? `\n\n*...and ${addedTracks.length - 5} more tracks*` : ''));
 
-                const successContainer = new ContainerBuilder()
+                const successContainer = new ContainerBuilder().setAccentColor(0x7B2FBE)
                     .addTextDisplayComponents(successDisplay)
                     .addSeparatorComponents(successSeparator)
                     .addTextDisplayComponents(resultDisplay)
@@ -596,7 +596,7 @@ module.exports = {
                 const timeoutInfo = new TextDisplayBuilder()
                     .setContent(`The similar songs menu has timed out. Please run the command again to search for similar tracks.`);
 
-                const timeoutContainer = new ContainerBuilder()
+                const timeoutContainer = new ContainerBuilder().setAccentColor(0x7B2FBE)
                     .addTextDisplayComponents(timeoutDisplay)
                     .addSeparatorComponents(timeoutSeparator)
                     .addTextDisplayComponents(timeoutInfo);

@@ -56,7 +56,7 @@ function buildQueueContainer(current, queue, page, totalDuration, loopMode) {
     section.setThumbnailAccessory(new ThumbnailBuilder().setURL(thumbnail));
   }
 
-  const container = new ContainerBuilder().addSectionComponents(section);
+  const container = new ContainerBuilder().setAccentColor(0x7B2FBE).addSectionComponents(section);
 
   if (slice.length > 0) {
     container.addSeparatorComponents(new SeparatorBuilder());
@@ -155,7 +155,7 @@ module.exports = {
     const player = client.manager.players.get(message.guild.id);
 
     if (!player.queue.current) {
-      const container = new ContainerBuilder()
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(
           new TextDisplayBuilder().setContent(`**${emoji.cross} Nothing is playing right now.**`)
         );
@@ -185,7 +185,7 @@ module.exports = {
     const collector = queueMsg.createMessageComponentCollector({
       filter: (b) => {
         if (b.user.id !== message.author.id) {
-          const errContainer = new ContainerBuilder()
+          const errContainer = new ContainerBuilder().setAccentColor(0x7B2FBE)
             .addTextDisplayComponents(
               new TextDisplayBuilder().setContent(
                 `**${emoji.cross} Only <@${message.author.id}> can use these buttons.**`

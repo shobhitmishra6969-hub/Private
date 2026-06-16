@@ -76,7 +76,7 @@ function buildResultsContainer(tracks, client, page = 0, perPage = 10) {
       `> Page \`${page + 1}/${Math.ceil(total / perPage)}\` • Pick a track from the menu below to play it.`
     );
 
-  return new ContainerBuilder()
+  return new ContainerBuilder().setAccentColor(0x7B2FBE)
     .addTextDisplayComponents(headerDisplay)
     .addSeparatorComponents(sep1)
     .addTextDisplayComponents(listDisplay)
@@ -172,7 +172,7 @@ module.exports = {
         `**${emoji.warn} You need to be in a voice channel first.**`
       );
       return interaction.editReply({
-        components: [new ContainerBuilder().addTextDisplayComponents(d)],
+        components: [new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(d)],
         flags: MessageFlags.IsComponentsV2
       });
     }
@@ -185,7 +185,7 @@ module.exports = {
         `**${emoji.warn} I need \`CONNECT\` and \`SPEAK\` permissions.**`
       );
       return interaction.editReply({
-        components: [new ContainerBuilder().addTextDisplayComponents(d)],
+        components: [new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(d)],
         flags: MessageFlags.IsComponentsV2
       });
     }
@@ -196,7 +196,7 @@ module.exports = {
         `**${emoji.cross} Music server is unavailable. Please try again later.**`
       );
       return interaction.editReply({
-        components: [new ContainerBuilder().addTextDisplayComponents(d)],
+        components: [new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(d)],
         flags: MessageFlags.IsComponentsV2
       });
     }
@@ -210,7 +210,7 @@ module.exports = {
         `**${emoji.cross} Failed to search Spotify. Please try again.**`
       );
       return interaction.editReply({
-        components: [new ContainerBuilder().addTextDisplayComponents(d)],
+        components: [new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(d)],
         flags: MessageFlags.IsComponentsV2
       });
     }
@@ -225,7 +225,7 @@ module.exports = {
           `**${emoji.cross} Could not join your voice channel: ${err.message}**`
         );
         return interaction.editReply({
-          components: [new ContainerBuilder().addTextDisplayComponents(d)],
+          components: [new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(d)],
           flags: MessageFlags.IsComponentsV2
         });
       }
@@ -235,7 +235,7 @@ module.exports = {
           `**${emoji.warn} I'm already in a different voice channel.**`
         );
         return interaction.editReply({
-          components: [new ContainerBuilder().addTextDisplayComponents(d)],
+          components: [new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(d)],
           flags: MessageFlags.IsComponentsV2
         });
       }
@@ -247,7 +247,7 @@ module.exports = {
         `**${emoji.check} Queued \`${searchResult.tracks.length}\` tracks from Spotify playlist \`${searchResult.playlistName}\`**`
       );
       return interaction.editReply({
-        components: [new ContainerBuilder().addTextDisplayComponents(d)],
+        components: [new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(d)],
         flags: MessageFlags.IsComponentsV2
       });
     }
@@ -259,7 +259,7 @@ module.exports = {
         `**${emoji.cross} No Spotify results found for \`${query}\`**`
       );
       return interaction.editReply({
-        components: [new ContainerBuilder().addTextDisplayComponents(d)],
+        components: [new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(d)],
         flags: MessageFlags.IsComponentsV2
       });
     }
@@ -294,7 +294,7 @@ module.exports = {
             `**${emoji.cross} Spotify search cancelled.**`
           );
           return i.update({
-            components: [new ContainerBuilder().addTextDisplayComponents(d)],
+            components: [new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(d)],
             flags: MessageFlags.IsComponentsV2
           });
         }
@@ -339,7 +339,7 @@ module.exports = {
               `**${emoji.cross} Could not join voice channel: ${err.message}**`
             );
             await replyMsg.edit({
-              components: [new ContainerBuilder().addTextDisplayComponents(d)],
+              components: [new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(d)],
               flags: MessageFlags.IsComponentsV2
             }).catch(() => {});
             return collector.stop("error");
@@ -350,7 +350,7 @@ module.exports = {
               `**${emoji.warn} I'm already connected to a different voice channel.**`
             );
             await replyMsg.edit({
-              components: [new ContainerBuilder().addTextDisplayComponents(d)],
+              components: [new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(d)],
               flags: MessageFlags.IsComponentsV2
             }).catch(() => {});
             return;
@@ -370,7 +370,7 @@ module.exports = {
               `**${emoji.check} Now playing \`${track.title}\` from Spotify!**`
             );
             await replyMsg.edit({
-              components: [new ContainerBuilder().addTextDisplayComponents(d)],
+              components: [new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(d)],
               flags: MessageFlags.IsComponentsV2
             }).catch(() => {});
             return;
@@ -395,7 +395,7 @@ module.exports = {
             section.setThumbnailAccessory((t) => t.setURL(thumb));
           }
 
-          const queuedContainer = new ContainerBuilder()
+          const queuedContainer = new ContainerBuilder().setAccentColor(0x7B2FBE)
             .addSectionComponents(section);
 
           await replyMsg.edit({
@@ -414,7 +414,7 @@ module.exports = {
           `**${emoji.warn} Spotify search timed out. Run the command again.**`
         );
         replyMsg.edit({
-          components: [new ContainerBuilder().addTextDisplayComponents(d)],
+          components: [new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(d)],
           flags: MessageFlags.IsComponentsV2
         }).catch(() => {});
       }
@@ -431,7 +431,7 @@ module.exports = {
           `**${emoji.dot} Example:** \`${prefix}spotify blinding lights\``
         );
       return message.reply({
-        components: [new ContainerBuilder().addTextDisplayComponents(d)],
+        components: [new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(d)],
         flags: MessageFlags.IsComponentsV2
       });
     }
@@ -442,7 +442,7 @@ module.exports = {
         `**${emoji.warn} You need to be in a voice channel first.**`
       );
       return message.reply({
-        components: [new ContainerBuilder().addTextDisplayComponents(d)],
+        components: [new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(d)],
         flags: MessageFlags.IsComponentsV2
       });
     }
@@ -455,7 +455,7 @@ module.exports = {
         `**${emoji.warn} I need \`CONNECT\` and \`SPEAK\` permissions.**`
       );
       return message.reply({
-        components: [new ContainerBuilder().addTextDisplayComponents(d)],
+        components: [new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(d)],
         flags: MessageFlags.IsComponentsV2
       });
     }
@@ -466,7 +466,7 @@ module.exports = {
         `**${emoji.cross} Music server is unavailable. Please try again later.**`
       );
       return message.reply({
-        components: [new ContainerBuilder().addTextDisplayComponents(d)],
+        components: [new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(d)],
         flags: MessageFlags.IsComponentsV2
       });
     }
@@ -480,7 +480,7 @@ module.exports = {
         `**${emoji.cross} Failed to search Spotify. Please try again.**`
       );
       return message.reply({
-        components: [new ContainerBuilder().addTextDisplayComponents(d)],
+        components: [new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(d)],
         flags: MessageFlags.IsComponentsV2
       });
     }
@@ -495,7 +495,7 @@ module.exports = {
           `**${emoji.cross} Could not join your voice channel: ${err.message}**`
         );
         return message.reply({
-          components: [new ContainerBuilder().addTextDisplayComponents(d)],
+          components: [new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(d)],
           flags: MessageFlags.IsComponentsV2
         });
       }
@@ -505,7 +505,7 @@ module.exports = {
           `**${emoji.warn} I'm already in a different voice channel.**`
         );
         return message.reply({
-          components: [new ContainerBuilder().addTextDisplayComponents(d)],
+          components: [new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(d)],
           flags: MessageFlags.IsComponentsV2
         });
       }
@@ -517,7 +517,7 @@ module.exports = {
         `**${emoji.check} Queued \`${searchResult.tracks.length}\` tracks from Spotify playlist \`${searchResult.playlistName}\`**`
       );
       return message.reply({
-        components: [new ContainerBuilder().addTextDisplayComponents(d)],
+        components: [new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(d)],
         flags: MessageFlags.IsComponentsV2
       });
     }
@@ -529,7 +529,7 @@ module.exports = {
         `**${emoji.cross} No Spotify results found for \`${query}\`**`
       );
       return message.reply({
-        components: [new ContainerBuilder().addTextDisplayComponents(d)],
+        components: [new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(d)],
         flags: MessageFlags.IsComponentsV2
       });
     }
@@ -564,7 +564,7 @@ module.exports = {
             `**${emoji.cross} Spotify search cancelled.**`
           );
           return i.update({
-            components: [new ContainerBuilder().addTextDisplayComponents(d)],
+            components: [new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(d)],
             flags: MessageFlags.IsComponentsV2
           });
         }
@@ -609,7 +609,7 @@ module.exports = {
               `**${emoji.cross} Could not join voice channel: ${err.message}**`
             );
             await replyMsg.edit({
-              components: [new ContainerBuilder().addTextDisplayComponents(d)],
+              components: [new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(d)],
               flags: MessageFlags.IsComponentsV2
             }).catch(() => {});
             return collector.stop("error");
@@ -620,7 +620,7 @@ module.exports = {
               `**${emoji.warn} I'm already connected to a different voice channel.**`
             );
             await replyMsg.edit({
-              components: [new ContainerBuilder().addTextDisplayComponents(d)],
+              components: [new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(d)],
               flags: MessageFlags.IsComponentsV2
             }).catch(() => {});
             return;
@@ -640,7 +640,7 @@ module.exports = {
               `**${emoji.check} Now playing \`${track.title}\` from Spotify!**`
             );
             await replyMsg.edit({
-              components: [new ContainerBuilder().addTextDisplayComponents(d)],
+              components: [new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(d)],
               flags: MessageFlags.IsComponentsV2
             }).catch(() => {});
             return;
@@ -665,7 +665,7 @@ module.exports = {
             section.setThumbnailAccessory((t) => t.setURL(thumb));
           }
 
-          const queuedContainer = new ContainerBuilder()
+          const queuedContainer = new ContainerBuilder().setAccentColor(0x7B2FBE)
             .addSectionComponents(section);
 
           await replyMsg.edit({
@@ -684,7 +684,7 @@ module.exports = {
           `**${emoji.warn} Spotify search timed out. Run the command again.**`
         );
         replyMsg.edit({
-          components: [new ContainerBuilder().addTextDisplayComponents(d)],
+          components: [new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(d)],
           flags: MessageFlags.IsComponentsV2
         }).catch(() => {});
       }

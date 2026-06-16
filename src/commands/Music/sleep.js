@@ -39,7 +39,7 @@ module.exports = {
         const player = client.manager.players.get(interaction.guild.id);
         if (!player.queue.current) {
             const errorDisplay = new TextDisplayBuilder().setContent(`**${emoji.cross} No music playing.**`);
-            const container = new ContainerBuilder().addTextDisplayComponents(errorDisplay);
+            const container = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(errorDisplay);
             return interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
 
@@ -49,20 +49,20 @@ module.exports = {
         if (input === "cancel") {
             if (!existingTimer) {
                 const errorDisplay = new TextDisplayBuilder().setContent(`**${emoji.cross} No active timer.**`);
-                const container = new ContainerBuilder().addTextDisplayComponents(errorDisplay);
+                const container = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(errorDisplay);
                 return interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
             }
             clearTimeout(existingTimer.timeout);
             player.data.delete("sleepTimer");
             const successDisplay = new TextDisplayBuilder().setContent(`**${emoji.check} Timer cancelled.**`);
-            const container = new ContainerBuilder().addTextDisplayComponents(successDisplay);
+            const container = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(successDisplay);
             return interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
 
         const duration = parseDuration(input);
         if (!duration || duration < 1 || duration > 180) {
             const errorDisplay = new TextDisplayBuilder().setContent(`**${emoji.cross} Invalid duration**\n\nUse: \`30m\`, \`1h\`, \`45m\` (1-180 min)`);
-            const container = new ContainerBuilder().addTextDisplayComponents(errorDisplay);
+            const container = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(errorDisplay);
             return interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
 
@@ -71,7 +71,7 @@ module.exports = {
         const separator = new SeparatorBuilder();
         const infoDisplay = new TextDisplayBuilder()
             .setContent(`**${emoji.dot} Duration** \`:\` \`${duration}m\`\n**${emoji.dot} Ends** \`:\` <t:${Math.floor(endTime / 1000)}:t>\n**${emoji.dot} Action** \`:\` Disconnect from VC`);
-        const container = new ContainerBuilder().addTextDisplayComponents(headerDisplay).addSeparatorComponents(separator).addTextDisplayComponents(infoDisplay);
+        const container = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(headerDisplay).addSeparatorComponents(separator).addTextDisplayComponents(infoDisplay);
 
         await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
 
@@ -84,7 +84,7 @@ module.exports = {
                     const textChannel = client.channels.cache.get(player.textId);
                     if (textChannel) {
                         const sleepDisplay = new TextDisplayBuilder().setContent(`**${emoji.info} Timer ended - ${interaction.user} disconnected.**`);
-                        const sleepContainer = new ContainerBuilder().addTextDisplayComponents(sleepDisplay);
+                        const sleepContainer = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(sleepDisplay);
                         textChannel.send({ components: [sleepContainer], flags: MessageFlags.IsComponentsV2 }).catch(() => null);
                     }
                 }
@@ -102,7 +102,7 @@ module.exports = {
             const errorDisplay = new TextDisplayBuilder()
                 .setContent(`**${emoji.cross} No music playing.**`);
 
-            const container = new ContainerBuilder()
+            const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
                 .addTextDisplayComponents(errorDisplay);
 
             return message.channel.send({
@@ -123,7 +123,7 @@ module.exports = {
                     `**${emoji.dot} Cancel** \`:\` \`${prefix}sleep cancel\``
                 );
 
-            const container = new ContainerBuilder()
+            const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
                 .addTextDisplayComponents(infoDisplay);
 
             return message.reply({
@@ -138,7 +138,7 @@ module.exports = {
                 const errorDisplay = new TextDisplayBuilder()
                     .setContent(`**${emoji.cross} No active timer.**`);
 
-                const container = new ContainerBuilder()
+                const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
                     .addTextDisplayComponents(errorDisplay);
 
                 return message.reply({
@@ -156,7 +156,7 @@ module.exports = {
             const successDisplay = new TextDisplayBuilder()
                 .setContent(`**${emoji.check} Timer cancelled.**`);
 
-            const container = new ContainerBuilder()
+            const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
                 .addTextDisplayComponents(successDisplay);
 
             return message.reply({
@@ -176,7 +176,7 @@ module.exports = {
                     `**${emoji.dot} Cancel** \`:\` \`${prefix}sleep cancel\``
                 );
 
-            const container = new ContainerBuilder()
+            const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
                 .addTextDisplayComponents(usageDisplay);
 
             return message.reply({
@@ -193,7 +193,7 @@ module.exports = {
                     `Use: \`30m\`, \`1h\`, \`45m\` (1-180 min)`
                 );
 
-            const container = new ContainerBuilder()
+            const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
                 .addTextDisplayComponents(errorDisplay);
 
             return message.reply({
@@ -217,7 +217,7 @@ module.exports = {
                 `Cancel: \`${prefix}sleep cancel\``
             );
 
-        const container = new ContainerBuilder()
+        const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
             .addTextDisplayComponents(headerDisplay)
             .addSeparatorComponents(separator)
             .addTextDisplayComponents(infoDisplay);
@@ -241,7 +241,7 @@ module.exports = {
                         const sleepDisplay = new TextDisplayBuilder()
                             .setContent(`**${emoji.info} Timer ended - ${message.author} disconnected.**`);
 
-                        const sleepContainer = new ContainerBuilder()
+                        const sleepContainer = new ContainerBuilder().setAccentColor(0x7B2FBE)
                             .addTextDisplayComponents(sleepDisplay);
 
                         textChannel.send({

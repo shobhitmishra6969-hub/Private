@@ -24,7 +24,7 @@ function parseActivatedGuilds(raw) {
 async function dmOrReply(message, payload) {
   try {
     await message.author.send(payload);
-    const ack = new ContainerBuilder().addTextDisplayComponents(
+    const ack = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(
       new TextDisplayBuilder().setContent(`${emoji.check} Sent you a DM with the details!`)
     );
     return message.reply({ components: [ack], flags: MessageFlags.IsComponentsV2 });
@@ -36,7 +36,7 @@ async function dmOrReply(message, payload) {
 async function subActivate(message, client, prefix) {
   if (!message.guild) {
     const d = new TextDisplayBuilder().setContent(`**${emoji.warn} This command can only be used inside a server.**`);
-    return message.reply({ components: [new ContainerBuilder().addTextDisplayComponents(d)], flags: MessageFlags.IsComponentsV2 });
+    return message.reply({ components: [new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(d)], flags: MessageFlags.IsComponentsV2 });
   }
 
   const record = await PremiumUser.findOne({ userId: message.author.id });
@@ -48,12 +48,12 @@ async function subActivate(message, client, prefix) {
         `**${emoji.cross} You don't have global premium.**\n` +
         `> Get premium to activate it on servers. Use \`${prefix}premium\` for more info.`
       );
-    return dmOrReply(message, { components: [new ContainerBuilder().addTextDisplayComponents(d)], flags: MessageFlags.IsComponentsV2 });
+    return dmOrReply(message, { components: [new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(d)], flags: MessageFlags.IsComponentsV2 });
   }
 
   if (!isOwner && record.expiresAt && new Date(record.expiresAt) < new Date()) {
     const d = new TextDisplayBuilder().setContent(`**${emoji.cross} Your premium has expired. Renew it to activate servers.**`);
-    return dmOrReply(message, { components: [new ContainerBuilder().addTextDisplayComponents(d)], flags: MessageFlags.IsComponentsV2 });
+    return dmOrReply(message, { components: [new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(d)], flags: MessageFlags.IsComponentsV2 });
   }
 
   const db = getDb();
@@ -63,13 +63,13 @@ async function subActivate(message, client, prefix) {
   if (guilds.includes(message.guild.id)) {
     const d = new TextDisplayBuilder()
       .setContent(`**${emoji.info} Premium is already active in this server.**`);
-    return dmOrReply(message, { components: [new ContainerBuilder().addTextDisplayComponents(d)], flags: MessageFlags.IsComponentsV2 });
+    return dmOrReply(message, { components: [new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(d)], flags: MessageFlags.IsComponentsV2 });
   }
 
   guilds.push(message.guild.id);
   db.prepare(`UPDATE premiumuser SET activatedGuilds = ? WHERE userId = ?`).run(JSON.stringify(guilds), message.author.id);
 
-  const container = new ContainerBuilder()
+  const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(`**${emoji.check} Premium activated!**`)
     )
@@ -89,7 +89,7 @@ async function subActivate(message, client, prefix) {
 async function subRevoke(message, client, prefix) {
   if (!message.guild) {
     const d = new TextDisplayBuilder().setContent(`**${emoji.warn} This command can only be used inside a server.**`);
-    return message.reply({ components: [new ContainerBuilder().addTextDisplayComponents(d)], flags: MessageFlags.IsComponentsV2 });
+    return message.reply({ components: [new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(d)], flags: MessageFlags.IsComponentsV2 });
   }
 
   const record = await PremiumUser.findOne({ userId: message.author.id });
@@ -97,7 +97,7 @@ async function subRevoke(message, client, prefix) {
 
   if (!isOwner && !record) {
     const d = new TextDisplayBuilder().setContent(`**${emoji.cross} You have no premium record to revoke.**`);
-    return dmOrReply(message, { components: [new ContainerBuilder().addTextDisplayComponents(d)], flags: MessageFlags.IsComponentsV2 });
+    return dmOrReply(message, { components: [new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(d)], flags: MessageFlags.IsComponentsV2 });
   }
 
   const db = getDb();
@@ -107,13 +107,13 @@ async function subRevoke(message, client, prefix) {
   if (!guilds.includes(message.guild.id)) {
     const d = new TextDisplayBuilder()
       .setContent(`**${emoji.info} Premium is not activated in this server from your account.**`);
-    return dmOrReply(message, { components: [new ContainerBuilder().addTextDisplayComponents(d)], flags: MessageFlags.IsComponentsV2 });
+    return dmOrReply(message, { components: [new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(d)], flags: MessageFlags.IsComponentsV2 });
   }
 
   const updated = guilds.filter(id => id !== message.guild.id);
   db.prepare(`UPDATE premiumuser SET activatedGuilds = ? WHERE userId = ?`).run(JSON.stringify(updated), message.author.id);
 
-  const container = new ContainerBuilder()
+  const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
         `**${emoji.check} Premium revoked from this server.**\n` +
@@ -130,13 +130,13 @@ async function subValidity(message, client, prefix) {
   if (isOwner) {
     const d = new TextDisplayBuilder()
       .setContent(`**${emoji.star} You are an owner — your premium is permanent and unrestricted.**`);
-    return dmOrReply(message, { components: [new ContainerBuilder().addTextDisplayComponents(d)], flags: MessageFlags.IsComponentsV2 });
+    return dmOrReply(message, { components: [new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(d)], flags: MessageFlags.IsComponentsV2 });
   }
 
   const record = await PremiumUser.findOne({ userId: message.author.id });
 
   if (!record || !record.premium) {
-    const container = new ContainerBuilder()
+    const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
       .addTextDisplayComponents(
         new TextDisplayBuilder().setContent(
           `**${emoji.cross} You don't have premium.**\n` +
@@ -167,7 +167,7 @@ async function subValidity(message, client, prefix) {
   const statusIcon = isExpired ? emoji.cross : emoji.check;
   const statusText = isExpired ? "Expired" : "Active";
 
-  const container = new ContainerBuilder()
+  const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(`**${emoji.star} Premium Status**`)
     )
@@ -217,7 +217,7 @@ async function subStats(message, client) {
     .addTextDisplayComponents(headerText)
     .setThumbnailAccessory(new ThumbnailBuilder().setURL(avatarURL));
 
-  const container = new ContainerBuilder()
+  const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
     .addSectionComponents(headerSection)
     .addSeparatorComponents(new SeparatorBuilder().setDivider(true))
     .addTextDisplayComponents(
@@ -237,7 +237,7 @@ async function subStats(message, client) {
 async function subHelp(message, client, prefix) {
   const supportUrl = config.links?.support || "https://discord.gg/your-invite";
 
-  const container = new ContainerBuilder()
+  const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(`**${emoji.star} Premium Commands — Help**`)
     )
@@ -378,7 +378,7 @@ module.exports = {
     const footerDisplay = new TextDisplayBuilder()
       .setContent(` Developed with ❤️ by **Tone VibesTeam** | Today`);
 
-    const container = new ContainerBuilder();
+    const container = new ContainerBuilder().setAccentColor(0x7B2FBE);
 
     if (botAvatar && headerSection) {
       container.addSectionComponents(headerSection);

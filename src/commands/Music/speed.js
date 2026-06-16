@@ -35,7 +35,7 @@ module.exports = {
         const player = client.manager.players.get(interaction.guild.id);
         if (!player.queue.current) {
             const errorDisplay = new TextDisplayBuilder().setContent(`**${emoji.warn} Play a song first.**`);
-            const container = new ContainerBuilder().addTextDisplayComponents(errorDisplay);
+            const container = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(errorDisplay);
             return interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
 
@@ -46,13 +46,13 @@ module.exports = {
             const headerDisplay = new TextDisplayBuilder().setContent(`**${emoji.info} Speed Control**`);
             const separator1 = new SeparatorBuilder();
             const infoDisplay = new TextDisplayBuilder().setContent(`**Current speed** \`:\` \`${currentSpeed}x\`\n**Range** \`:\` \`0.25x - 3.0x\``);
-            const container = new ContainerBuilder().addTextDisplayComponents(headerDisplay).addSeparatorComponents(separator1).addTextDisplayComponents(infoDisplay);
+            const container = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(headerDisplay).addSeparatorComponents(separator1).addTextDisplayComponents(infoDisplay);
             return interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
 
         if (speed < 0.25 || speed > 3) {
             const errorDisplay = new TextDisplayBuilder().setContent(`**${emoji.cross} Invalid speed value**\n**Valid range** \`:\` \`0.25x - 3.0x\``);
-            const container = new ContainerBuilder().addTextDisplayComponents(errorDisplay);
+            const container = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(errorDisplay);
             return interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
 
@@ -61,12 +61,12 @@ module.exports = {
             await player.shoukaku.setFilters({ timescale: { speed: speed, pitch: currentPitch, rate: 1.0 } });
             player.data.set("speed", speed);
             const successDisplay = new TextDisplayBuilder().setContent(`**${emoji.check} Playback speed set to \`${speed}x\`**`);
-            const container = new ContainerBuilder().addTextDisplayComponents(successDisplay);
+            const container = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(successDisplay);
             return interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         } catch (error) {
             console.error("Error setting speed:", error);
             const errorDisplay = new TextDisplayBuilder().setContent(`**${emoji.cross} Failed to change playback speed.**`);
-            const container = new ContainerBuilder().addTextDisplayComponents(errorDisplay);
+            const container = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(errorDisplay);
             return interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
     },
@@ -78,7 +78,7 @@ module.exports = {
             const errorDisplay = new TextDisplayBuilder()
                 .setContent(`**${emoji.warn} Play a song first.**`);
 
-            const container = new ContainerBuilder()
+            const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
                 .addTextDisplayComponents(errorDisplay);
 
             return message.channel.send({
@@ -106,7 +106,7 @@ module.exports = {
             const promptDisplay = new TextDisplayBuilder()
                 .setContent(`**${emoji.dot} Send a message with your desired speed** \`:\` \`0.5x\`, \`1.5x\`, \`2.0x\`, etc.`);
 
-            const container = new ContainerBuilder()
+            const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
                 .addTextDisplayComponents(headerDisplay)
                 .addSeparatorComponents(separator1)
                 .addTextDisplayComponents(infoDisplay)
@@ -137,7 +137,7 @@ module.exports = {
                             `**Examples** \`:\` \`0.5\`, \`1.5\`, \`2.0\``
                         );
 
-                    const errorContainer = new ContainerBuilder()
+                    const errorContainer = new ContainerBuilder().setAccentColor(0x7B2FBE)
                         .addTextDisplayComponents(errorDisplay);
 
                     await m.reply({
@@ -161,7 +161,7 @@ module.exports = {
                     const successDisplay = new TextDisplayBuilder()
                         .setContent(`**${emoji.check} Playback speed set to \`${speed}x\`**`);
 
-                    const successContainer = new ContainerBuilder()
+                    const successContainer = new ContainerBuilder().setAccentColor(0x7B2FBE)
                         .addTextDisplayComponents(successDisplay);
 
                     await m.reply({
@@ -176,7 +176,7 @@ module.exports = {
                     const errorDisplay = new TextDisplayBuilder()
                         .setContent(`**${emoji.cross} Failed to change playback speed.**`);
 
-                    const errorContainer = new ContainerBuilder()
+                    const errorContainer = new ContainerBuilder().setAccentColor(0x7B2FBE)
                         .addTextDisplayComponents(errorDisplay);
 
                     await m.reply({
@@ -191,7 +191,7 @@ module.exports = {
                     const timeoutDisplay = new TextDisplayBuilder()
                         .setContent(`**${emoji.info} Speed change timed out.**`);
 
-                    const timeoutContainer = new ContainerBuilder()
+                    const timeoutContainer = new ContainerBuilder().setAccentColor(0x7B2FBE)
                         .addTextDisplayComponents(timeoutDisplay);
 
                     await promptMsg.edit({
@@ -215,7 +215,7 @@ module.exports = {
                     `**Current speed** \`:\` \`${currentSpeed}x\``
                 );
 
-            const container = new ContainerBuilder()
+            const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
                 .addTextDisplayComponents(errorDisplay);
 
             return message.reply({
@@ -243,7 +243,7 @@ module.exports = {
             const successDisplay = new TextDisplayBuilder()
                 .setContent(`**${emoji.check} Playback speed set to \`${speed}x\`**`);
 
-            const container = new ContainerBuilder()
+            const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
                 .addTextDisplayComponents(successDisplay);
 
             return message.reply({
@@ -261,7 +261,7 @@ module.exports = {
             const errorDisplay = new TextDisplayBuilder()
                 .setContent(`**${emoji.cross} Failed to change playback speed.**`);
 
-            const container = new ContainerBuilder()
+            const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
                 .addTextDisplayComponents(errorDisplay);
 
             return message.reply({

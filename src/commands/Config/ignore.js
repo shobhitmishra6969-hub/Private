@@ -78,7 +78,7 @@ module.exports = {
       const errorDisplay = new TextDisplayBuilder()
         .setContent(`-# **${emoji.warn} You must have \`Manage Channels\` permissions to use this command.**`);
 
-      const container = new ContainerBuilder()
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(errorDisplay);
 
       return message.reply({
@@ -104,7 +104,7 @@ module.exports = {
       const footerDisplay = new TextDisplayBuilder()
         .setContent(`Requested By ${message.author.displayName}`);
 
-      const container = new ContainerBuilder()
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(usageDisplay)
         .addSeparatorComponents(separator1)
         .addTextDisplayComponents(aliasesDisplay)
@@ -127,7 +127,7 @@ module.exports = {
         const errorDisplay = new TextDisplayBuilder()
           .setContent(`**${emoji.warn} Please provide a valid channel.**`);
 
-        const container = new ContainerBuilder()
+        const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
           .addTextDisplayComponents(errorDisplay);
 
         return message.channel.send({
@@ -143,7 +143,7 @@ module.exports = {
         const infoDisplay = new TextDisplayBuilder()
           .setContent(`**${emoji.info} This channel is already in the ignore channel list.**`);
 
-        const container = new ContainerBuilder()
+        const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
           .addTextDisplayComponents(infoDisplay);
 
         return message.channel.send({
@@ -159,7 +159,7 @@ module.exports = {
       const successDisplay = new TextDisplayBuilder()
         .setContent(`**${emoji.check} Successfully added ${channel} to the ignore channel list.**`);
 
-      const container = new ContainerBuilder()
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(successDisplay);
 
       return message.channel.send({
@@ -174,7 +174,7 @@ module.exports = {
         const errorDisplay = new TextDisplayBuilder()
           .setContent(`**${emoji.warn} Please provide a valid channel.**`);
 
-        const container = new ContainerBuilder()
+        const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
           .addTextDisplayComponents(errorDisplay);
 
         return message.channel.send({
@@ -192,7 +192,7 @@ module.exports = {
         const infoDisplay = new TextDisplayBuilder()
           .setContent(`**${emoji.info} This channel is not in the ignore channel list.**`);
 
-        const container = new ContainerBuilder()
+        const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
           .addTextDisplayComponents(infoDisplay);
 
         return message.channel.send({
@@ -203,7 +203,7 @@ module.exports = {
         const successDisplay = new TextDisplayBuilder()
           .setContent(`**${emoji.check} Successfully removed ${channel} from the ignore channel list.**`);
 
-        const container = new ContainerBuilder()
+        const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
           .addTextDisplayComponents(successDisplay);
 
         return message.channel.send({
@@ -217,7 +217,7 @@ module.exports = {
         const infoDisplay = new TextDisplayBuilder()
           .setContent(`**${emoji.info} There are no channels in the ignore channel list.**`);
 
-        const container = new ContainerBuilder()
+        const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
           .addTextDisplayComponents(infoDisplay);
 
         return message.channel.send({
@@ -232,7 +232,7 @@ module.exports = {
       const listDisplay = new TextDisplayBuilder()
         .setContent(`**${emoji.check} Ignore channel list :**\n\n** ${channels}**`);
 
-      const container = new ContainerBuilder()
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(listDisplay);
 
       return message.channel.send({
@@ -245,7 +245,7 @@ module.exports = {
         const infoDisplay = new TextDisplayBuilder()
           .setContent(`**${emoji.info} There are no channels in the ignore channel list.**`);
 
-        const container = new ContainerBuilder()
+        const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
           .addTextDisplayComponents(infoDisplay);
 
         return message.channel.send({
@@ -258,7 +258,7 @@ module.exports = {
       const successDisplay = new TextDisplayBuilder()
         .setContent(`**${emoji.check} Successfully cleared the ignore channel list.**`);
 
-      const container = new ContainerBuilder()
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(successDisplay);
 
       return message.channel.send({

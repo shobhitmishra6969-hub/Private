@@ -115,7 +115,7 @@ module.exports = {
             `**${emoji.info} Slash Commands:** \`${slashCount}\``
           );
 
-        const container = new ContainerBuilder()
+        const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
           .addTextDisplayComponents(successDisplay);
 
         return interaction.reply({
@@ -128,7 +128,7 @@ module.exports = {
         const errorDisplay = new TextDisplayBuilder()
           .setContent(`**${emoji.cross} An error occurred while reloading commands:**\n\`\`\`\n${error.message}\`\`\``);
 
-        const container = new ContainerBuilder()
+        const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
           .addTextDisplayComponents(errorDisplay);
 
         return interaction.reply({
@@ -149,7 +149,7 @@ module.exports = {
       const errorDisplay = new TextDisplayBuilder()
         .setContent(`**${emoji.cross} There is no command with name or alias \`${commandName}\`**`);
 
-      const container = new ContainerBuilder()
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(errorDisplay);
 
       return interaction.reply({
@@ -208,7 +208,7 @@ module.exports = {
       const successDisplay = new TextDisplayBuilder()
         .setContent(`**${emoji.check} Successfully reloaded \`${commandName}\` command.**`);
 
-      const container = new ContainerBuilder()
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(successDisplay);
 
       interaction.reply({
@@ -221,7 +221,7 @@ module.exports = {
       const errorDisplay = new TextDisplayBuilder()
         .setContent(`**${emoji.cross} Facing an error while reloading command \`${command.name}\`:**\n\`\`\`\n${error.message}\`\`\``);
 
-      const container = new ContainerBuilder()
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(errorDisplay);
 
       interaction.reply({
@@ -319,7 +319,7 @@ module.exports = {
             `**${emoji.info} Slash Commands:** \`${slashCount}\``
           );
 
-        const container = new ContainerBuilder()
+        const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
           .addTextDisplayComponents(successDisplay);
 
         return message.channel.send({
@@ -332,7 +332,7 @@ module.exports = {
         const errorDisplay = new TextDisplayBuilder()
           .setContent(`**${emoji.cross} An error occurred while reloading commands:**\n\`\`\`\n${error.message}\`\`\``);
 
-        const container = new ContainerBuilder()
+        const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
           .addTextDisplayComponents(errorDisplay);
 
         return message.channel.send({
@@ -346,7 +346,7 @@ module.exports = {
       const errorDisplay = new TextDisplayBuilder()
         .setContent(`**${emoji.warn} Please provide a command name or use \`all\` to reload all commands.**`);
 
-      const container = new ContainerBuilder()
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(errorDisplay);
 
       return message.channel.send({
@@ -366,7 +366,7 @@ module.exports = {
       const errorDisplay = new TextDisplayBuilder()
         .setContent(`**${emoji.cross} There is no command with name or alias \`${commandName}\`**`);
 
-      const container = new ContainerBuilder()
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(errorDisplay);
 
       return message.channel.send({
@@ -425,7 +425,7 @@ module.exports = {
       const successDisplay = new TextDisplayBuilder()
         .setContent(`**${emoji.check} Successfully reloaded \`${commandName}\` command.**`);
 
-      const container = new ContainerBuilder()
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(successDisplay);
 
       message.channel.send({
@@ -438,7 +438,7 @@ module.exports = {
       const errorDisplay = new TextDisplayBuilder()
         .setContent(`**${emoji.cross} Facing an error while reloading command \`${command.name}\`:**\n\`\`\`\n${error.message}\`\`\``);
 
-      const container = new ContainerBuilder()
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(errorDisplay);
 
       message.channel.send({

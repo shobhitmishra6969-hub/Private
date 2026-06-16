@@ -41,7 +41,7 @@ function buildError(client, msg) {
   const headerDisplay = new TextDisplayBuilder().setContent("**Error**");
   const sep = new SeparatorBuilder();
   const bodyDisplay = new TextDisplayBuilder().setContent(`**${emoji.cross} ${msg}**`);
-  return new ContainerBuilder()
+  return new ContainerBuilder().setAccentColor(0x7B2FBE)
     .addTextDisplayComponents(headerDisplay)
     .addSeparatorComponents(sep)
     .addTextDisplayComponents(bodyDisplay);
@@ -67,7 +67,7 @@ module.exports = {
         `**${emoji.warn} You need to be in a voice channel to play playlists.**`
       );
       return interaction.editReply({
-        components: [new ContainerBuilder().addTextDisplayComponents(d)],
+        components: [new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(d)],
         flags: MessageFlags.IsComponentsV2
       });
     }
@@ -87,7 +87,7 @@ module.exports = {
         `**${emoji.warn} You need to be in a voice channel to play playlists.**`
       );
       return message.reply({
-        components: [new ContainerBuilder().addTextDisplayComponents(d)],
+        components: [new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(d)],
         flags: MessageFlags.IsComponentsV2
       });
     }
@@ -111,7 +111,7 @@ async function showPlaylists(context, userId, username, voiceChannel, guild, cli
       `**${emoji.warn} You haven't linked a Spotify profile yet, or your profile has no public playlists.**\n` +
       `Use \`spotify-login <your Spotify profile URL>\` to link your account.`
     );
-    const container = new ContainerBuilder()
+    const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
       .addTextDisplayComponents(headerDisplay)
       .addSeparatorComponents(sep)
       .addTextDisplayComponents(bodyDisplay);
@@ -152,7 +152,7 @@ async function showPlaylists(context, userId, username, voiceChannel, guild, cli
     const footerDisplay = new TextDisplayBuilder()
       .setContent(`> Page \`${p + 1}/${totalPages}\` • Pick a playlist from the menu to play it.`);
 
-    return new ContainerBuilder()
+    return new ContainerBuilder().setAccentColor(0x7B2FBE)
       .addTextDisplayComponents(headerDisplay)
       .addSeparatorComponents(sep1)
       .addTextDisplayComponents(listDisplay)
@@ -217,7 +217,7 @@ async function showPlaylists(context, userId, username, voiceChannel, guild, cli
         collector.stop("cancelled");
         const d = new TextDisplayBuilder().setContent(`**${emoji.cross} Playlist browser closed.**`);
         return i.update({
-          components: [new ContainerBuilder().addTextDisplayComponents(d)],
+          components: [new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(d)],
           flags: MessageFlags.IsComponentsV2
         });
       }
@@ -312,7 +312,7 @@ async function showPlaylists(context, userId, username, voiceChannel, guild, cli
 
         await replyMsg.edit({
           components: [
-            new ContainerBuilder()
+            new ContainerBuilder().setAccentColor(0x7B2FBE)
               .addTextDisplayComponents(headerDisplay)
               .addSeparatorComponents(sep)
               .addTextDisplayComponents(bodyDisplay)
@@ -331,7 +331,7 @@ async function showPlaylists(context, userId, username, voiceChannel, guild, cli
         `**${emoji.warn} Playlist browser timed out. Run the command again.**`
       );
       replyMsg.edit({
-        components: [new ContainerBuilder().addTextDisplayComponents(d)],
+        components: [new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(d)],
         flags: MessageFlags.IsComponentsV2
       }).catch(() => {});
     }

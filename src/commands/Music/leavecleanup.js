@@ -60,7 +60,7 @@ module.exports = {
             const errorDisplay = new TextDisplayBuilder()
                 .setContent(`**${emoji.cross} Nothing is playing right now.**`);
 
-            const container = new ContainerBuilder()
+            const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
                 .addTextDisplayComponents(errorDisplay);
 
             return message.reply({
@@ -75,7 +75,7 @@ module.exports = {
             const errorDisplay = new TextDisplayBuilder()
                 .setContent(`**${emoji.info} The queue is empty.**`);
 
-            const container = new ContainerBuilder()
+            const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
                 .addTextDisplayComponents(errorDisplay);
 
             return message.reply({
@@ -89,7 +89,7 @@ module.exports = {
             const errorDisplay = new TextDisplayBuilder()
                 .setContent(`**${emoji.cross} You need to be in a voice channel!**`);
 
-            const container = new ContainerBuilder()
+            const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
                 .addTextDisplayComponents(errorDisplay);
 
             return message.reply({
@@ -122,7 +122,7 @@ module.exports = {
             const infoDisplay = new TextDisplayBuilder()
                 .setContent(`**${emoji.info} No songs found from users who left the voice channel.**`);
 
-            const container = new ContainerBuilder()
+            const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
                 .addTextDisplayComponents(infoDisplay);
 
             return message.reply({
@@ -141,7 +141,7 @@ module.exports = {
                 `Removed \`${removedTracks.length}\` track${removedTracks.length !== 1 ? 's' : ''} of \`${removedUsers.size}\` user${removedUsers.size !== 1 ? 's' : ''}.`
             );
 
-        const container = new ContainerBuilder()
+        const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
             .addTextDisplayComponents(headerDisplay)
             .addSeparatorComponents(separator)
             .addTextDisplayComponents(statsDisplay);

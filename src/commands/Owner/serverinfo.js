@@ -38,7 +38,7 @@ module.exports = {
             const errorDisplay = new TextDisplayBuilder()
                 .setContent(`**${emoji.cross} Could not find a server with ID \`${guildId}\`**`);
 
-            const container = new ContainerBuilder()
+            const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
                 .addTextDisplayComponents(errorDisplay);
 
             return interaction.reply({
@@ -207,7 +207,7 @@ module.exports = {
             const featuresDisplay = new TextDisplayBuilder()
                 .setContent(`**${emoji.dot} Features** \`:\` ${featuresText}`);
 
-            const container = new ContainerBuilder()
+            const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
                 .addTextDisplayComponents(headerDisplay)
                 .addSeparatorComponents(separator1)
                 .addTextDisplayComponents(basicInfoDisplay)
@@ -234,7 +234,7 @@ module.exports = {
             const errorDisplay = new TextDisplayBuilder()
                 .setContent(`**${emoji.cross} An error occurred while fetching server information.**`);
 
-            const container = new ContainerBuilder()
+            const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
                 .addTextDisplayComponents(errorDisplay);
 
             return interaction.reply({
@@ -257,7 +257,7 @@ module.exports = {
                     `**${emoji.dot} Example** \`:\` \`${prefix}serverinfo 1234567890123456789\``
                 );
 
-            const container = new ContainerBuilder()
+            const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
                 .addTextDisplayComponents(usageDisplay);
 
             return message.reply({
@@ -273,7 +273,7 @@ module.exports = {
             const errorDisplay = new TextDisplayBuilder()
                 .setContent(`**${emoji.cross} Could not find a server with ID \`${guildId}\`**`);
 
-            const container = new ContainerBuilder()
+            const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
                 .addTextDisplayComponents(errorDisplay);
 
             return message.reply({
@@ -442,7 +442,7 @@ module.exports = {
             const featuresDisplay = new TextDisplayBuilder()
                 .setContent(`**${emoji.dot} Features** \`:\` ${featuresText}`);
 
-            const container = new ContainerBuilder()
+            const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
                 .addTextDisplayComponents(headerDisplay)
                 .addSeparatorComponents(separator1)
                 .addTextDisplayComponents(basicInfoDisplay)
@@ -469,7 +469,7 @@ module.exports = {
             const errorDisplay = new TextDisplayBuilder()
                 .setContent(`**${emoji.cross} An error occurred while fetching server information.**`);
 
-            const container = new ContainerBuilder()
+            const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
                 .addTextDisplayComponents(errorDisplay);
 
             return message.reply({

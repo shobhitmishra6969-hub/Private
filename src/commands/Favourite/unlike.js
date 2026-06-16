@@ -85,7 +85,7 @@ module.exports = {
         const infoDisplay = new TextDisplayBuilder()
           .setContent(`**${emoji.info} You don't have any favorite songs!**`);
 
-        const container = new ContainerBuilder()
+        const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
           .addTextDisplayComponents(infoDisplay);
 
         return message.reply({
@@ -126,7 +126,7 @@ module.exports = {
         const tracksDisplay = new TextDisplayBuilder()
           .setContent(tracksText);
 
-        return new ContainerBuilder()
+        return new ContainerBuilder().setAccentColor(0x7B2FBE)
           .addTextDisplayComponents(headerDisplay)
           .addSeparatorComponents(separator1)
           .addTextDisplayComponents(infoDisplay)
@@ -200,7 +200,7 @@ module.exports = {
           const errorDisplay = new TextDisplayBuilder()
             .setContent(`**${emoji.cross} Only ${message.author.tag} can use this!**`);
 
-          const errorContainer = new ContainerBuilder()
+          const errorContainer = new ContainerBuilder().setAccentColor(0x7B2FBE)
             .addTextDisplayComponents(errorDisplay);
 
           i.reply({
@@ -218,7 +218,7 @@ module.exports = {
         if (!currentUserLiked || (interaction.customId !== 'clear_favorites' && currentUserLiked.songs.length === 0)) {
           const errorDisplay = new TextDisplayBuilder()
             .setContent(`**${emoji.info} You don't have any favorite songs left!**`);
-          const errorContainer = new ContainerBuilder().addTextDisplayComponents(errorDisplay);
+          const errorContainer = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(errorDisplay);
           await interaction.reply({ components: [errorContainer], flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2 });
           collector.stop();
           return;
@@ -250,13 +250,13 @@ module.exports = {
           if (currentUserLiked.songs.length === 0) {
             const emptyDisplay = new TextDisplayBuilder()
               .setContent(`**${emoji.check} Removed ${removedTracks.length} favorite(s). Your favorites list is now empty!**`);
-            const emptyContainer = new ContainerBuilder().addTextDisplayComponents(emptyDisplay);
+            const emptyContainer = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(emptyDisplay);
             await msg.edit({ components: [emptyContainer], flags: MessageFlags.IsComponentsV2 });
             collector.stop();
           } else {
             const successDisplay = new TextDisplayBuilder()
               .setContent(`**${emoji.check} Removed ${removedTracks.length} favorite(s)**`);
-            const successContainer = new ContainerBuilder().addTextDisplayComponents(successDisplay);
+            const successContainer = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(successDisplay);
 
             await msg.edit({
               components: [
@@ -306,7 +306,7 @@ module.exports = {
           const successDisplay = new TextDisplayBuilder()
             .setContent(`**${emoji.check} Cleared all ${favCount} favorites**`);
 
-          const successContainer = new ContainerBuilder()
+          const successContainer = new ContainerBuilder().setAccentColor(0x7B2FBE)
             .addTextDisplayComponents(successDisplay);
 
           await msg.edit({
@@ -326,7 +326,7 @@ module.exports = {
         if (reason === 'idle' || reason === 'time') {
           const timeoutDisplay = new TextDisplayBuilder()
             .setContent(`**${emoji.info} Session timed out. Use the command again if needed.**`);
-          const timeoutContainer = new ContainerBuilder().addTextDisplayComponents(timeoutDisplay);
+          const timeoutContainer = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(timeoutDisplay);
 
           await msg.edit({
             components: [timeoutContainer],
@@ -341,7 +341,7 @@ module.exports = {
       const errorDisplay = new TextDisplayBuilder()
         .setContent(`**${emoji.cross} An error occurred while removing from favorites.**`);
 
-      const container = new ContainerBuilder()
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(errorDisplay);
 
       return message.reply({

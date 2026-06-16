@@ -61,7 +61,7 @@ module.exports = {
       const errorDisplay = new TextDisplayBuilder()
         .setContent(`**${emoji.cross} Play a song first.**`);
 
-      const container = new ContainerBuilder()
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(errorDisplay);
 
       return message.channel.send({
@@ -77,7 +77,7 @@ module.exports = {
     const successDisplay = new TextDisplayBuilder()
       .setContent(`**${emoji.check} Skipped [${song.title}](${song.uri})**`);
 
-    const container = new ContainerBuilder()
+    const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
       .addTextDisplayComponents(successDisplay);
 
     return message.reply({

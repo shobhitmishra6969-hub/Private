@@ -59,7 +59,7 @@ module.exports = {
         const errorDisplay = new TextDisplayBuilder()
           .setContent(`**${emoji.cross} Support server link is not configured.**`);
 
-        const container = new ContainerBuilder()
+        const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
           .addTextDisplayComponents(errorDisplay);
 
         return message.reply({
@@ -80,7 +80,7 @@ module.exports = {
       const supportDisplay = new TextDisplayBuilder()
         .setContent(`**Join our support server for help, updates, and community!**`);
 
-      const container = new ContainerBuilder()
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(supportDisplay)
         .addSeparatorComponents(separator)
         .addActionRowComponents(supportRow);
@@ -93,7 +93,7 @@ module.exports = {
       const errorDisplay = new TextDisplayBuilder()
         .setContent(`**${emoji.cross} Error: ${error.message}**`);
 
-      const container = new ContainerBuilder()
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(errorDisplay);
 
       return message.reply({

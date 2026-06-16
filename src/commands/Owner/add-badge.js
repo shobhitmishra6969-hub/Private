@@ -29,7 +29,7 @@ const AVAILABLE_BADGES = [
 
 function err(message, text) {
     return message.reply({
-        components: [new ContainerBuilder().addTextDisplayComponents(new TextDisplayBuilder().setContent(text))],
+        components: [new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(new TextDisplayBuilder().setContent(text))],
         flags: MessageFlags.IsComponentsV2,
     });
 }
@@ -63,7 +63,7 @@ function buildSuccess(target, addedBadges, skippedBadges, totalBadges, addedBy) 
 
     const info = new TextDisplayBuilder().setContent(infoText);
 
-    return new ContainerBuilder()
+    return new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addSectionComponents(section)
         .addSeparatorComponents(sep)
         .addTextDisplayComponents(info);
@@ -137,7 +137,7 @@ module.exports = {
         const badgesInfo = new TextDisplayBuilder()
             .setContent(`**Current Badges:** ${currentBadgesText}`);
 
-        const container = new ContainerBuilder()
+        const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
             .addSectionComponents(section)
             .addSeparatorComponents(new SeparatorBuilder().setDivider(true))
             .addTextDisplayComponents(badgesInfo)
@@ -164,7 +164,7 @@ module.exports = {
             const toAdd = selected.filter(b => !freshDoc.badges.includes(b.id));
 
             if (toAdd.length === 0) {
-                const alreadyContainer = new ContainerBuilder()
+                const alreadyContainer = new ContainerBuilder().setAccentColor(0x7B2FBE)
                     .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                         `**${emoji.warn} ${target.username} already has all selected badges.**`
                     ));
@@ -182,7 +182,7 @@ module.exports = {
 
         collector.on('end', (_, reason) => {
             if (reason === 'time') {
-                const timeoutContainer = new ContainerBuilder()
+                const timeoutContainer = new ContainerBuilder().setAccentColor(0x7B2FBE)
                     .addTextDisplayComponents(new TextDisplayBuilder().setContent(`**${emoji.warn} Badge selection timed out.**`));
                 sent.edit({ components: [timeoutContainer], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
             }

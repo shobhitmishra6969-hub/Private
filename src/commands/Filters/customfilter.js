@@ -127,7 +127,7 @@ function buildCustomFilterContainer(eqValues, selectedBand) {
             .setStyle(ButtonStyle.Danger),
     );
 
-    const container = new ContainerBuilder()
+    const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(header)
         .addSeparatorComponents(new SeparatorBuilder().setDivider(true))
         .addTextDisplayComponents(chartDisplay)
@@ -175,7 +175,7 @@ module.exports = {
         if (!player.queue.current) {
             const warn = new TextDisplayBuilder()
                 .setContent(`**${emoji.warn} No song is currently playing.**`);
-            const container = new ContainerBuilder().addTextDisplayComponents(warn);
+            const container = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(warn);
             return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
 
@@ -198,7 +198,7 @@ module.exports = {
                 if (i.user.id === message.author.id) return true;
                 const err = new TextDisplayBuilder()
                     .setContent(`**${emoji.warn} This is not your filter session.**`);
-                const c = new ContainerBuilder().addTextDisplayComponents(err);
+                const c = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(err);
                 i.reply({
                     components: [c],
                     flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
@@ -248,14 +248,14 @@ module.exports = {
 
                     const ok = new TextDisplayBuilder()
                         .setContent(`**${emoji.check} Preset saved and applied successfully!**`);
-                    const c = new ContainerBuilder().addTextDisplayComponents(ok);
+                    const c = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(ok);
                     await msg.edit({ components: [c], flags: MessageFlags.IsComponentsV2 });
                     collector.stop('saved');
                 } catch (err) {
                     console.error('Error saving EQ preset:', err);
                     const errDisplay = new TextDisplayBuilder()
                         .setContent(`**${emoji.cross} Failed to save preset. Please try again.**`);
-                    const c = new ContainerBuilder().addTextDisplayComponents(errDisplay);
+                    const c = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(errDisplay);
                     await msg.edit({ components: [c], flags: MessageFlags.IsComponentsV2 });
                     collector.stop('error');
                 }
@@ -275,7 +275,7 @@ module.exports = {
             if (reason === 'error') return;
             const timedOut = new TextDisplayBuilder()
                 .setContent(`**${emoji.warn} Custom filter session timed out.**`);
-            const c = new ContainerBuilder().addTextDisplayComponents(timedOut);
+            const c = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(timedOut);
             await msg.edit({ components: [c], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
         });
     },

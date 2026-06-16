@@ -18,7 +18,7 @@ function formatDuration(ms) {
 }
 
 function errorContainer(client, msg) {
-  return new ContainerBuilder().addTextDisplayComponents(
+  return new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(
     new TextDisplayBuilder().setContent(`**${emoji.cross} ${msg}**`)
   );
 }
@@ -103,7 +103,7 @@ module.exports = {
         topSection.setThumbnailAccessory(thumb => thumb.setURL(topImage));
       }
 
-      const container = new ContainerBuilder()
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addSectionComponents(topSection)
         .addSeparatorComponents(new SeparatorBuilder());
 

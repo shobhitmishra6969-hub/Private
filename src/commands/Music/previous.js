@@ -62,7 +62,7 @@ module.exports = {
             const infoDisplay = new TextDisplayBuilder()
                 .setContent(`**${emoji.info} No previous songs in history.**`);
 
-            const container = new ContainerBuilder()
+            const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
                 .addTextDisplayComponents(infoDisplay);
 
             return message.reply({
@@ -87,7 +87,7 @@ module.exports = {
                 const errorDisplay = new TextDisplayBuilder()
                     .setContent(`**${emoji.cross} Could not find the previous track.**`);
 
-                const container = new ContainerBuilder()
+                const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
                     .addTextDisplayComponents(errorDisplay);
 
                 return message.reply({
@@ -119,7 +119,7 @@ module.exports = {
             const successDisplay = new TextDisplayBuilder()
                 .setContent(`**${emoji.check} Playing previous song: [${previousTrack.title}](${previousTrack.uri})**`);
 
-            const container = new ContainerBuilder()
+            const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
                 .addTextDisplayComponents(successDisplay);
 
             return message.reply({
@@ -137,7 +137,7 @@ module.exports = {
             const errorDisplay = new TextDisplayBuilder()
                 .setContent(`**${emoji.cross} Failed to play previous track.**`);
 
-            const container = new ContainerBuilder()
+            const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
                 .addTextDisplayComponents(errorDisplay);
 
             return message.reply({

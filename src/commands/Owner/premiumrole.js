@@ -43,7 +43,7 @@ module.exports = {
     const action = (args[0] || "").toLowerCase();
     if (!["set", "clear"].includes(action)) {
       const d = new TextDisplayBuilder().setContent(`**Usage:** \`${prefix}premiumrole set @role\` or \`${prefix}premiumrole clear\``);
-      const c = new ContainerBuilder().addTextDisplayComponents(d);
+      const c = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(d);
       return message.reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
     }
     if (action === "set") {
@@ -51,7 +51,7 @@ module.exports = {
       const role = message.guild.roles.cache.get(roleId) || message.guild.roles.cache.find(r => `<@&${r.id}>` === args[1]);
       if (!role) {
         const d = new TextDisplayBuilder().setContent(`**Role not found**`);
-        const c = new ContainerBuilder().addTextDisplayComponents(d);
+        const c = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(d);
         return message.reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
       }
       await PremiumRole.findOneAndUpdate(
@@ -60,12 +60,12 @@ module.exports = {
         { upsert: true, new: true }
       );
       const d = new TextDisplayBuilder().setContent(`**Premium role set to <@&${role.id}>**`);
-      const c = new ContainerBuilder().addTextDisplayComponents(d);
+      const c = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(d);
       return message.reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
     } else {
       await PremiumRole.findOneAndDelete({ Guild: message.guild.id });
       const d = new TextDisplayBuilder().setContent(`**Premium role cleared**`);
-      const c = new ContainerBuilder().addTextDisplayComponents(d);
+      const c = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(d);
       return message.reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
     }
   }

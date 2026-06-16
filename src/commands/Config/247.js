@@ -66,7 +66,7 @@ module.exports = {
         const infoDisplay = new TextDisplayBuilder()
           .setContent(`<:Cross:1484503486778445864> You need to be in a voice channel to use this command.`);
 
-        const container = new ContainerBuilder()
+        const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
           .addTextDisplayComponents(errorDisplay)
           .addSeparatorComponents(separator)
           .addTextDisplayComponents(infoDisplay);
@@ -88,7 +88,7 @@ module.exports = {
           const infoDisplay = new TextDisplayBuilder()
             .setContent(`<:Cross:1484503486778445864> You need to be in the same voice channel as me to use this command.`);
 
-          const container = new ContainerBuilder()
+          const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
             .addTextDisplayComponents(errorDisplay)
             .addSeparatorComponents(separator)
             .addTextDisplayComponents(infoDisplay);
@@ -139,7 +139,7 @@ module.exports = {
         const actionByDisplay = new TextDisplayBuilder()
           .setContent(`Action by: ${message.author.tag}`);
 
-        const successContainer = new ContainerBuilder()
+        const successContainer = new ContainerBuilder().setAccentColor(0x7B2FBE)
           .addTextDisplayComponents(successDisplay)
           .addSeparatorComponents(separator)
           .addTextDisplayComponents(actionByDisplay);
@@ -160,7 +160,7 @@ module.exports = {
         const actionByDisplay = new TextDisplayBuilder()
           .setContent(`Action by: ${message.author.tag}`);
 
-        const successContainer = new ContainerBuilder()
+        const successContainer = new ContainerBuilder().setAccentColor(0x7B2FBE)
           .addTextDisplayComponents(successDisplay)
           .addSeparatorComponents(separator)
           .addTextDisplayComponents(actionByDisplay);
@@ -202,7 +202,7 @@ module.exports = {
 
       const buttonRow = new ActionRowBuilder().addComponents(enableButton, disableButton);
 
-      const container = new ContainerBuilder()
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(statusDisplay)
         .addSeparatorComponents(separator)
         .addTextDisplayComponents(actionByDisplay)
@@ -232,7 +232,7 @@ module.exports = {
             const infoDisplay = new TextDisplayBuilder()
               .setContent(`<:Cross:1484503486778445864> You need to be in a voice channel to use this.`);
 
-            const errorContainer = new ContainerBuilder()
+            const errorContainer = new ContainerBuilder().setAccentColor(0x7B2FBE)
               .addTextDisplayComponents(errorDisplay)
               .addSeparatorComponents(separator)
               .addTextDisplayComponents(infoDisplay);
@@ -284,7 +284,7 @@ module.exports = {
             const actionByDisplay = new TextDisplayBuilder()
               .setContent(`Action by: ${interaction.user.tag}`);
 
-            const successContainer = new ContainerBuilder()
+            const successContainer = new ContainerBuilder().setAccentColor(0x7B2FBE)
               .addTextDisplayComponents(successDisplay)
               .addSeparatorComponents(separator)
               .addTextDisplayComponents(actionByDisplay);
@@ -305,7 +305,7 @@ module.exports = {
             const actionByDisplay = new TextDisplayBuilder()
               .setContent(`Action by: ${interaction.user.tag}`);
 
-            const successContainer = new ContainerBuilder()
+            const successContainer = new ContainerBuilder().setAccentColor(0x7B2FBE)
               .addTextDisplayComponents(successDisplay)
               .addSeparatorComponents(separator)
               .addTextDisplayComponents(actionByDisplay);
@@ -327,7 +327,7 @@ module.exports = {
           const errorInfo = new TextDisplayBuilder()
             .setContent(`<:Cross:1484503486778445864> An error occurred while updating 24/7 mode. Please try again.`);
 
-          const errorContainer = new ContainerBuilder()
+          const errorContainer = new ContainerBuilder().setAccentColor(0x7B2FBE)
             .addTextDisplayComponents(errorDisplay)
             .addSeparatorComponents(separator)
             .addTextDisplayComponents(errorInfo);
@@ -349,7 +349,7 @@ module.exports = {
           const timeoutInfo = new TextDisplayBuilder()
             .setContent(`-# <:Cross:1484503486778445864> 247 settings menu timed out!`);
 
-          const timeoutContainer = new ContainerBuilder()
+          const timeoutContainer = new ContainerBuilder().setAccentColor(0x7B2FBE)
             .addTextDisplayComponents(timeoutDisplay)
             .addSeparatorComponents(separator)
             .addTextDisplayComponents(timeoutInfo);
@@ -372,7 +372,7 @@ module.exports = {
       const errorInfo = new TextDisplayBuilder()
         .setContent(`<:Cross:1484503486778445864> An error occurred while loading 247 settings. Please try again later.`);
 
-      const errorContainer = new ContainerBuilder()
+      const errorContainer = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(errorDisplay)
         .addSeparatorComponents(separator)
         .addTextDisplayComponents(errorInfo);

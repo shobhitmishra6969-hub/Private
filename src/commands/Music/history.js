@@ -76,7 +76,7 @@ module.exports = {
                     `-# Songs are saved here automatically as you play them.`
                 );
 
-            const container = new ContainerBuilder()
+            const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
                 .addTextDisplayComponents(infoDisplay);
 
             return message.reply({
@@ -98,7 +98,7 @@ module.exports = {
             const start = page * SONGS_PER_PAGE;
             const pageItems = history.slice(start, start + SONGS_PER_PAGE);
 
-            const container = new ContainerBuilder();
+            const container = new ContainerBuilder().setAccentColor(0x7B2FBE);
 
             const headerDisplay = new TextDisplayBuilder()
                 .setContent(`**Your Listening History** (${history.length} tracks)`);
@@ -186,7 +186,7 @@ module.exports = {
                 if (i.user.id === message.author.id) return true;
                 const errDisplay = new TextDisplayBuilder()
                     .setContent(`**${emoji.cross} Only <@${message.author.id}> can use these buttons.**`);
-                const errContainer = new ContainerBuilder().addTextDisplayComponents(errDisplay);
+                const errContainer = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(errDisplay);
                 i.reply({
                     components: [errContainer],
                     flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2
@@ -211,7 +211,7 @@ module.exports = {
                     if (!player) {
                         const errDisplay = new TextDisplayBuilder()
                             .setContent(`**${emoji.cross} No active player found. Join a voice channel and start playing music first.**`);
-                        const errContainer = new ContainerBuilder().addTextDisplayComponents(errDisplay);
+                        const errContainer = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(errDisplay);
                         return interaction.reply({
                             components: [errContainer],
                             flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2
@@ -235,7 +235,7 @@ module.exports = {
 
                     const okDisplay = new TextDisplayBuilder()
                         .setContent(`**${emoji.check} Added ${added} track${added !== 1 ? 's' : ''} from your history to the queue.**`);
-                    const okContainer = new ContainerBuilder().addTextDisplayComponents(okDisplay);
+                    const okContainer = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(okDisplay);
                     return interaction.reply({
                         components: [okContainer],
                         flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2
@@ -257,7 +257,7 @@ module.exports = {
                     if (!player) {
                         const errDisplay = new TextDisplayBuilder()
                             .setContent(`**${emoji.cross} No active player found. Join a voice channel and start playing music first.**`);
-                        const errContainer = new ContainerBuilder().addTextDisplayComponents(errDisplay);
+                        const errContainer = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(errDisplay);
                         return interaction.reply({
                             components: [errContainer],
                             flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2
@@ -268,7 +268,7 @@ module.exports = {
                     if (!result?.tracks?.length) {
                         const errDisplay = new TextDisplayBuilder()
                             .setContent(`**${emoji.cross} Could not find that track.**`);
-                        const errContainer = new ContainerBuilder().addTextDisplayComponents(errDisplay);
+                        const errContainer = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(errDisplay);
                         return interaction.reply({
                             components: [errContainer],
                             flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2
@@ -281,7 +281,7 @@ module.exports = {
                     const title = track.title.length > 45 ? track.title.substring(0, 45) + '…' : track.title;
                     const okDisplay = new TextDisplayBuilder()
                         .setContent(`**${emoji.check} Added [${title}](${track.uri}) to the queue.**`);
-                    const okContainer = new ContainerBuilder().addTextDisplayComponents(okDisplay);
+                    const okContainer = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(okDisplay);
                     return interaction.reply({
                         components: [okContainer],
                         flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2

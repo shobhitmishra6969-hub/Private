@@ -25,7 +25,7 @@ module.exports = {
       const errorDisplay = new TextDisplayBuilder()
         .setContent(`**${emoji.cross} Node: Disconnected**`);
 
-      const container = new ContainerBuilder()
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(errorDisplay);
 
       return interaction.reply({
@@ -72,7 +72,7 @@ module.exports = {
         `Lavalink Load \`:\` \`${(Math.round(node.stats.cpu.lavalinkLoad * 100) / 100).toFixed(2)}%\``
       );
 
-    const container = new ContainerBuilder()
+    const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
       .addTextDisplayComponents(headerDisplay)
       .addSeparatorComponents(separator1)
       .addTextDisplayComponents(connectionDisplay)
@@ -93,7 +93,7 @@ module.exports = {
       const errorDisplay = new TextDisplayBuilder()
         .setContent(`**${emoji.cross} Node: Disconnected**`);
 
-      const container = new ContainerBuilder()
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(errorDisplay);
 
       return message.reply({
@@ -140,7 +140,7 @@ module.exports = {
         `Lavalink Load \`:\` \`${(Math.round(node.stats.cpu.lavalinkLoad * 100) / 100).toFixed(2)}%\``
       );
 
-    const container = new ContainerBuilder()
+    const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
       .addTextDisplayComponents(headerDisplay)
       .addSeparatorComponents(separator1)
       .addTextDisplayComponents(connectionDisplay)

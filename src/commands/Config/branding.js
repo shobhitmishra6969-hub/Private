@@ -76,7 +76,7 @@ module.exports = {
                 `<:warning:1484508516571156594> Or click **Reset to Default** to remove all customizations.`
             );
 
-        const container = new ContainerBuilder()
+        const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
             .addTextDisplayComponents(header)
             .addSeparatorComponents(separator1)
             .addTextDisplayComponents(info);
@@ -98,7 +98,7 @@ module.exports = {
                     .setContent(
                                 `${emoji.cross} Only ${message.author.username} can use this!`);
 
-                const errorContainer = new ContainerBuilder()
+                const errorContainer = new ContainerBuilder().setAccentColor(0x7B2FBE)
                     .addTextDisplayComponents(errorDisplay);
 
                 return interaction.reply({
@@ -167,7 +167,7 @@ module.exports = {
                         const errorDisplay = new TextDisplayBuilder()
                             .setContent(`${emoji.cross} Please fill at least one field!`);
 
-                        const errorContainer = new ContainerBuilder()
+                        const errorContainer = new ContainerBuilder().setAccentColor(0x7B2FBE)
                             .addTextDisplayComponents(errorDisplay);
 
                         return modalSubmit.reply({
@@ -203,7 +203,7 @@ module.exports = {
 
                     const actionRow = new ActionRowBuilder().addComponents(confirmButton, cancelButton);
 
-                    const previewContainer = new ContainerBuilder()
+                    const previewContainer = new ContainerBuilder().setAccentColor(0x7B2FBE)
                         .addTextDisplayComponents(previewHeader)
                         .addSeparatorComponents(previewSeparator)
                         .addTextDisplayComponents(previewDisplay);
@@ -280,7 +280,7 @@ module.exports = {
                                 const successDisplay = new TextDisplayBuilder()
                                     .setContent(successText);
 
-                                const successContainer = new ContainerBuilder()
+                                const successContainer = new ContainerBuilder().setAccentColor(0x7B2FBE)
                                     .addTextDisplayComponents(successHeader)
                                     .addSeparatorComponents(successSeparator)
                                     .addTextDisplayComponents(successDisplay);
@@ -303,7 +303,7 @@ module.exports = {
                                 const errorDisplay = new TextDisplayBuilder()
                                     .setContent(`Failed to apply changes: ${error.message}`);
 
-                                const errorContainer = new ContainerBuilder()
+                                const errorContainer = new ContainerBuilder().setAccentColor(0x7B2FBE)
                                     .addTextDisplayComponents(errorHeader)
                                     .addSeparatorComponents(errorSeparator)
                                     .addTextDisplayComponents(errorDisplay);
@@ -323,7 +323,7 @@ module.exports = {
                             const cancelDisplay = new TextDisplayBuilder()
                                 .setContent('Branding changes cancelled.');
 
-                            const cancelContainer = new ContainerBuilder()
+                            const cancelContainer = new ContainerBuilder().setAccentColor(0x7B2FBE)
                                 .addTextDisplayComponents(cancelHeader)
                                 .addSeparatorComponents(cancelSeparator)
                                 .addTextDisplayComponents(cancelDisplay);
@@ -380,7 +380,7 @@ module.exports = {
                     const resetDisplay = new TextDisplayBuilder()
                         .setContent(resetText);
 
-                    const resetContainer = new ContainerBuilder()
+                    const resetContainer = new ContainerBuilder().setAccentColor(0x7B2FBE)
                         .addTextDisplayComponents(resetHeader)
                         .addSeparatorComponents(resetSeparator)
                         .addTextDisplayComponents(resetDisplay);
@@ -402,7 +402,7 @@ module.exports = {
                     const errorDisplay = new TextDisplayBuilder()
                         .setContent(`Failed to reset: ${error.message}`);
 
-                    const errorContainer = new ContainerBuilder()
+                    const errorContainer = new ContainerBuilder().setAccentColor(0x7B2FBE)
                         .addTextDisplayComponents(errorHeader)
                         .addSeparatorComponents(errorSeparator)
                         .addTextDisplayComponents(errorDisplay);

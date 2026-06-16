@@ -60,7 +60,7 @@ module.exports = {
         const errorDisplay = new TextDisplayBuilder()
           .setContent(`**${emoji.cross} You must be in a voice channel!**`);
 
-        const container = new ContainerBuilder()
+        const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
           .addTextDisplayComponents(errorDisplay);
 
         return message.reply({
@@ -74,7 +74,7 @@ module.exports = {
         const infoDisplay = new TextDisplayBuilder()
           .setContent(`**${emoji.info} You don't have any favorite songs to play!**`);
 
-        const container = new ContainerBuilder()
+        const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
           .addTextDisplayComponents(infoDisplay);
 
         return message.reply({
@@ -89,7 +89,7 @@ module.exports = {
         const errorDisplay = new TextDisplayBuilder()
           .setContent(`**${emoji.cross} The music server is currently unavailable. Please try again later.**`);
 
-        const container = new ContainerBuilder()
+        const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
           .addTextDisplayComponents(errorDisplay);
 
         return message.reply({
@@ -116,7 +116,7 @@ module.exports = {
           const errorDisplay = new TextDisplayBuilder()
             .setContent(`**${emoji.cross} Failed to connect to the music server. Please try again later.**`);
 
-          const container = new ContainerBuilder()
+          const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
             .addTextDisplayComponents(errorDisplay);
 
           return message.reply({
@@ -129,7 +129,7 @@ module.exports = {
           const errorDisplay = new TextDisplayBuilder()
             .setContent(`**${emoji.cross} You must be in the same voice channel as the bot!**`);
 
-          const container = new ContainerBuilder()
+          const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
             .addTextDisplayComponents(errorDisplay);
 
           return message.reply({
@@ -197,7 +197,7 @@ module.exports = {
       const resultDisplay = new TextDisplayBuilder()
         .setContent(resultText);
 
-      const resultContainer = new ContainerBuilder()
+      const resultContainer = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(resultDisplay);
 
       await message.reply({
@@ -211,7 +211,7 @@ module.exports = {
       const errorDisplay = new TextDisplayBuilder()
         .setContent(`**${emoji.cross} An error occurred while playing your favorites.**`);
 
-      const container = new ContainerBuilder()
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(errorDisplay);
 
       return message.reply({

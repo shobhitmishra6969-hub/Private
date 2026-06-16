@@ -94,7 +94,7 @@ module.exports = {
     if (!subcommand || !["add", "remove", "list", "status"].includes(subcommand)) {
       const usageDisplay = new TextDisplayBuilder()
         .setContent(`**${emoji.dot} Usage** \`:\` \`${prefix}premiumuser <add/remove/list/status> <@user/ID> [duration]\``);
-      const container = new ContainerBuilder().addTextDisplayComponents(usageDisplay);
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(usageDisplay);
       return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
     }
 
@@ -108,7 +108,7 @@ module.exports = {
     if (subcommand === "add") {
       if (!user) {
         const errorDisplay = new TextDisplayBuilder().setContent(`**${emoji.warn} Provide me a valid user.**`);
-        const container = new ContainerBuilder().addTextDisplayComponents(errorDisplay);
+        const container = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(errorDisplay);
         return context.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
       }
 
@@ -117,7 +117,7 @@ module.exports = {
         const duration = parseDuration(durationArg);
         if (!duration) {
           const errorDisplay = new TextDisplayBuilder().setContent(`**${emoji.warn} Invalid duration format. Use 24h, 10d, 2w, 1m, 1y.**`);
-          const container = new ContainerBuilder().addTextDisplayComponents(errorDisplay);
+          const container = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(errorDisplay);
           return context.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
         expiresAt = new Date(Date.now() + duration);
@@ -139,40 +139,40 @@ module.exports = {
         : `**${emoji.check} Granted permanent global premium status to ${user}.**`;
 
       const successDisplay = new TextDisplayBuilder().setContent(successMessage);
-      const container = new ContainerBuilder().addTextDisplayComponents(successDisplay);
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(successDisplay);
       return context.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
     }
 
     if (subcommand === "remove") {
       if (!user) {
         const errorDisplay = new TextDisplayBuilder().setContent(`**${emoji.warn} Provide me a valid user.**`);
-        const container = new ContainerBuilder().addTextDisplayComponents(errorDisplay);
+        const container = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(errorDisplay);
         return context.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
       }
 
       const result = await db.deleteOne({ userId: user.id });
       if (result.deletedCount === 0) {
         const infoDisplay = new TextDisplayBuilder().setContent(`**${emoji.info} This user doesn't have global premium status.**`);
-        const container = new ContainerBuilder().addTextDisplayComponents(infoDisplay);
+        const container = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(infoDisplay);
         return context.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
       }
 
       const successDisplay = new TextDisplayBuilder().setContent(`**${emoji.check} Removed global premium status from ${user}.**`);
-      const container = new ContainerBuilder().addTextDisplayComponents(successDisplay);
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(successDisplay);
       return context.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
     }
 
     if (subcommand === "status") {
       if (!user) {
         const errorDisplay = new TextDisplayBuilder().setContent(`**${emoji.warn} Provide me a valid user.**`);
-        const container = new ContainerBuilder().addTextDisplayComponents(errorDisplay);
+        const container = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(errorDisplay);
         return context.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
       }
 
       const data = await db.findOne({ userId: user.id });
       if (!data || !data.premium) {
         const infoDisplay = new TextDisplayBuilder().setContent(`**${emoji.info} ${user.tag} does not have global premium status.**`);
-        const container = new ContainerBuilder().addTextDisplayComponents(infoDisplay);
+        const container = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(infoDisplay);
         return context.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
       }
 
@@ -182,7 +182,7 @@ module.exports = {
                         `**Expires:** ${data.expiresAt ? `<t:${Math.floor(data.expiresAt.getTime() / 1000)}:R>` : "Never (Permanent)"}`;
 
       const statusDisplay = new TextDisplayBuilder().setContent(statusMsg);
-      const container = new ContainerBuilder().addTextDisplayComponents(statusDisplay);
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(statusDisplay);
       return context.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
     }
 
@@ -190,14 +190,14 @@ module.exports = {
       const allUsers = await db.find({ premium: true });
       if (allUsers.length === 0) {
         const infoDisplay = new TextDisplayBuilder().setContent(`**${emoji.info} No users have global premium status.**`);
-        const container = new ContainerBuilder().addTextDisplayComponents(infoDisplay);
+        const container = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(infoDisplay);
         return context.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
       }
 
       const userList = allUsers.map((u, i) => `**${i + 1}.** <@${u.userId}> | \`${u.userId}\` | ${u.expiresAt ? `<t:${Math.floor(u.expiresAt.getTime() / 1000)}:R>` : "Permanent"}`).join("\n");
       const headerDisplay = new TextDisplayBuilder().setContent(`**${emoji.star} Global Premium Users**`);
       const listDisplay = new TextDisplayBuilder().setContent(userList);
-      const container = new ContainerBuilder().addTextDisplayComponents(headerDisplay).addSeparatorComponents(new SeparatorBuilder()).addTextDisplayComponents(listDisplay);
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(headerDisplay).addSeparatorComponents(new SeparatorBuilder()).addTextDisplayComponents(listDisplay);
       return context.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
     }
   }

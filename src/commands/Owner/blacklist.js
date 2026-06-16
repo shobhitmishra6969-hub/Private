@@ -17,7 +17,7 @@ const ITEMS_PER_PAGE = 10;
 
 function err(message, text) {
     return message.reply({
-        components: [new ContainerBuilder()
+        components: [new ContainerBuilder().setAccentColor(0x7B2FBE)
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(text))],
         flags: MessageFlags.IsComponentsV2,
     });
@@ -44,7 +44,7 @@ function buildListPage(entries, page, totalPages, client) {
     const footer = new TextDisplayBuilder()
         .setContent(`-# Page ${page + 1} of ${totalPages}`);
 
-    return new ContainerBuilder()
+    return new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(header)
         .addSeparatorComponents(sep)
         .addTextDisplayComponents(listDisplay)
@@ -148,7 +148,7 @@ module.exports = {
 
             try {
                 await target.send({
-                    components: [new ContainerBuilder()
+                    components: [new ContainerBuilder().setAccentColor(0x7B2FBE)
                         .addTextDisplayComponents(new TextDisplayBuilder()
                             .setContent(
                                 `**${emoji.cross} You have been blacklisted from using **${client.user.username}**.**\n\n` +
@@ -174,7 +174,7 @@ module.exports = {
             );
 
             return message.reply({
-                components: [new ContainerBuilder()
+                components: [new ContainerBuilder().setAccentColor(0x7B2FBE)
                     .addSectionComponents(section)
                     .addSeparatorComponents(sep)
                     .addTextDisplayComponents(info)],
@@ -199,7 +199,7 @@ module.exports = {
 
             try {
                 await target.send({
-                    components: [new ContainerBuilder()
+                    components: [new ContainerBuilder().setAccentColor(0x7B2FBE)
                         .addTextDisplayComponents(new TextDisplayBuilder()
                             .setContent(
                                 `**${emoji.check} You have been removed from the **${client.user.username}** blacklist.**\n` +
@@ -223,7 +223,7 @@ module.exports = {
             );
 
             return message.reply({
-                components: [new ContainerBuilder()
+                components: [new ContainerBuilder().setAccentColor(0x7B2FBE)
                     .addSectionComponents(section)
                     .addSeparatorComponents(sep)
                     .addTextDisplayComponents(info)],
@@ -255,7 +255,7 @@ module.exports = {
                     `**Status:** ✅ Clear — not on the blacklist`
                 );
                 return message.reply({
-                    components: [new ContainerBuilder()
+                    components: [new ContainerBuilder().setAccentColor(0x7B2FBE)
                         .addSectionComponents(section)
                         .addSeparatorComponents(sep)
                         .addTextDisplayComponents(info)],
@@ -280,7 +280,7 @@ module.exports = {
             );
 
             return message.reply({
-                components: [new ContainerBuilder()
+                components: [new ContainerBuilder().setAccentColor(0x7B2FBE)
                     .addSectionComponents(section)
                     .addSeparatorComponents(sep)
                     .addTextDisplayComponents(info)],

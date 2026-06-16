@@ -66,7 +66,7 @@ module.exports = {
       const errorDisplay = new TextDisplayBuilder()
         .setContent(`**${emoji.cross} Play a song first!**`);
 
-      const container = new ContainerBuilder()
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(errorDisplay);
 
       return message.channel.send({
@@ -85,7 +85,7 @@ module.exports = {
             `**${emoji.info} Total songs in queue** \`:\` \`${player.queue.length}\``
           );
 
-        const container = new ContainerBuilder()
+        const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
           .addTextDisplayComponents(errorDisplay);
 
         return message.reply({
@@ -100,7 +100,7 @@ module.exports = {
       const successDisplay = new TextDisplayBuilder()
         .setContent(`**${emoji.check} Removed [${song.title}](${song.uri})**`);
 
-      const container = new ContainerBuilder()
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(successDisplay);
 
       return message.reply({
@@ -115,7 +115,7 @@ module.exports = {
       const errorDisplay = new TextDisplayBuilder()
         .setContent(`**${emoji.info} The queue is empty.**`);
 
-      const container = new ContainerBuilder()
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(errorDisplay);
 
       return message.reply({
@@ -154,7 +154,7 @@ module.exports = {
       const tracksDisplay = new TextDisplayBuilder()
         .setContent(tracksText);
 
-      return new ContainerBuilder()
+      return new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(headerDisplay)
         .addSeparatorComponents(separator1)
         .addTextDisplayComponents(infoDisplay)
@@ -228,7 +228,7 @@ module.exports = {
         const errorDisplay = new TextDisplayBuilder()
           .setContent(`**${emoji.cross} Only ${message.author.tag} can use this!**`);
 
-        const errorContainer = new ContainerBuilder()
+        const errorContainer = new ContainerBuilder().setAccentColor(0x7B2FBE)
           .addTextDisplayComponents(errorDisplay);
 
         i.reply({
@@ -244,7 +244,7 @@ module.exports = {
       if (player.queue.length === 0 && interaction.customId !== 'clear_queue') {
         const errorDisplay = new TextDisplayBuilder()
           .setContent(`**${emoji.info} The queue is now empty.**`);
-        const errorContainer = new ContainerBuilder().addTextDisplayComponents(errorDisplay);
+        const errorContainer = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(errorDisplay);
         await interaction.reply({ components: [errorContainer], flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2 });
         collector.stop();
         return;
@@ -273,13 +273,13 @@ module.exports = {
         if (player.queue.length === 0) {
           const emptyDisplay = new TextDisplayBuilder()
             .setContent(`**${emoji.check} Removed ${removedTracks.length} track(s). The queue is now empty!**`);
-          const emptyContainer = new ContainerBuilder().addTextDisplayComponents(emptyDisplay);
+          const emptyContainer = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(emptyDisplay);
           await msg.edit({ components: [emptyContainer], flags: MessageFlags.IsComponentsV2 });
           collector.stop();
         } else {
           const successDisplay = new TextDisplayBuilder()
             .setContent(`**${emoji.check} Removed ${removedTracks.length} track(s)**`);
-          const successContainer = new ContainerBuilder().addTextDisplayComponents(successDisplay);
+          const successContainer = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(successDisplay);
 
           await msg.edit({
             components: [
@@ -326,7 +326,7 @@ module.exports = {
         const successDisplay = new TextDisplayBuilder()
           .setContent(`**${emoji.check} Cleared ${queueSize} tracks from the queue**`);
 
-        const successContainer = new ContainerBuilder()
+        const successContainer = new ContainerBuilder().setAccentColor(0x7B2FBE)
           .addTextDisplayComponents(successDisplay);
 
         await msg.edit({
@@ -346,7 +346,7 @@ module.exports = {
       if (reason === 'idle' || reason === 'time') {
         const timeoutDisplay = new TextDisplayBuilder()
           .setContent(`**${emoji.info} Session timed out. Use the command again if needed.**`);
-        const timeoutContainer = new ContainerBuilder().addTextDisplayComponents(timeoutDisplay);
+        const timeoutContainer = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(timeoutDisplay);
 
         await msg.edit({
           components: [timeoutContainer],

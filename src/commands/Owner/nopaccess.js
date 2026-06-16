@@ -93,7 +93,7 @@ module.exports = {
         const errorDisplay = new TextDisplayBuilder()
           .setContent(`**${emoji.warn} Provide me a valid user.**`);
 
-        const container = new ContainerBuilder()
+        const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
           .addTextDisplayComponents(errorDisplay);
 
         return interaction.reply({
@@ -148,7 +148,7 @@ module.exports = {
                 `\`permanent\` or \`perm\` or \`p\` - Permanent`
               );
 
-            const container = new ContainerBuilder()
+            const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
               .addTextDisplayComponents(errorDisplay);
 
             return interaction.reply({
@@ -194,7 +194,7 @@ module.exports = {
         const successDisplay = new TextDisplayBuilder()
           .setContent(successMessage);
 
-        const container = new ContainerBuilder()
+        const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
           .addTextDisplayComponents(successDisplay);
 
         return interaction.reply({
@@ -217,7 +217,7 @@ module.exports = {
       const successDisplay = new TextDisplayBuilder()
         .setContent(successMessage);
 
-      const container = new ContainerBuilder()
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(successDisplay);
 
       return interaction.reply({
@@ -231,7 +231,7 @@ module.exports = {
         const errorDisplay = new TextDisplayBuilder()
           .setContent(`**${emoji.warn} Provide me a valid user.**`);
 
-        const container = new ContainerBuilder()
+        const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
           .addTextDisplayComponents(errorDisplay);
 
         return interaction.reply({
@@ -250,7 +250,7 @@ module.exports = {
         const infoDisplay = new TextDisplayBuilder()
           .setContent(`**${emoji.info} This user doesn't have No Prefix Access.**`);
 
-        const container = new ContainerBuilder()
+        const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
           .addTextDisplayComponents(infoDisplay);
 
         return interaction.reply({
@@ -268,7 +268,7 @@ module.exports = {
       const successDisplay = new TextDisplayBuilder()
         .setContent(`**${emoji.check} Successfully removed ${user} from No Prefix Access.**`);
 
-      const container = new ContainerBuilder()
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(successDisplay);
 
       return interaction.reply({
@@ -288,7 +288,7 @@ module.exports = {
       const successDisplay = new TextDisplayBuilder()
         .setContent(`**${emoji.check} Successfully removed \`${count}\` user${count !== 1 ? 's' : ''} from No Prefix Access.**`);
 
-      const container = new ContainerBuilder()
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(successDisplay);
 
       return interaction.reply({
@@ -302,7 +302,7 @@ module.exports = {
         const errorDisplay = new TextDisplayBuilder()
           .setContent(`**${emoji.warn} Provide me a valid user.**`);
 
-        const container = new ContainerBuilder()
+        const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
           .addTextDisplayComponents(errorDisplay);
 
         return interaction.reply({
@@ -321,7 +321,7 @@ module.exports = {
         const infoDisplay = new TextDisplayBuilder()
           .setContent(`**${emoji.info} ${user} does not have No Prefix Access.**`);
 
-        const container = new ContainerBuilder()
+        const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
           .addTextDisplayComponents(infoDisplay);
 
         return interaction.reply({
@@ -348,7 +348,7 @@ module.exports = {
       const statusDisplay = new TextDisplayBuilder()
         .setContent(statusMessage);
 
-      const container = new ContainerBuilder()
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(statusDisplay);
 
       return interaction.reply({
@@ -367,7 +367,7 @@ module.exports = {
         const infoDisplay = new TextDisplayBuilder()
           .setContent(`**${emoji.info} There are no users with No Prefix Access.**`);
 
-        const container = new ContainerBuilder()
+        const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
           .addTextDisplayComponents(infoDisplay);
 
         return interaction.reply({
@@ -410,7 +410,7 @@ module.exports = {
         const listDisplay = new TextDisplayBuilder()
           .setContent(userList.join('\n'));
 
-        return new ContainerBuilder()
+        return new ContainerBuilder().setAccentColor(0x7B2FBE)
           .addTextDisplayComponents(headerDisplay)
           .addSeparatorComponents(separator)
           .addTextDisplayComponents(listDisplay);
@@ -503,7 +503,7 @@ module.exports = {
           `\`${prefix}nop status @user\` - Check user's no-prefix status`
         );
 
-      const container = new ContainerBuilder()
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(helpHeader)
         .addSeparatorComponents(separator)
         .addTextDisplayComponents(usageDisplay);
@@ -524,7 +524,7 @@ module.exports = {
         const errorDisplay = new TextDisplayBuilder()
           .setContent(`**${emoji.warn} Please provide a valid user to add.**`);
 
-        const container = new ContainerBuilder()
+        const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
           .addTextDisplayComponents(errorDisplay);
 
         return message.reply({
@@ -563,7 +563,7 @@ module.exports = {
                 `**Examples:** \`24h\`, \`10d\`, \`2w\`, \`1m\`, \`1y\`, \`perm\``
               );
 
-            const container = new ContainerBuilder()
+            const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
               .addTextDisplayComponents(errorDisplay);
 
             return message.reply({
@@ -620,7 +620,7 @@ module.exports = {
         : `**${emoji.check} ${user} has been granted Permanent No Prefix Access.**`;
 
       const successDisplay = new TextDisplayBuilder().setContent(successMessage);
-      const container = new ContainerBuilder().addTextDisplayComponents(successDisplay);
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(successDisplay);
 
       return message.reply({
         components: [container],
@@ -635,7 +635,7 @@ module.exports = {
 
         const successDisplay = new TextDisplayBuilder()
           .setContent(`**${emoji.check} Revoked No Prefix Access from \`${count}\` users.**`);
-        const container = new ContainerBuilder().addTextDisplayComponents(successDisplay);
+        const container = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(successDisplay);
 
         return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
       }
@@ -645,7 +645,7 @@ module.exports = {
       if (!user) {
         const errorDisplay = new TextDisplayBuilder()
           .setContent(`**${emoji.warn} Please provide a valid user to remove.**`);
-        const container = new ContainerBuilder().addTextDisplayComponents(errorDisplay);
+        const container = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(errorDisplay);
         return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
       }
 
@@ -654,13 +654,13 @@ module.exports = {
       if (result.deletedCount === 0) {
         const infoDisplay = new TextDisplayBuilder()
           .setContent(`**${emoji.warn} ${user} does not have No Prefix Access.**`);
-        const container = new ContainerBuilder().addTextDisplayComponents(infoDisplay);
+        const container = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(infoDisplay);
         return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
       }
 
       const successDisplay = new TextDisplayBuilder()
         .setContent(`**${emoji.check} Successfully revoked No Prefix Access from ${user}.**`);
-      const container = new ContainerBuilder().addTextDisplayComponents(successDisplay);
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(successDisplay);
       return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
     }
 
@@ -672,7 +672,7 @@ module.exports = {
       if (!data.length) {
         const infoDisplay = new TextDisplayBuilder()
           .setContent(`**${emoji.info} No users currently have No Prefix Access.**`);
-        const container = new ContainerBuilder().addTextDisplayComponents(infoDisplay);
+        const container = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(infoDisplay);
         return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
       }
 
@@ -699,7 +699,7 @@ module.exports = {
         const separator = new SeparatorBuilder();
         const listDisplay = new TextDisplayBuilder().setContent(userList.join('\n'));
 
-        return new ContainerBuilder()
+        return new ContainerBuilder().setAccentColor(0x7B2FBE)
           .addTextDisplayComponents(headerDisplay)
           .addSeparatorComponents(separator)
           .addTextDisplayComponents(listDisplay);
@@ -748,7 +748,7 @@ module.exports = {
         const errorDisplay = new TextDisplayBuilder()
           .setContent(`**${emoji.warn} Please provide a valid user to check.**`);
 
-        const container = new ContainerBuilder()
+        const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
           .addTextDisplayComponents(errorDisplay);
 
         return message.reply({
@@ -767,7 +767,7 @@ module.exports = {
         const infoDisplay = new TextDisplayBuilder()
           .setContent(`**${emoji.info} ${user} does not have No Prefix Access.**`);
 
-        const container = new ContainerBuilder()
+        const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
           .addTextDisplayComponents(infoDisplay);
 
         return message.reply({
@@ -792,7 +792,7 @@ module.exports = {
       }
 
       const statusDisplay = new TextDisplayBuilder().setContent(statusMessage);
-      const container = new ContainerBuilder().addTextDisplayComponents(statusDisplay);
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(statusDisplay);
 
       return message.reply({
         components: [container],

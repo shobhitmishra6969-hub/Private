@@ -34,7 +34,7 @@ module.exports = {
         if (!player.queue.current) {
             const errorDisplay = new TextDisplayBuilder()
                 .setContent(`**${emoji.warn} Play a song first.**`);
-            const container = new ContainerBuilder().addTextDisplayComponents(errorDisplay);
+            const container = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(errorDisplay);
             return interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
 
@@ -52,12 +52,12 @@ module.exports = {
             };
             const successDisplay = new TextDisplayBuilder()
                 .setContent(`**${emoji.check} Rewound \`${seconds}s\` to \`${formatTime(newPosition)}\`**`);
-            const container = new ContainerBuilder().addTextDisplayComponents(successDisplay);
+            const container = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(successDisplay);
             return interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         } catch (error) {
             console.error("Error rewinding:", error);
             const errorDisplay = new TextDisplayBuilder().setContent(`**${emoji.cross} Failed to rewind the track.**`);
-            const container = new ContainerBuilder().addTextDisplayComponents(errorDisplay);
+            const container = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(errorDisplay);
             return interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
     },
@@ -69,7 +69,7 @@ module.exports = {
             const errorDisplay = new TextDisplayBuilder()
                 .setContent(`**${emoji.warn} Play a song first.**`);
 
-            const container = new ContainerBuilder()
+            const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
                 .addTextDisplayComponents(errorDisplay);
 
             return message.channel.send({
@@ -90,7 +90,7 @@ module.exports = {
                         `**${emoji.dot} Example** \`:\` \`${prefix}rewind 30\` - Rewind 30 seconds`
                     );
 
-                const container = new ContainerBuilder()
+                const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
                     .addTextDisplayComponents(usageDisplay);
 
                 return message.reply({
@@ -121,7 +121,7 @@ module.exports = {
             const successDisplay = new TextDisplayBuilder()
                 .setContent(`**${emoji.check} Rewound \`${seconds}s\` to \`${formatTime(newPosition)}\`**`);
 
-            const container = new ContainerBuilder()
+            const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
                 .addTextDisplayComponents(successDisplay);
 
             return message.reply({
@@ -139,7 +139,7 @@ module.exports = {
             const errorDisplay = new TextDisplayBuilder()
                 .setContent(`**${emoji.cross} Failed to rewind the track.**`);
 
-            const container = new ContainerBuilder()
+            const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
                 .addTextDisplayComponents(errorDisplay);
 
             return message.reply({

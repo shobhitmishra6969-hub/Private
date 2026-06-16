@@ -79,7 +79,7 @@ function buildResultsContainer(tracks, client, engine, page = 0, perPage = 10) {
       `> Page \`${page + 1}/${Math.ceil(total / perPage)}\` • Pick a track from the menu below to play it.`
     );
 
-  return new ContainerBuilder()
+  return new ContainerBuilder().setAccentColor(0x7B2FBE)
     .addTextDisplayComponents(headerDisplay)
     .addSeparatorComponents(sep1)
     .addTextDisplayComponents(listDisplay)
@@ -131,7 +131,7 @@ async function runSearch(context, query, voiceChannel, textChannel, guild, userI
       `**${emoji.cross} Music server is unavailable. Please try again later.**`
     );
     return context.reply({
-      components: [new ContainerBuilder().addTextDisplayComponents(d)],
+      components: [new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(d)],
       flags: MessageFlags.IsComponentsV2
     });
   }
@@ -162,7 +162,7 @@ async function runSearch(context, query, voiceChannel, textChannel, guild, userI
       `**${emoji.cross} Search failed. Please try again.**`
     );
     return context.reply({
-      components: [new ContainerBuilder().addTextDisplayComponents(d)],
+      components: [new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(d)],
       flags: MessageFlags.IsComponentsV2
     });
   }
@@ -176,7 +176,7 @@ async function runSearch(context, query, voiceChannel, textChannel, guild, userI
         `**${emoji.cross} Could not join your voice channel: ${err.message}**`
       );
       return context.reply({
-        components: [new ContainerBuilder().addTextDisplayComponents(d)],
+        components: [new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(d)],
         flags: MessageFlags.IsComponentsV2
       });
     }
@@ -186,7 +186,7 @@ async function runSearch(context, query, voiceChannel, textChannel, guild, userI
         `**${emoji.warn} I'm already in a different voice channel.**`
       );
       return context.reply({
-        components: [new ContainerBuilder().addTextDisplayComponents(d)],
+        components: [new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(d)],
         flags: MessageFlags.IsComponentsV2
       });
     }
@@ -198,7 +198,7 @@ async function runSearch(context, query, voiceChannel, textChannel, guild, userI
       `**${emoji.check} Queued \`${searchResult.tracks.length}\` tracks from playlist \`${searchResult.playlistName}\`**`
     );
     return context.reply({
-      components: [new ContainerBuilder().addTextDisplayComponents(d)],
+      components: [new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(d)],
       flags: MessageFlags.IsComponentsV2
     });
   }
@@ -210,7 +210,7 @@ async function runSearch(context, query, voiceChannel, textChannel, guild, userI
       `**${emoji.cross} No results found for \`${query}\`**`
     );
     return context.reply({
-      components: [new ContainerBuilder().addTextDisplayComponents(d)],
+      components: [new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(d)],
       flags: MessageFlags.IsComponentsV2
     });
   }
@@ -245,7 +245,7 @@ async function runSearch(context, query, voiceChannel, textChannel, guild, userI
           `**${emoji.cross} Search cancelled.**`
         );
         return i.update({
-          components: [new ContainerBuilder().addTextDisplayComponents(d)],
+          components: [new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(d)],
           flags: MessageFlags.IsComponentsV2
         });
       }
@@ -290,7 +290,7 @@ async function runSearch(context, query, voiceChannel, textChannel, guild, userI
             `**${emoji.cross} Could not join voice channel: ${err.message}**`
           );
           await replyMsg.edit({
-            components: [new ContainerBuilder().addTextDisplayComponents(d)],
+            components: [new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(d)],
             flags: MessageFlags.IsComponentsV2
           }).catch(() => {});
           return collector.stop("error");
@@ -301,7 +301,7 @@ async function runSearch(context, query, voiceChannel, textChannel, guild, userI
             `**${emoji.warn} I'm already connected to a different voice channel.**`
           );
           await replyMsg.edit({
-            components: [new ContainerBuilder().addTextDisplayComponents(d)],
+            components: [new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(d)],
             flags: MessageFlags.IsComponentsV2
           }).catch(() => {});
           return;
@@ -321,7 +321,7 @@ async function runSearch(context, query, voiceChannel, textChannel, guild, userI
             `**${emoji.check} Now playing \`${track.title}\`!**`
           );
           await replyMsg.edit({
-            components: [new ContainerBuilder().addTextDisplayComponents(d)],
+            components: [new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(d)],
             flags: MessageFlags.IsComponentsV2
           }).catch(() => {});
           return;
@@ -346,7 +346,7 @@ async function runSearch(context, query, voiceChannel, textChannel, guild, userI
           section.setThumbnailAccessory((t) => t.setURL(thumb));
         }
 
-        const queuedContainer = new ContainerBuilder()
+        const queuedContainer = new ContainerBuilder().setAccentColor(0x7B2FBE)
           .addSectionComponents(section);
 
         await replyMsg.edit({
@@ -365,7 +365,7 @@ async function runSearch(context, query, voiceChannel, textChannel, guild, userI
         `**${emoji.warn} Search timed out. Run the command again.**`
       );
       replyMsg.edit({
-        components: [new ContainerBuilder().addTextDisplayComponents(d)],
+        components: [new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(d)],
         flags: MessageFlags.IsComponentsV2
       }).catch(() => {});
     }
@@ -429,7 +429,7 @@ module.exports = {
         `**${emoji.warn} You need to be in a voice channel first.**`
       );
       return interaction.editReply({
-        components: [new ContainerBuilder().addTextDisplayComponents(d)],
+        components: [new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(d)],
         flags: MessageFlags.IsComponentsV2
       });
     }
@@ -442,7 +442,7 @@ module.exports = {
         `**${emoji.warn} I need \`CONNECT\` and \`SPEAK\` permissions.**`
       );
       return interaction.editReply({
-        components: [new ContainerBuilder().addTextDisplayComponents(d)],
+        components: [new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(d)],
         flags: MessageFlags.IsComponentsV2
       });
     }
@@ -469,7 +469,7 @@ module.exports = {
           `**${emoji.dot} Example:** \`${prefix}search shape of you\``
         );
       return message.reply({
-        components: [new ContainerBuilder().addTextDisplayComponents(d)],
+        components: [new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(d)],
         flags: MessageFlags.IsComponentsV2
       });
     }
@@ -480,7 +480,7 @@ module.exports = {
         `**${emoji.warn} You need to be in a voice channel first.**`
       );
       return message.reply({
-        components: [new ContainerBuilder().addTextDisplayComponents(d)],
+        components: [new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(d)],
         flags: MessageFlags.IsComponentsV2
       });
     }
@@ -493,7 +493,7 @@ module.exports = {
         `**${emoji.warn} I need \`CONNECT\` and \`SPEAK\` permissions.**`
       );
       return message.reply({
-        components: [new ContainerBuilder().addTextDisplayComponents(d)],
+        components: [new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(d)],
         flags: MessageFlags.IsComponentsV2
       });
     }

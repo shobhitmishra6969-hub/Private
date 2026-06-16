@@ -1,3 +1,4 @@
+'use strict';
 const {
   ContainerBuilder,
   TextDisplayBuilder,
@@ -22,7 +23,7 @@ function formatUptime(seconds) {
 }
 
 function formatGB(bytes) {
-  return (bytes / 1073741824).toFixed(1) + 'GB';
+  return (bytes / 1073741824).toFixed(1) + ' GB';
 }
 
 function buildMainContainer(client) {
@@ -30,29 +31,28 @@ function buildMainContainer(client) {
   const uptime = formatUptime(process.uptime());
   const shards = client.shard ? client.shard.count : 1;
 
-  const text = new TextDisplayBuilder().setContent(
+  const statsText = new TextDisplayBuilder().setContent(
     `### 🛸 Bot Statistics\n` +
-    `**● General Information**\n` +
-    `Total Servers \`: ${client.guilds.cache.size.toLocaleString()}\n` +
-    `Total Users \`: ${totalUsers.toLocaleString()}\n` +
-    `Uptime \`: ${uptime}\n` +
-    `Total Shards \`: ${shards}\n` +
-    `Total Clusters \`: 1`
+    `**Servers** — \`${client.guilds.cache.size.toLocaleString()}\`\n` +
+    `**Users** — \`${totalUsers.toLocaleString()}\`\n` +
+    `**Uptime** — \`${uptime}\`\n` +
+    `**Shards** — \`${shards}\`\n` +
+    `**Clusters** — \`1\``
   );
 
   const thumb = new ThumbnailBuilder().setURL(client.user.displayAvatarURL({ size: 256 }));
-  const section = new SectionBuilder().addTextDisplayComponents(text).setThumbnailAccessory(thumb);
-  const sep = new SeparatorBuilder();
-
-  const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('stats_system').setLabel('System Information').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('stats_team').setLabel('Team Information').setStyle(ButtonStyle.Secondary),
-  );
+  const section = new SectionBuilder().addTextDisplayComponents(statsText).setThumbnailAccessory(thumb);
 
   return new ContainerBuilder()
+    .setAccentColor(0x7B2FBE)
     .addSectionComponents(section)
-    .addSeparatorComponents(sep)
-    .addActionRowComponents(row);
+    .addSeparatorComponents(new SeparatorBuilder().setDivider(true))
+    .addActionRowComponents(
+      new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('stats_system').setLabel('System Info').setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId('stats_team').setLabel('Team').setStyle(ButtonStyle.Secondary),
+      )
+    );
 }
 
 function buildSystemContainer(client, ping) {
@@ -61,69 +61,61 @@ function buildSystemContainer(client, ping) {
   const freeRam = formatGB(os.freemem());
   const cmdCount = client.commands?.size || 0;
 
-  const text = new TextDisplayBuilder().setContent(
-    `### 🛸 Bot Statistics\n` +
-    `**● Performance**\n` +
-    `Ping \`: ${ping}ms\n` +
-    `CPU Cores \`: ${cpus}\n` +
-    `RAM \`: ${totalRam}\n` +
-    `Free \`: ${freeRam}\n` +
-    `Node \`: ${process.version}\n` +
-    `**● System**\n` +
-    `Platform \`: ${process.platform}\n` +
-    `Architecture \`: ${os.arch()}\n` +
-    `Commands \`: ${cmdCount}\n` +
-    `Status \`: Online`
+  const sysText = new TextDisplayBuilder().setContent(
+    `### ⚙️ System Information\n` +
+    `**Ping** — \`${ping}ms\`\n` +
+    `**CPU Cores** — \`${cpus}\`\n` +
+    `**Total RAM** — \`${totalRam}\`\n` +
+    `**Free RAM** — \`${freeRam}\`\n` +
+    `**Node.js** — \`${process.version}\`\n` +
+    `**Platform** — \`${process.platform} (${os.arch()})\`\n` +
+    `**Commands** — \`${cmdCount}\``
   );
 
   const thumb = new ThumbnailBuilder().setURL(client.user.displayAvatarURL({ size: 256 }));
-  const section = new SectionBuilder().addTextDisplayComponents(text).setThumbnailAccessory(thumb);
-  const sep = new SeparatorBuilder();
-
-  const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('stats_back').setLabel('Back to Stats').setStyle(ButtonStyle.Secondary),
-  );
+  const section = new SectionBuilder().addTextDisplayComponents(sysText).setThumbnailAccessory(thumb);
 
   return new ContainerBuilder()
+    .setAccentColor(0x7B2FBE)
     .addSectionComponents(section)
-    .addSeparatorComponents(sep)
-    .addActionRowComponents(row);
+    .addSeparatorComponents(new SeparatorBuilder().setDivider(true))
+    .addActionRowComponents(
+      new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('stats_back').setLabel('← Back').setStyle(ButtonStyle.Secondary),
+      )
+    );
 }
 
 async function buildTeamContainer(client) {
   const ownerIds = Array.isArray(config.ownerID) ? config.ownerID : [];
-
   let ownerLines = '';
   for (const id of ownerIds) {
     try {
       const user = await client.users.fetch(id);
-      ownerLines += `[${user.username}](https://discord.com/users/${id})\n`;
+      ownerLines += `• [${user.username}](https://discord.com/users/${id})\n`;
     } catch {
       ownerLines += `<@${id}>\n`;
     }
   }
 
-  const header = new TextDisplayBuilder().setContent(`### 👤 Bot's Team`);
-  const sep1 = new SeparatorBuilder();
-
+  const header = new TextDisplayBuilder().setContent(`### 👥 Bot Team`);
   const teamText = new TextDisplayBuilder().setContent(
     `**👑 Owner**\n${ownerLines.trim() || '_Not configured_'}`
   );
-
   const thumb = new ThumbnailBuilder().setURL(client.user.displayAvatarURL({ size: 256 }));
   const section = new SectionBuilder().addTextDisplayComponents(teamText).setThumbnailAccessory(thumb);
-  const sep2 = new SeparatorBuilder();
-
-  const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('stats_back').setLabel('Back to Stats').setStyle(ButtonStyle.Secondary),
-  );
 
   return new ContainerBuilder()
+    .setAccentColor(0x7B2FBE)
     .addTextDisplayComponents(header)
-    .addSeparatorComponents(sep1)
+    .addSeparatorComponents(new SeparatorBuilder().setDivider(true))
     .addSectionComponents(section)
-    .addSeparatorComponents(sep2)
-    .addActionRowComponents(row);
+    .addSeparatorComponents(new SeparatorBuilder().setDivider(true))
+    .addActionRowComponents(
+      new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('stats_back').setLabel('← Back').setStyle(ButtonStyle.Secondary),
+      )
+    );
 }
 
 module.exports = {
@@ -146,7 +138,6 @@ module.exports = {
 
   async componentsV2(interaction, client) {
     await interaction.deferUpdate().catch(() => {});
-
     if (interaction.customId === 'stats_system') {
       const container = buildSystemContainer(client, client.ws.ping);
       await interaction.message.edit({ components: [container], flags: MessageFlags.IsComponentsV2 }).catch(() => {});

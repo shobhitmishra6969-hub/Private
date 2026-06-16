@@ -78,7 +78,7 @@ module.exports = {
             const errorDisplay = new TextDisplayBuilder()
                 .setContent(`**${emoji.cross} Play a song first.**`);
 
-            const container = new ContainerBuilder()
+            const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
                 .addTextDisplayComponents(errorDisplay);
 
             return message.reply({
@@ -109,7 +109,7 @@ module.exports = {
                     .setDisabled(currentLoop === 'none')
             );
 
-            return new ContainerBuilder()
+            return new ContainerBuilder().setAccentColor(0x7B2FBE)
                 .addTextDisplayComponents(headerDisplay)
                 .addSeparatorComponents(separator)
                 .addTextDisplayComponents(statusDisplay)
@@ -139,7 +139,7 @@ module.exports = {
                     .setStyle(ButtonStyle.Secondary)
             );
 
-            return new ContainerBuilder()
+            return new ContainerBuilder().setAccentColor(0x7B2FBE)
                 .addTextDisplayComponents(headerDisplay)
                 .addSeparatorComponents(separator)
                 .addTextDisplayComponents(statusDisplay)
@@ -154,7 +154,7 @@ module.exports = {
             const statusDisplay = new TextDisplayBuilder()
                 .setContent(`**Loop mode has been set to** \`:\` \`${mode === "none" ? "Disabled" : mode === "track" ? "Track Loop" : "Queue Loop"}\``);
 
-            return new ContainerBuilder()
+            return new ContainerBuilder().setAccentColor(0x7B2FBE)
                 .addTextDisplayComponents(headerDisplay)
                 .addSeparatorComponents(separator)
                 .addTextDisplayComponents(statusDisplay);
@@ -197,7 +197,7 @@ module.exports = {
                     if (i.user.id === message.author.id) return true;
                     const errorDisplay = new TextDisplayBuilder()
                         .setContent(`**${emoji.cross} Only ${message.author.tag} can use these buttons.**`);
-                    const errorContainer = new ContainerBuilder().addTextDisplayComponents(errorDisplay);
+                    const errorContainer = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(errorDisplay);
                     i.reply({ components: [errorContainer], flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2 });
                     return false;
                 },

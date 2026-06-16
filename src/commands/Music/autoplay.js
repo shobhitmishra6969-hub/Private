@@ -75,7 +75,7 @@ function buildModePanel() {
       .setStyle(ButtonStyle.Danger),
   );
 
-  return new ContainerBuilder()
+  return new ContainerBuilder().setAccentColor(0x7B2FBE)
     .addTextDisplayComponents(header)
     .addSeparatorComponents(sep)
     .addActionRowComponents(row);
@@ -99,7 +99,7 @@ function buildMoodPanel() {
     )
   );
 
-  return new ContainerBuilder()
+  return new ContainerBuilder().setAccentColor(0x7B2FBE)
     .addTextDisplayComponents(header)
     .addSeparatorComponents(sep)
     .addActionRowComponents(row);
@@ -108,7 +108,7 @@ function buildMoodPanel() {
 function buildStatusPanel(status, extra = '') {
   const text = new TextDisplayBuilder()
     .setContent(`${status}\n${extra}`.trim());
-  return new ContainerBuilder().addTextDisplayComponents(text);
+  return new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(text);
 }
 
 // ── Core logic ───────────────────────────────────────────────────────────────

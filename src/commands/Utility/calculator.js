@@ -89,7 +89,7 @@ const buildCalcMessage = (state, msgId, userId) => {
     const displayText = new TextDisplayBuilder()
         .setContent(`### 🧮 Calculator\n${buildDisplay(state)}\n-# Requested by <@${userId}>`);
     const sep = new SeparatorBuilder();
-    const container = new ContainerBuilder()
+    const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(displayText)
         .addSeparatorComponents(sep);
 
@@ -113,7 +113,7 @@ module.exports = {
         const state = defaultState();
 
         const placeholder = new TextDisplayBuilder().setContent(`### 🧮 Calculator\n\`\`\`\n  0\n\`\`\``);
-        const container = new ContainerBuilder().addTextDisplayComponents(placeholder);
+        const container = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(placeholder);
         const sent = await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
 
         calcState.set(sent.id, state);

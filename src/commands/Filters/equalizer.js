@@ -81,7 +81,7 @@ function buildEQContainer(eqValues, page) {
             `\`+0.25\` → \`+0.10\` → \`0.00\` → \`-0.10\` → \`-0.25\` *(top to bottom)*`
         );
 
-    const container = new ContainerBuilder()
+    const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(header)
         .addSeparatorComponents(new SeparatorBuilder().setDivider(true))
         .addTextDisplayComponents(gainLabel)
@@ -132,7 +132,7 @@ module.exports = {
         if (!player.queue.current) {
             const warn = new TextDisplayBuilder()
                 .setContent(`**${emoji.warn} No song is currently playing.**`);
-            const container = new ContainerBuilder().addTextDisplayComponents(warn);
+            const container = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(warn);
             return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
 
@@ -144,7 +144,7 @@ module.exports = {
                         `**${emoji.warn} The equalizer is premium-only.**\n` +
                         `> You need to be a global premium user or have the server's premium role to use this.`
                     );
-                const container = new ContainerBuilder().addTextDisplayComponents(warn);
+                const container = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(warn);
                 return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
             }
         } catch (e) {
@@ -168,7 +168,7 @@ module.exports = {
                 if (i.user.id === message.author.id) return true;
                 const err = new TextDisplayBuilder()
                     .setContent(`**${emoji.warn} This is not your equalizer session.**`);
-                const c = new ContainerBuilder().addTextDisplayComponents(err);
+                const c = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(err);
                 i.reply({
                     components: [c],
                     flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
@@ -203,7 +203,7 @@ module.exports = {
 
                 const ok = new TextDisplayBuilder()
                     .setContent(`**${emoji.check} Equalizer applied successfully!**`);
-                const c = new ContainerBuilder().addTextDisplayComponents(ok);
+                const c = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(ok);
                 await msg.edit({ components: [c], flags: MessageFlags.IsComponentsV2 });
                 collector.stop('applied');
                 return;
@@ -228,7 +228,7 @@ module.exports = {
             }
             const timedOut = new TextDisplayBuilder()
                 .setContent(`**${emoji.warn} Equalizer session timed out.**`);
-            const c = new ContainerBuilder().addTextDisplayComponents(timedOut);
+            const c = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(timedOut);
             await msg.edit({ components: [c], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
         });
     },

@@ -61,7 +61,7 @@ module.exports = {
                 const errorDisplay = new TextDisplayBuilder()
                     .setContent(`**${emoji.cross} There is no queue to add to favorites!**`);
 
-                const container = new ContainerBuilder()
+                const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
                     .addTextDisplayComponents(errorDisplay);
 
                 return message.reply({
@@ -75,7 +75,7 @@ module.exports = {
                 const errorDisplay = new TextDisplayBuilder()
                     .setContent(`**${emoji.cross} There are no songs in the queue!**`);
 
-                const container = new ContainerBuilder()
+                const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
                     .addTextDisplayComponents(errorDisplay);
 
                 return message.reply({
@@ -128,7 +128,7 @@ module.exports = {
             const resultDisplay = new TextDisplayBuilder()
                 .setContent(description);
 
-            const container = new ContainerBuilder()
+            const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
                 .addTextDisplayComponents(resultDisplay);
 
             return message.reply({
@@ -142,7 +142,7 @@ module.exports = {
             const errorDisplay = new TextDisplayBuilder()
                 .setContent(`**${emoji.cross} An error occurred while adding songs to favorites!**`);
 
-            const container = new ContainerBuilder()
+            const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
                 .addTextDisplayComponents(errorDisplay);
 
             return message.reply({

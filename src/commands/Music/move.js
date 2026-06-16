@@ -71,7 +71,7 @@ module.exports = {
                         `**${emoji.warn} I don't have enough permissions to execute this command! Please give me permission \`CONNECT\` or \`SPEAK\`.**`
                     );
 
-                const container = new ContainerBuilder()
+                const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
                     .addTextDisplayComponents(errorDisplay);
 
                 return message.reply({
@@ -96,7 +96,7 @@ module.exports = {
                         `**${emoji.check} Joined <#${channel.id}> and bound to <#${message.channel.id}>**`
                     );
 
-                const container = new ContainerBuilder()
+                const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
                     .addTextDisplayComponents(successDisplay);
 
                 return message.reply({
@@ -109,7 +109,7 @@ module.exports = {
                 const errorDisplay = new TextDisplayBuilder()
                     .setContent(`**${emoji.warn} An error occurred while joining the channel.**`);
 
-                const container = new ContainerBuilder()
+                const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
                     .addTextDisplayComponents(errorDisplay);
 
                 return message.reply({
@@ -123,7 +123,7 @@ module.exports = {
             const warnDisplay = new TextDisplayBuilder()
                 .setContent(`**${emoji.warn} I am already in your voice channel.**`);
 
-            const container = new ContainerBuilder()
+            const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
                 .addTextDisplayComponents(warnDisplay);
 
             return message.reply({
@@ -154,7 +154,7 @@ module.exports = {
             const successDisplay = new TextDisplayBuilder()
                 .setContent(description);
 
-            const container = new ContainerBuilder()
+            const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
                 .addTextDisplayComponents(successDisplay);
 
             return message.reply({
@@ -167,7 +167,7 @@ module.exports = {
             const errorDisplay = new TextDisplayBuilder()
                 .setContent(`**${emoji.warn} An error occurred while moving.**`);
 
-            const container = new ContainerBuilder()
+            const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
                 .addTextDisplayComponents(errorDisplay);
 
             return message.reply({

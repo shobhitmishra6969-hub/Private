@@ -67,7 +67,7 @@ module.exports = {
                     `\`${prefix}mutual 123456789012345678\``
                 );
 
-            const container = new ContainerBuilder()
+            const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
                 .addTextDisplayComponents(helpDisplay);
 
             return message.reply({
@@ -85,7 +85,7 @@ module.exports = {
             const errorDisplay = new TextDisplayBuilder()
                 .setContent(`**${emoji.cross} Could not find user with ID: \`${userId}\`**`);
 
-            const container = new ContainerBuilder()
+            const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
                 .addTextDisplayComponents(errorDisplay);
 
             return message.reply({
@@ -116,7 +116,7 @@ module.exports = {
             const infoDisplay = new TextDisplayBuilder()
                 .setContent(`**${emoji.info} No mutual servers found with ${user.tag} (\`${user.id}\`)**`);
 
-            const container = new ContainerBuilder()
+            const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
                 .addTextDisplayComponents(infoDisplay);
 
             return message.reply({
@@ -150,7 +150,7 @@ module.exports = {
             const serversDisplay = new TextDisplayBuilder()
                 .setContent(serverList);
 
-            return new ContainerBuilder()
+            return new ContainerBuilder().setAccentColor(0x7B2FBE)
                 .addTextDisplayComponents(headerDisplay)
                 .addSeparatorComponents(separator1)
                 .addTextDisplayComponents(serversDisplay);

@@ -1,17 +1,19 @@
+'use strict';
 const emoji = require('../../emojis');
 const {
   ContainerBuilder,
   TextDisplayBuilder,
-  MessageFlags
-} = require("discord.js");
+  SeparatorBuilder,
+  MessageFlags,
+} = require('discord.js');
 
 module.exports = {
-  name: "skip",
-  aliases: ["s"],
-  category: "Music",
+  name: 'skip',
+  aliases: ['s'],
+  category: 'Music',
   cooldown: 3,
-  description: "Skip the current song instantly.",
-  botPrams: ["EMBED_LINKS"],
+  description: 'Skip the current song instantly.',
+  botPrams: ['EMBED_LINKS'],
   player: true,
   inVoiceChannel: true,
   sameVoiceChannel: true,
@@ -25,60 +27,48 @@ module.exports = {
       member: interaction.member,
       createdTimestamp: interaction.createdTimestamp,
       reply: async (options) => {
-        if (interaction.deferred) {
-          return await interaction.editReply(options);
-        } else if (interaction.replied) {
-          return await interaction.followUp(options);
-        } else {
-          return await interaction.reply(options);
-        }
+        if (interaction.deferred) return interaction.editReply(options);
+        else if (interaction.replied) return interaction.followUp(options);
+        else return interaction.reply(options);
       },
     };
-
-    const args = [];
-    if (interaction.options) {
-      const options = interaction.options.data;
-      for (const option of options) {
-        if (option.value !== undefined) {
-          args.push(option.value.toString());
-        }
-      }
-    }
-
-    const prefix = client.prefix;
-    return this.execute(interactionWrapper, args, client, prefix);
+    return this.execute(interactionWrapper, [], client);
   },
 
-  async execute(message, args, client, prefix) {
+  async execute(message, args, client) {
     const player = client.manager.players.get(message.guild.id);
 
     if (!player.queue.current) {
-      const errorDisplay = new TextDisplayBuilder()
-        .setContent(`**${emoji.warn} Play a song first.**`);
-
-      const container = new ContainerBuilder()
-        .addTextDisplayComponents(errorDisplay);
-
       return message.reply({
-        components: [container],
-        flags: MessageFlags.IsComponentsV2
-      }).catch(() => { });
+        components: [
+          new ContainerBuilder()
+            .setAccentColor(0x7B2FBE)
+            .addTextDisplayComponents(
+              new TextDisplayBuilder().setContent(`**${emoji.warn} Nothing is playing right now.**`)
+            ),
+        ],
+        flags: MessageFlags.IsComponentsV2,
+      }).catch(() => {});
     }
 
-    const currentTrack = player.queue.current;
+    const track = player.queue.current;
     await player.skip();
 
-    const successDisplay = new TextDisplayBuilder()
-      .setContent(
-        `**${emoji.check} Skipped [${currentTrack.title}](${currentTrack.uri})**`
-      );
-
-    const container = new ContainerBuilder()
-      .addTextDisplayComponents(successDisplay);
-
     return message.reply({
-      components: [container],
-      flags: MessageFlags.IsComponentsV2
-    }).catch(() => { });
+      components: [
+        new ContainerBuilder()
+          .setAccentColor(0x7B2FBE)
+          .addTextDisplayComponents(
+            new TextDisplayBuilder().setContent(`### ${emoji.skip} Skipped`)
+          )
+          .addSeparatorComponents(new SeparatorBuilder().setDivider(true))
+          .addTextDisplayComponents(
+            new TextDisplayBuilder().setContent(
+              `**[${track.title}](${track.uri})**\n-# ${track.author}`
+            )
+          ),
+      ],
+      flags: MessageFlags.IsComponentsV2,
+    }).catch(() => {});
   },
 };

@@ -125,7 +125,7 @@ function buildNavRows(userId, guildId, cfg) {
 
 function makeReply(text) {
     const display = new TextDisplayBuilder().setContent(text);
-    const container = new ContainerBuilder().addTextDisplayComponents(display);
+    const container = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(display);
     return { components: [container], flags: MessageFlags.IsComponentsV2 };
 }
 
@@ -152,7 +152,7 @@ module.exports = {
         const cfg = await getConfig(message.guild.id);
         const display = buildConfigDisplay(cfg, message.guild);
         const sep = new SeparatorBuilder().setDivider(true);
-        const container = new ContainerBuilder()
+        const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
             .addTextDisplayComponents(display)
             .addSeparatorComponents(sep);
 
@@ -363,7 +363,7 @@ module.exports = {
 async function refreshPanel(interaction, cfg, followUp = false) {
     const display   = buildConfigDisplay(cfg, interaction.guild);
     const sep       = new SeparatorBuilder().setDivider(true);
-    const container = new ContainerBuilder()
+    const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(display)
         .addSeparatorComponents(sep);
 

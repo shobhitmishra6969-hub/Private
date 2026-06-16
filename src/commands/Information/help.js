@@ -170,7 +170,7 @@ function buildHomeContainer(botUser) {
 
   const thumbnail = botUser?.displayAvatarURL({ size: 128, extension: 'png' });
 
-  let container = new ContainerBuilder()
+  let container = new ContainerBuilder().setAccentColor(0x7B2FBE)
     .addActionRowComponents(row1)
     .addActionRowComponents(row2)
     .addActionRowComponents(row3)
@@ -222,7 +222,7 @@ function buildCategoryContainer(category, cmds, page, prefix) {
   const [row1, row2, row3, row4] = buildCatRows(category);
   const navRow = buildNavRow(totalPages, safePage);
 
-  return new ContainerBuilder()
+  return new ContainerBuilder().setAccentColor(0x7B2FBE)
     .addActionRowComponents(row1)
     .addActionRowComponents(row2)
     .addActionRowComponents(row3)
@@ -272,7 +272,7 @@ function buildCommandDetailContainer(cmd, cat, prefix) {
       .setStyle(ButtonStyle.Danger),
   );
 
-  return new ContainerBuilder()
+  return new ContainerBuilder().setAccentColor(0x7B2FBE)
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(`### ${emoji.check} \`${cmd.name.toUpperCase()}\` — Command Info`)
     )
@@ -321,7 +321,7 @@ async function runHelp({ userId, guildId, commandArg, sendFn, botUser }) {
     if (!result) {
       return sendFn({
         components: [
-          new ContainerBuilder().addTextDisplayComponents(
+          new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(
             new TextDisplayBuilder().setContent(
               `**${emoji.cross} Command \`${commandArg}\` not found.**\n-# Use \`${prefix}help\` to browse all categories.`
             )
@@ -360,7 +360,7 @@ function attachCollector(msg, userId, guildId, catData, prefix, initialCat, init
       if (i.user.id !== userId) {
         i.reply({
           components: [
-            new ContainerBuilder().addTextDisplayComponents(
+            new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(
               new TextDisplayBuilder().setContent(
                 `**${emoji.cross} You cannot interact with this menu. Please use the help command yourself.**`
               )

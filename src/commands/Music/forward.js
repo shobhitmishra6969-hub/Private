@@ -26,7 +26,7 @@ module.exports = {
             const errorDisplay = new TextDisplayBuilder()
                 .setContent(`**${emoji.warn} Play a song first.**`);
 
-            const container = new ContainerBuilder()
+            const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
                 .addTextDisplayComponents(errorDisplay);
 
             return message.channel.send({
@@ -50,7 +50,7 @@ module.exports = {
                         `**Example:** \`${prefix}forward 30\` - Fastforward 30 seconds`
                     );
 
-                const container = new ContainerBuilder()
+                const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
                     .addTextDisplayComponents(errorDisplay);
 
                 return message.reply({
@@ -75,7 +75,7 @@ module.exports = {
                     `**${emoji.info} Skipping to next song instead...**`
                 );
 
-            const container = new ContainerBuilder()
+            const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
                 .addTextDisplayComponents(warnDisplay);
 
             await message.reply({
@@ -106,7 +106,7 @@ module.exports = {
                     `**${emoji.check} Fast forwarded \`${seconds}s\` to \`${formatTime(newPosition)}\`**`
                 );
 
-            const container = new ContainerBuilder()
+            const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
                 .addTextDisplayComponents(successDisplay);
 
             return message.reply({
@@ -124,7 +124,7 @@ module.exports = {
             const errorDisplay = new TextDisplayBuilder()
                 .setContent(`**${emoji.cross} Failed to fast forward the track.**`);
 
-            const container = new ContainerBuilder()
+            const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
                 .addTextDisplayComponents(errorDisplay);
 
             return message.reply({

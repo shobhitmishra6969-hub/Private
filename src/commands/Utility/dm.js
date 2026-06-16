@@ -40,7 +40,7 @@ const buildDMEmbed = ({ guild, sender, title, body, anonymous, color }) => {
 // Build a ComponentsV2 confirmation/result container
 const makeContainer = (content) => {
     const display = new TextDisplayBuilder().setContent(content);
-    return { components: [new ContainerBuilder().addTextDisplayComponents(display)], flags: MessageFlags.IsComponentsV2 };
+    return { components: [new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(display)], flags: MessageFlags.IsComponentsV2 };
 };
 
 module.exports = {

@@ -35,7 +35,7 @@ module.exports = {
       const errorDisplay = new TextDisplayBuilder()
         .setContent(`**${emoji.cross} Could not find the Guild to Leave.**`);
 
-      const container = new ContainerBuilder()
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(errorDisplay);
 
       return interaction.reply({
@@ -50,7 +50,7 @@ module.exports = {
         const successDisplay = new TextDisplayBuilder()
           .setContent(`**${emoji.check} Left \`${g.name}\` [\`${g.id}\`]**`);
 
-        const container = new ContainerBuilder()
+        const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
           .addTextDisplayComponents(successDisplay);
 
         interaction.reply({
@@ -62,7 +62,7 @@ module.exports = {
         const errorDisplay = new TextDisplayBuilder()
           .setContent(`**${emoji.cross} Error:**\n\`\`\`js\n${e.message ? e.message : e}\n\`\`\``);
 
-        const container = new ContainerBuilder()
+        const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
           .addTextDisplayComponents(errorDisplay);
 
         interaction.reply({
@@ -76,7 +76,7 @@ module.exports = {
       const errorDisplay = new TextDisplayBuilder()
         .setContent(`**${emoji.cross} Please provide a guild ID.**`);
 
-      const container = new ContainerBuilder()
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(errorDisplay);
 
       return message.reply({
@@ -91,7 +91,7 @@ module.exports = {
       const errorDisplay = new TextDisplayBuilder()
         .setContent(`**${emoji.cross} Could not find the Guild to Leave.**`);
 
-      const container = new ContainerBuilder()
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(errorDisplay);
 
       return message.reply({
@@ -106,7 +106,7 @@ module.exports = {
         const successDisplay = new TextDisplayBuilder()
           .setContent(`**${emoji.check} Left \`${g.name}\` [\`${g.id}\`]**`);
 
-        const container = new ContainerBuilder()
+        const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
           .addTextDisplayComponents(successDisplay);
 
         message.channel.send({
@@ -118,7 +118,7 @@ module.exports = {
         const errorDisplay = new TextDisplayBuilder()
           .setContent(`**${emoji.cross} Error:**\n\`\`\`js\n${e.message ? e.message : e}\n\`\`\``);
 
-        const container = new ContainerBuilder()
+        const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
           .addTextDisplayComponents(errorDisplay);
 
         message.channel.send({

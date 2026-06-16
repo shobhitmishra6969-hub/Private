@@ -186,7 +186,7 @@ module.exports = {
             const errorDisplay = new TextDisplayBuilder()
                 .setContent(`**${emoji.cross} No song is currently playing.**`);
 
-            const container = new ContainerBuilder()
+            const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
                 .addTextDisplayComponents(errorDisplay);
 
             return message.reply({
@@ -204,7 +204,7 @@ module.exports = {
             const notFoundDisplay = new TextDisplayBuilder()
                 .setContent(`**${emoji.cross} No lyrics found for \`${track.title}\` by \`${track.author}\`**`);
 
-            const notFoundContainer = new ContainerBuilder()
+            const notFoundContainer = new ContainerBuilder().setAccentColor(0x7B2FBE)
                 .addTextDisplayComponents(notFoundDisplay);
 
             return message.reply({
@@ -246,7 +246,7 @@ module.exports = {
                 .setStyle(ButtonStyle.Secondary)
         );
 
-        const choiceContainer = new ContainerBuilder()
+        const choiceContainer = new ContainerBuilder().setAccentColor(0x7B2FBE)
             .addTextDisplayComponents(headerDisplay)
             .addSeparatorComponents(separator1)
             .addTextDisplayComponents(infoDisplay)
@@ -268,7 +268,7 @@ module.exports = {
                 const errorDisplay = new TextDisplayBuilder()
                     .setContent(`**${emoji.cross} Only ${message.author.tag} can use these buttons.**`);
 
-                const errorContainer = new ContainerBuilder()
+                const errorContainer = new ContainerBuilder().setAccentColor(0x7B2FBE)
                     .addTextDisplayComponents(errorDisplay);
 
                 return interaction.reply({
@@ -301,7 +301,7 @@ module.exports = {
         });
 
         choiceCollector.on("end", () => {
-            const finalContainer = new ContainerBuilder()
+            const finalContainer = new ContainerBuilder().setAccentColor(0x7B2FBE)
                 .addTextDisplayComponents(headerDisplay)
                 .addSeparatorComponents(separator1)
                 .addTextDisplayComponents(infoDisplay);
@@ -348,7 +348,7 @@ async function showStaticLyrics(client, message, track, lyrics, source, authorId
 
         const separator3 = new SeparatorBuilder();
 
-        const container = new ContainerBuilder()
+        const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
             .addTextDisplayComponents(headerDisplay)
             .addSeparatorComponents(separator1)
             .addTextDisplayComponents(lyricsDisplay)
@@ -372,7 +372,7 @@ async function showStaticLyrics(client, message, track, lyrics, source, authorId
             const errorDisplay = new TextDisplayBuilder()
                 .setContent(`**${emoji.cross} Only the command user can use these buttons.**`);
 
-            const errorContainer = new ContainerBuilder()
+            const errorContainer = new ContainerBuilder().setAccentColor(0x7B2FBE)
                 .addTextDisplayComponents(errorDisplay);
 
             return interaction.reply({
@@ -408,7 +408,7 @@ async function showStaticLyrics(client, message, track, lyrics, source, authorId
         const lyricsDisplay = new TextDisplayBuilder()
             .setContent(pages[currentPage]);
 
-        const finalContainer = new ContainerBuilder()
+        const finalContainer = new ContainerBuilder().setAccentColor(0x7B2FBE)
             .addTextDisplayComponents(headerDisplay)
             .addSeparatorComponents(separator)
             .addTextDisplayComponents(lyricsDisplay);
@@ -492,7 +492,7 @@ async function showLiveSyncLyrics(client, message, track, syncedLines, player, s
 
                 const separator3 = new SeparatorBuilder();
 
-                const container = new ContainerBuilder()
+                const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
                     .addTextDisplayComponents(headerDisplay)
                     .addSeparatorComponents(separator1)
                     .addTextDisplayComponents(progressDisplay)
@@ -527,7 +527,7 @@ async function showLiveSyncLyrics(client, message, track, syncedLines, player, s
             const errorDisplay = new TextDisplayBuilder()
                 .setContent(`**${emoji.cross} Only the command user can use these buttons.**`);
 
-            const errorContainer = new ContainerBuilder()
+            const errorContainer = new ContainerBuilder().setAccentColor(0x7B2FBE)
                 .addTextDisplayComponents(errorDisplay);
 
             return interaction.reply({

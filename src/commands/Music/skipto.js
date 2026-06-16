@@ -33,7 +33,7 @@ module.exports = {
     const player = client.manager.players.get(interaction.guild.id);
     if (!player.queue.current) {
       const errorDisplay = new TextDisplayBuilder().setContent(`**${emoji.cross} Play a song first!**`);
-      const container = new ContainerBuilder().addTextDisplayComponents(errorDisplay);
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(errorDisplay);
       return interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
     }
 
@@ -41,7 +41,7 @@ module.exports = {
     if (position < 1 || position > player.queue.length) {
       const warnDisplay = new TextDisplayBuilder()
         .setContent(`**${emoji.warn} Please provide a valid position**\n**Valid range** \`:\` \`1-${player.queue.length}\``);
-      const container = new ContainerBuilder().addTextDisplayComponents(warnDisplay);
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(warnDisplay);
       return interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
     }
 
@@ -51,7 +51,7 @@ module.exports = {
     await player.skip();
 
     const successDisplay = new TextDisplayBuilder().setContent(`**${emoji.check} Skipped to \`${targetSong.title}\`**`);
-    const container = new ContainerBuilder().addTextDisplayComponents(successDisplay);
+    const container = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(successDisplay);
     return interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
   },
 
@@ -62,7 +62,7 @@ module.exports = {
       const errorDisplay = new TextDisplayBuilder()
         .setContent(`**${emoji.cross} Play a song first!**`);
 
-      const container = new ContainerBuilder()
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(errorDisplay);
 
       return message.channel.send({
@@ -80,7 +80,7 @@ module.exports = {
           `**Valid range** \`:\` \`1-${player.queue.length}\``
         );
 
-      const container = new ContainerBuilder()
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(warnDisplay);
 
       return message.reply({
@@ -97,7 +97,7 @@ module.exports = {
       const errorDisplay = new TextDisplayBuilder()
         .setContent(`**${emoji.cross} Could not find song at position \`${position}\`**`);
 
-      const container = new ContainerBuilder()
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(errorDisplay);
 
       return message.reply({
@@ -115,7 +115,7 @@ module.exports = {
     const successDisplay = new TextDisplayBuilder()
       .setContent(`**${emoji.check} Skipped to \`${targetSong.title}\`**`);
 
-    const container = new ContainerBuilder()
+    const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
       .addTextDisplayComponents(successDisplay);
 
     return message.reply({

@@ -1,14 +1,20 @@
-const { EmbedBuilder } = require("discord.js");
-const emoji = require("../../emojis");
+'use strict';
+const {
+  ContainerBuilder,
+  TextDisplayBuilder,
+  SeparatorBuilder,
+  MessageFlags,
+} = require('discord.js');
+const emoji = require('../../emojis');
 
 module.exports = {
-  name: "clear",
-  aliases: ["cq", "clear"],
-  category: "Music",
+  name: 'clear',
+  aliases: ['cq'],
+  category: 'Music',
   cooldown: 3,
-  description: "Removes all songs in the music queue.",
+  description: 'Removes all songs in the music queue.',
   args: false,
-  usage: "",
+  usage: '',
   userPerms: [],
   owner: false,
   player: true,
@@ -24,41 +30,48 @@ module.exports = {
       member: interaction.member,
       createdTimestamp: interaction.createdTimestamp,
       reply: async (options) => {
-        if (interaction.deferred) {
-          return await interaction.editReply(options);
-        } else if (interaction.replied) {
-          return await interaction.followUp(options);
-        } else {
-          return await interaction.reply(options);
-        }
+        if (interaction.deferred) return interaction.editReply(options);
+        else if (interaction.replied) return interaction.followUp(options);
+        else return interaction.reply(options);
       },
     };
-
-    const args = [];
-    if (interaction.options) {
-      const options = interaction.options.data;
-      for (const option of options) {
-        if (option.value !== undefined) {
-          args.push(option.value.toString());
-        }
-      }
-    }
-
-    const prefix = client.prefix;
-    return this.execute(interactionWrapper, args, client, prefix);
+    return this.execute(interactionWrapper, [], client);
   },
 
-  async execute(message, args, client, prefix) {
+  async execute(message, args, client) {
     const player = client.manager.players.get(message.guild.id);
+
     if (!player.queue.current) {
-      return message.channel.send({
-        embeds: [new client.embed().d(`-# **Play a song first.**`)],
+      return message.reply({
+        components: [
+          new ContainerBuilder()
+            .setAccentColor(0x7B2FBE)
+            .addTextDisplayComponents(
+              new TextDisplayBuilder().setContent(`**${emoji.warn} Nothing is playing right now.**`)
+            ),
+        ],
+        flags: MessageFlags.IsComponentsV2,
       });
     }
+
+    const count = player.queue.size;
     player.queue.clear();
-    const thing = new client.embed().d(
-      `-# **${emoji.check} Removed all songs from the queue.**`,
-    );
-    return message.reply({ embeds: [thing] });
+
+    return message.reply({
+      components: [
+        new ContainerBuilder()
+          .setAccentColor(0x7B2FBE)
+          .addTextDisplayComponents(
+            new TextDisplayBuilder().setContent(`### ${emoji.clear} Queue Cleared`)
+          )
+          .addSeparatorComponents(new SeparatorBuilder().setDivider(true))
+          .addTextDisplayComponents(
+            new TextDisplayBuilder().setContent(
+              `Removed **${count}** track${count !== 1 ? 's' : ''} from the queue.`
+            )
+          ),
+      ],
+      flags: MessageFlags.IsComponentsV2,
+    });
   },
 };

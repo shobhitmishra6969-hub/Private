@@ -65,7 +65,7 @@ module.exports = {
       const infoDisplay = new TextDisplayBuilder()
         .setContent(`**${emoji.info} Provide a new prefix.**`);
 
-      const container = new ContainerBuilder()
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(infoDisplay);
 
       return message.reply({
@@ -78,7 +78,7 @@ module.exports = {
       const warnDisplay = new TextDisplayBuilder()
         .setContent(`**${emoji.warn} Prefix can't exceed 3 characters.**`);
 
-      const container = new ContainerBuilder()
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(warnDisplay);
 
       return message.reply({
@@ -100,7 +100,7 @@ module.exports = {
         const errorDisplay = new TextDisplayBuilder()
           .setContent(`**${emoji.cross} An error occurred while saving the prefix:**\n\`\`\`\n${err.message}\`\`\`\n\n**Note:** If you see a duplicate key error, please contact the bot administrator to clean the database.`);
 
-        const container = new ContainerBuilder()
+        const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
           .addTextDisplayComponents(errorDisplay);
 
         return message.reply({
@@ -119,7 +119,7 @@ module.exports = {
         const errorDisplay = new TextDisplayBuilder()
           .setContent(`**${emoji.cross} An error occurred while updating the prefix:**\n\`\`\`\n${err.message}\`\`\``);
 
-        const container = new ContainerBuilder()
+        const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
           .addTextDisplayComponents(errorDisplay);
 
         return message.reply({
@@ -132,7 +132,7 @@ module.exports = {
     const successDisplay = new TextDisplayBuilder()
       .setContent(`**${emoji.check} Prefix updated to \`${newPrefix}\`**`);
 
-    const container = new ContainerBuilder()
+    const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
       .addTextDisplayComponents(successDisplay);
 
     return message.reply({

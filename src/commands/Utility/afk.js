@@ -104,7 +104,7 @@ module.exports = {
         .setStyle(ButtonStyle.Danger),
     );
 
-    const container = new ContainerBuilder()
+    const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
       .addTextDisplayComponents(header)
       .addSeparatorComponents(sep1)
       .addTextDisplayComponents(infoText)
@@ -167,7 +167,7 @@ module.exports = {
           .setStyle(ButtonStyle.Danger),
       );
 
-      const container = new ContainerBuilder()
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(dmHeader)
         .addSeparatorComponents(sep)
         .addTextDisplayComponents(footer);
@@ -221,7 +221,7 @@ module.exports = {
         `-# AFK System • ${interaction.guild.name}`
       );
 
-      const container = new ContainerBuilder()
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(confirmText)
         .addSeparatorComponents(sep)
         .addTextDisplayComponents(footer);

@@ -52,7 +52,7 @@ function buildSourcePanel(current, userId) {
 
   const rows = buildSourceRows(current);
 
-  const container = new ContainerBuilder()
+  const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
     .addTextDisplayComponents(header)
     .addSeparatorComponents(sep)
     .addActionRowComponents(rows[0])
@@ -65,14 +65,14 @@ function buildSuccessPanel(srcName, srcEmoji) {
   const text = new TextDisplayBuilder()
     .setContent(`${emoji.check} Music source set to ${srcEmoji} **${srcName}**`);
 
-  return new ContainerBuilder().addTextDisplayComponents(text);
+  return new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(text);
 }
 
 function buildErrorPanel(msg) {
   const text = new TextDisplayBuilder()
     .setContent(`${emoji.cross} ${msg}`);
 
-  return new ContainerBuilder().addTextDisplayComponents(text);
+  return new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(text);
 }
 
 async function getCurrentSource(userId) {

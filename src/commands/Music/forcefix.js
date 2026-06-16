@@ -68,7 +68,7 @@ module.exports = {
             const infoDisplay = new TextDisplayBuilder()
                 .setContent(`You need to be in a voice channel to use this command.`);
 
-            const container = new ContainerBuilder()
+            const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
                 .addTextDisplayComponents(display)
                 .addSeparatorComponents(separator)
                 .addTextDisplayComponents(infoDisplay);
@@ -118,7 +118,7 @@ async function sendResult(message, client, type, error) {
     const footerDisplay = new TextDisplayBuilder()
         .setContent(footerContent);
 
-    const container = new ContainerBuilder()
+    const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(display)
         .addSeparatorComponents(separator)
         .addTextDisplayComponents(infoDisplay)

@@ -109,7 +109,7 @@ module.exports = {
       const errorDisplay = new TextDisplayBuilder()
         .setContent(`**${emoji.warn} You need to be in a voice channel first.**`);
 
-      const container = new ContainerBuilder()
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(errorDisplay);
 
       return interaction.editReply({
@@ -127,7 +127,7 @@ module.exports = {
       const errorDisplay = new TextDisplayBuilder()
         .setContent(`**${emoji.warn} I don't have enough permissions! Please give me \`CONNECT\` and \`SPEAK\`.**`);
 
-      const container = new ContainerBuilder()
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(errorDisplay);
 
       return interaction.editReply({
@@ -143,7 +143,7 @@ module.exports = {
         const errorDisplay = new TextDisplayBuilder()
           .setContent(`**${emoji.cross} The music server is currently unavailable. Please try again later.**`);
 
-        const container = new ContainerBuilder()
+        const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
           .addTextDisplayComponents(errorDisplay);
 
         return interaction.editReply({
@@ -206,7 +206,7 @@ module.exports = {
           const errorDisplay = new TextDisplayBuilder()
             .setContent(`**${emoji.warn} I'm already connected to a different voice channel.**`);
 
-          const container = new ContainerBuilder()
+          const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
             .addTextDisplayComponents(errorDisplay);
 
           return interaction.editReply({
@@ -258,7 +258,7 @@ module.exports = {
         const errorDisplay = new TextDisplayBuilder()
           .setContent(`**${emoji.cross} No results found for "${query}"**`);
 
-        const container = new ContainerBuilder()
+        const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
           .addTextDisplayComponents(errorDisplay);
 
         return interaction.editReply({
@@ -301,7 +301,7 @@ module.exports = {
         const successDisplay = new TextDisplayBuilder()
           .setContent(`**${emoji.check} Queued \`${searchResult.tracks.length}\` tracks from \`${searchResult.playlistName}\`**`);
 
-        const container = new ContainerBuilder()
+        const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
           .addTextDisplayComponents(successDisplay);
 
         return interaction.editReply({
@@ -371,7 +371,7 @@ module.exports = {
       const errorDisplay = new TextDisplayBuilder()
         .setContent(`**${emoji.cross} ${errorMessage}**`);
 
-      const container = new ContainerBuilder()
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(errorDisplay);
 
       try {
@@ -441,7 +441,7 @@ module.exports = {
           `**${emoji.dot} Example** \`:\` \`${prefix}play imagine dragons believer\``
         );
 
-      const container = new ContainerBuilder()
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(usageDisplay);
 
       return message.channel.send({
@@ -455,7 +455,7 @@ module.exports = {
       const errorDisplay = new TextDisplayBuilder()
         .setContent(`**${emoji.warn} You need to be in a voice channel first.**`);
 
-      const container = new ContainerBuilder()
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(errorDisplay);
 
       return message.reply({
@@ -473,7 +473,7 @@ module.exports = {
       const errorDisplay = new TextDisplayBuilder()
         .setContent(`**${emoji.warn} I don't have enough permissions! Please give me \`CONNECT\` and \`SPEAK\`.**`);
 
-      const container = new ContainerBuilder()
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(errorDisplay);
 
       return message.channel.send({
@@ -491,7 +491,7 @@ module.exports = {
         const errorDisplay = new TextDisplayBuilder()
           .setContent(`**${emoji.cross} The music server is currently unavailable. Please try again later.**`);
 
-        const container = new ContainerBuilder()
+        const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
           .addTextDisplayComponents(errorDisplay);
 
         return message.reply({
@@ -574,7 +574,7 @@ module.exports = {
           const errorDisplay = new TextDisplayBuilder()
             .setContent(`**${emoji.warn} I'm already connected to a different voice channel.**`);
 
-          const container = new ContainerBuilder()
+          const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
             .addTextDisplayComponents(errorDisplay);
 
           return message.reply({
@@ -618,7 +618,7 @@ module.exports = {
                   const infoDisplay = new TextDisplayBuilder()
                     .setContent(`**${emoji.info} Your preferred source encountered an error, searching YouTube instead...**`);
 
-                  const container = new ContainerBuilder()
+                  const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
                     .addTextDisplayComponents(infoDisplay);
 
                   await message.channel.send({
@@ -649,7 +649,7 @@ module.exports = {
               const infoDisplay = new TextDisplayBuilder()
                 .setContent(`**${emoji.info} No results found with your preferred source, searching YouTube instead...**`);
 
-              const container = new ContainerBuilder()
+              const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
                 .addTextDisplayComponents(infoDisplay);
 
               await message.channel.send({
@@ -666,7 +666,7 @@ module.exports = {
           const errorDisplay = new TextDisplayBuilder()
             .setContent(`**${emoji.cross} No result was found**`);
 
-          const container = new ContainerBuilder()
+          const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
             .addTextDisplayComponents(errorDisplay);
 
           try {
@@ -701,7 +701,7 @@ module.exports = {
         const errorDisplay = new TextDisplayBuilder()
           .setContent(`**${emoji.cross} No tracks could be processed**`);
 
-        const container = new ContainerBuilder()
+        const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
           .addTextDisplayComponents(errorDisplay);
 
         try {
@@ -752,7 +752,7 @@ module.exports = {
         const successDisplay = new TextDisplayBuilder()
           .setContent(`**${emoji.check} Queued \`${addedTracks.length}\` tracks from \`${searchResult.playlistName}\`**`);
 
-        const container = new ContainerBuilder()
+        const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
           .addTextDisplayComponents(successDisplay);
 
         try {
@@ -801,7 +801,7 @@ module.exports = {
       const errorDisplay = new TextDisplayBuilder()
         .setContent(`**${emoji.cross} ${errorMessage}**`);
 
-      const container = new ContainerBuilder()
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(errorDisplay);
 
       try {
@@ -865,7 +865,7 @@ function buildInlineQueue(player, page) {
 
   const footer = `\nPage \`${safePage + 1}/${totalPages}\` • \`${total}\` track${total !== 1 ? 's' : ''} in queue`;
 
-  const container = new ContainerBuilder().addTextDisplayComponents(
+  const container = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(
     new TextDisplayBuilder().setContent(
       nowLine +
       (lines.length > 0 ? `**Upcoming**\n${lines.join('\n')}` : '*No upcoming tracks.*') +
@@ -928,7 +928,7 @@ async function sendTrackAdded({ guildId, requester, track, position, player, rep
     const thumb = getCleanThumb(track.thumbnail || track.artworkUrl);
     if (thumb) section.setThumbnailAccessory((t) => t.setURL(thumb));
 
-    const container = new ContainerBuilder().addSectionComponents(section);
+    const container = new ContainerBuilder().setAccentColor(0x7B2FBE).addSectionComponents(section);
 
     if (withButtons) {
       container
@@ -985,7 +985,7 @@ async function sendTrackAdded({ guildId, requester, track, position, player, rep
     const idx = player.queue.findIndex((t) => t.identifier === identifier);
 
     const done = (text) =>
-      new ContainerBuilder().addTextDisplayComponents(
+      new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(
         new TextDisplayBuilder().setContent(text)
       );
 

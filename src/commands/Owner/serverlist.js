@@ -32,7 +32,7 @@ module.exports = {
       const infoDisplay = new TextDisplayBuilder()
         .setContent(`**${emoji.info} No servers found.**`);
 
-      const container = new ContainerBuilder()
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(infoDisplay);
 
       return interaction.reply({
@@ -62,7 +62,7 @@ module.exports = {
       const listDisplay = new TextDisplayBuilder()
         .setContent(serverList.join('\n'));
 
-      return new ContainerBuilder()
+      return new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(headerDisplay)
         .addSeparatorComponents(separator)
         .addTextDisplayComponents(listDisplay);
@@ -105,7 +105,7 @@ module.exports = {
           const errorDisplay = new TextDisplayBuilder()
             .setContent(`**${emoji.cross} Only ${interaction.user.tag} can use this button.**`);
 
-          const errorContainer = new ContainerBuilder()
+          const errorContainer = new ContainerBuilder().setAccentColor(0x7B2FBE)
             .addTextDisplayComponents(errorDisplay);
 
           i.reply({
@@ -158,7 +158,7 @@ module.exports = {
       const infoDisplay = new TextDisplayBuilder()
         .setContent(`**${emoji.info} No servers found.**`);
 
-      const container = new ContainerBuilder()
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(infoDisplay);
 
       return message.reply({
@@ -188,7 +188,7 @@ module.exports = {
       const listDisplay = new TextDisplayBuilder()
         .setContent(serverList.join('\n'));
 
-      return new ContainerBuilder()
+      return new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(headerDisplay)
         .addSeparatorComponents(separator)
         .addTextDisplayComponents(listDisplay);
@@ -231,7 +231,7 @@ module.exports = {
           const errorDisplay = new TextDisplayBuilder()
             .setContent(`**${emoji.cross} Only ${message.author.tag} can use this button.**`);
 
-          const errorContainer = new ContainerBuilder()
+          const errorContainer = new ContainerBuilder().setAccentColor(0x7B2FBE)
             .addTextDisplayComponents(errorDisplay);
 
           i.reply({

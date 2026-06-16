@@ -1,68 +1,69 @@
-const { EmbedBuilder } = require('discord.js');
+'use strict';
+const {
+  ContainerBuilder,
+  TextDisplayBuilder,
+  SeparatorBuilder,
+  MessageFlags,
+} = require('discord.js');
 const { getDb } = require('../../database/index');
-const config = require('../../config.js');
+const emoji = require('../../emojis.js');
+
+function latencyBar(ms) {
+  if (ms <= 80)  return '🟢';
+  if (ms <= 200) return '🟡';
+  return '🔴';
+}
 
 module.exports = {
-    name: 'ping',
-    aliases: ['latency', 'pong'],
-    description: "Displays the bot's various latencies.",
-    category: 'Information',
-    slashOptions: [],
+  name: 'ping',
+  aliases: ['latency', 'pong'],
+  description: "Displays the bot's various latencies.",
+  category: 'Information',
+  slashOptions: [],
 
-    async slashExecute(interaction, client) {
-        const interactionWrapper = {
-            guild: interaction.guild,
-            channel: interaction.channel,
-            author: interaction.user,
-            member: interaction.member,
-            createdTimestamp: interaction.createdTimestamp,
-            reply: async (options) => {
-                if (interaction.deferred) {
-                    return await interaction.editReply(options);
-                } else if (interaction.replied) {
-                    return await interaction.followUp(options);
-                } else {
-                    return await interaction.reply(options);
-                }
-            },
-        };
+  async slashExecute(interaction, client) {
+    await interaction.deferReply();
+    const result = await this._build(client);
+    return interaction.editReply(result);
+  },
 
-        const args = [];
-        if (interaction.options) {
-            for (const option of interaction.options.data) {
-                if (option.value !== undefined) args.push(option.value.toString());
-            }
-        }
+  async execute(message, args, client) {
+    const result = await this._build(client);
+    return message.reply(result);
+  },
 
-        return this.execute(interactionWrapper, args, client);
-    },
+  async _build(client) {
+    const t0 = Date.now();
+    const ws  = client.ws.ping;
 
-    async execute(message, args, client) {
-        const startTime = Date.now();
-        const wsLatency = client.ws.ping;
+    const db = await (async () => {
+      try {
+        const s = Date.now();
+        getDb().prepare('SELECT 1').get();
+        return Date.now() - s;
+      } catch { return 0; }
+    })();
 
-        const dbLatency = await (async () => {
-            try {
-                const start = Date.now();
-                getDb().prepare('SELECT 1').get();
-                return Date.now() - start;
-            } catch { return 0; }
-        })();
+    const bot = Date.now() - t0;
 
-        const botPing = Date.now() - startTime;
+    const body =
+      `${latencyBar(bot)}  **Bot** — \`${bot}ms\`\n` +
+      `${latencyBar(db)}  **Database** — \`${db}ms\`\n` +
+      `${latencyBar(ws)}  **WebSocket** — \`${ws}ms\``;
 
-        const pad = (label) => label.padEnd(10, ' ');
-
-        const embed = new EmbedBuilder()
-            .setTitle('Latency')
-            .setDescription(
-                `\`${pad('Bot Ping')}-  ${botPing}ms\`\n` +
-                `\`${pad('Database')}-  ${dbLatency}ms\`\n` +
-                `\`${pad('WebSocket')}-  ${wsLatency}ms\``
-            )
-            .setColor(config.color || '#7B2FBE')
-            .setFooter({ text: config.links?.power || `Powered By ${client.user.username}` });
-
-        return message.reply({ embeds: [embed] });
-    },
+    return {
+      components: [
+        new ContainerBuilder()
+          .setAccentColor(0x7B2FBE)
+          .addTextDisplayComponents(
+            new TextDisplayBuilder().setContent(`### ${emoji.ping} Latency`)
+          )
+          .addSeparatorComponents(new SeparatorBuilder().setDivider(true))
+          .addTextDisplayComponents(
+            new TextDisplayBuilder().setContent(body)
+          ),
+      ],
+      flags: MessageFlags.IsComponentsV2,
+    };
+  },
 };

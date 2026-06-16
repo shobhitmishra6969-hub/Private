@@ -62,7 +62,7 @@ module.exports = {
       const errorDisplay = new TextDisplayBuilder()
         .setContent(`**${emoji.cross} I'm not in any voice channel!**`);
 
-      const container = new ContainerBuilder()
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(errorDisplay);
 
       return message.channel.send({
@@ -86,7 +86,7 @@ module.exports = {
           `**${emoji.info} 247 mode is active - I'll rejoin automatically.**`
         );
 
-      const container = new ContainerBuilder()
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(successDisplay);
 
       return message.reply({
@@ -103,7 +103,7 @@ module.exports = {
     const successDisplay = new TextDisplayBuilder()
       .setContent(`**${emoji.check} Left the voice channel.**`);
 
-    const container = new ContainerBuilder()
+    const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
       .addTextDisplayComponents(successDisplay);
 
     return message.reply({

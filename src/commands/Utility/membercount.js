@@ -85,7 +85,7 @@ module.exports = {
 
 
 
-        const container = new ContainerBuilder()
+        const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
             .addTextDisplayComponents(header)
             .addSeparatorComponents(separator1)
             .addTextDisplayComponents(statsContent);

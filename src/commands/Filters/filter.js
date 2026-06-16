@@ -51,7 +51,7 @@ function buildFilterContainer(currentFilter) {
         rows.push(row);
     }
 
-    const container = new ContainerBuilder()
+    const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(
             new TextDisplayBuilder().setContent(
                 `**${emoji.info} Current Filter :** \`${currentFilter || "None"}\``
@@ -123,7 +123,7 @@ module.exports = {
         const player = client.manager.players.get(message.guild.id);
 
         if (!player.queue.current) {
-            const container = new ContainerBuilder().addTextDisplayComponents(
+            const container = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(
                 new TextDisplayBuilder().setContent(`**${emoji.warn} There is no song currently playing.**`)
             );
             return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
@@ -139,7 +139,7 @@ module.exports = {
         const collector = msg.createMessageComponentCollector({
             filter: (i) => {
                 if (i.user.id === message.author.id) return true;
-                const container = new ContainerBuilder().addTextDisplayComponents(
+                const container = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `**${emoji.warn} That's not your session. Use \`${prefix}filter\` to open your own.**`
                     )

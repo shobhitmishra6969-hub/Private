@@ -24,7 +24,7 @@ module.exports = {
             const errorDisplay = new TextDisplayBuilder()
                 .setContent(`${emoji.cross || '❌'} **Invalid server ID!**\n\nUsage: \`!emojiextract <server_id>\``);
 
-            const container = new ContainerBuilder()
+            const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
                 .addTextDisplayComponents(errorDisplay);
 
             return message.reply({
@@ -39,7 +39,7 @@ module.exports = {
             const errorDisplay = new TextDisplayBuilder()
                 .setContent(`${emoji.cross || '❌'} **Server not found!**\n\nI'm not in a server with ID: \`${targetServerId}\`\n\nMake sure the bot is in both servers.`);
 
-            const container = new ContainerBuilder()
+            const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
                 .addTextDisplayComponents(errorDisplay);
 
             return message.reply({
@@ -54,7 +54,7 @@ module.exports = {
             const errorDisplay = new TextDisplayBuilder()
                 .setContent(`${emoji.warn || '⚠️'} **No emojis found!**\n\nThe server **${targetGuild.name}** has no custom emojis.`);
 
-            const container = new ContainerBuilder()
+            const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
                 .addTextDisplayComponents(errorDisplay);
 
             return message.reply({
@@ -73,7 +73,7 @@ module.exports = {
             const errorDisplay = new TextDisplayBuilder()
                 .setContent(`${emoji.cross || '❌'} **No emoji slots available!**\n\nCurrent server has **${currentEmojis.size}/${maxEmojis}** emojis.\nDelete some emojis first.`);
 
-            const container = new ContainerBuilder()
+            const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
                 .addTextDisplayComponents(errorDisplay);
 
             return message.reply({
@@ -98,7 +98,7 @@ module.exports = {
                 `${emoji.loading || '⏳'} Starting extraction...`
             );
 
-        const container = new ContainerBuilder()
+        const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
             .addTextDisplayComponents(header)
             .addSeparatorComponents(separator)
             .addTextDisplayComponents(infoDisplay);
@@ -145,7 +145,7 @@ module.exports = {
                             `${emoji.loading || '⏳'} Extracting...`
                         );
 
-                    const progressContainer = new ContainerBuilder()
+                    const progressContainer = new ContainerBuilder().setAccentColor(0x7B2FBE)
                         .addTextDisplayComponents(header)
                         .addSeparatorComponents(separator)
                         .addTextDisplayComponents(progressDisplay);
@@ -187,7 +187,7 @@ module.exports = {
         const resultDisplay = new TextDisplayBuilder()
             .setContent(resultText);
 
-        const resultContainer = new ContainerBuilder()
+        const resultContainer = new ContainerBuilder().setAccentColor(0x7B2FBE)
             .addTextDisplayComponents(successHeader)
             .addSeparatorComponents(successSeparator)
             .addTextDisplayComponents(resultDisplay);

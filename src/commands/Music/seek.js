@@ -36,7 +36,7 @@ module.exports = {
     const player = client.manager.players.get(interaction.guild.id);
     if (!player.queue.current) {
       const errorDisplay = new TextDisplayBuilder().setContent(`**${emoji.warn} Play a song first.**`);
-      const container = new ContainerBuilder().addTextDisplayComponents(errorDisplay);
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(errorDisplay);
       return interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
     }
 
@@ -57,7 +57,7 @@ module.exports = {
 
     if (!time || isNaN(time)) {
       const errorDisplay = new TextDisplayBuilder().setContent(`**${emoji.warn} Invalid time format. Examples: \`40\`, \`1:30\`, \`10s\`, \`1m\`**`);
-      const container = new ContainerBuilder().addTextDisplayComponents(errorDisplay);
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(errorDisplay);
       return interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
     }
 
@@ -73,12 +73,12 @@ module.exports = {
           `**${emoji.check} ${action}** \`:\` [${song.title}](${song.uri})\n` +
           `**Position** \`:\` \`${convertTime(time)} / ${convertTime(duration)}\``
         );
-      const container = new ContainerBuilder().addTextDisplayComponents(successDisplay);
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(successDisplay);
       return interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
     } else {
       const warnDisplay = new TextDisplayBuilder()
         .setContent(`**${emoji.warn} Seek duration exceeds song duration**\n**Song duration** \`:\` \`${convertTime(duration)}\``);
-      const container = new ContainerBuilder().addTextDisplayComponents(warnDisplay);
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(warnDisplay);
       return interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
     }
   },
@@ -90,7 +90,7 @@ module.exports = {
       const errorDisplay = new TextDisplayBuilder()
         .setContent(`**${emoji.warn} Play a song first.**`);
 
-      const container = new ContainerBuilder()
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(errorDisplay);
 
       return message.channel.send({
@@ -118,7 +118,7 @@ module.exports = {
       const errorDisplay = new TextDisplayBuilder()
         .setContent(`**${emoji.warn} Invalid time format. Examples: \`40\`, \`1:30\`, \`10s\`, \`1m\`**`);
 
-      const container = new ContainerBuilder()
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(errorDisplay);
 
       return message.channel.send({
@@ -141,7 +141,7 @@ module.exports = {
             `**Position** \`:\` \`${convertTime(time)} / ${convertTime(duration)}\``
           );
 
-        const container = new ContainerBuilder()
+        const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
           .addTextDisplayComponents(successDisplay);
 
         return message.reply({
@@ -157,7 +157,7 @@ module.exports = {
             `**Position** \`:\` \`${convertTime(time)} / ${convertTime(duration)}\``
           );
 
-        const container = new ContainerBuilder()
+        const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
           .addTextDisplayComponents(successDisplay);
 
         return message.reply({
@@ -172,7 +172,7 @@ module.exports = {
           `**Song duration** \`:\` \`${convertTime(duration)}\``
         );
 
-      const container = new ContainerBuilder()
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
         .addTextDisplayComponents(warnDisplay);
 
       return message.reply({
