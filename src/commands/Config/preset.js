@@ -4,11 +4,8 @@ const {
   ActionRowBuilder,
   StringSelectMenuBuilder,
   StringSelectMenuOptionBuilder,
-  AttachmentBuilder,
-  ComponentType,
 } = require('discord.js');
 const setup = require('../../schema/setup');
-const { generateStylePreview, PREVIEW_DATA } = require('../../utils/styleCards');
 
 const STYLES = [
   { value: 'default',   label: 'Default',      emoji: '🎵', description: 'Classic layout with progress bar' },
@@ -61,7 +58,7 @@ module.exports = {
   description: 'Set the now-playing display style for this server.',
   args: false,
   usage: '[style]',
-  userPerms: ['ManageGuild'],
+  userPerms: [],
   owner: false,
   slashOptions: [],
 
@@ -70,60 +67,9 @@ module.exports = {
     const current = await setup.findOne({ Guild: guild.id });
     const currentStyle = current?.npStyle || 'default';
 
-    const sent = await message.reply({
+    return message.reply({
       embeds: [buildPresetEmbed(currentStyle)],
       components: [buildSelectMenu(currentStyle)],
-    });
-
-    const collector = sent.createMessageComponentCollector({
-      componentType: ComponentType.StringSelect,
-      time: 60000,
-      filter: (i) => i.user.id === message.author.id,
-    });
-
-    collector.on('collect', async (interaction) => {
-      await interaction.deferUpdate();
-
-      const chosen = interaction.values[0];
-      const chosenStyle = STYLES.find(s => s.value === chosen) || STYLES[0];
-
-      // Save to DB and generate canvas preview in parallel
-      const [, previewBuf] = await Promise.all([
-        setup.findOneAndUpdate(
-          { Guild: guild.id },
-          { Guild: guild.id, npStyle: chosen, updatedAt: Date.now() },
-          { upsert: true, new: true }
-        ),
-        generateStylePreview(chosen, PREVIEW_DATA).catch(() => null),
-      ]);
-
-      const updatedEmbed = buildPresetEmbed(chosen);
-
-      const confirmEmbed = new EmbedBuilder()
-        .setDescription(`✅ Player style updated to **${chosenStyle.emoji} ${chosenStyle.label}**!\n-# Preview of how the now-playing card will look is shown below.`)
-        .setColor(0x7B2FBE);
-
-      if (previewBuf) {
-        confirmEmbed.setImage('attachment://style-preview.png');
-        await interaction.editReply({
-          embeds: [updatedEmbed, confirmEmbed],
-          components: [buildSelectMenu(chosen)],
-          files: [new AttachmentBuilder(previewBuf, { name: 'style-preview.png' })],
-        });
-      } else {
-        await interaction.editReply({
-          embeds: [updatedEmbed, confirmEmbed],
-          components: [buildSelectMenu(chosen)],
-        });
-      }
-
-      collector.stop('selected');
-    });
-
-    collector.on('end', (_, reason) => {
-      if (reason === 'time') {
-        sent.edit({ components: [] }).catch(() => {});
-      }
     });
   },
 };
