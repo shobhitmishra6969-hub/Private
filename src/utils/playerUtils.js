@@ -90,9 +90,100 @@ function isSameTrack(a, b) {
     return false;
 }
 
+// ── Platform detection ────────────────────────────────────────────────────────
+
+function detectPlatform(track) {
+    if (!track) return 'youtube';
+    const uri = (track.uri || '').toLowerCase();
+    const src = (track.sourceName || '').toLowerCase();
+
+    if (uri.includes('spotify.com') || src === 'spotify') return 'spotify';
+    if (uri.includes('soundcloud.com') || src === 'soundcloud') return 'soundcloud';
+    if (uri.includes('deezer.com') || src === 'deezer') return 'deezer';
+    if (uri.includes('music.apple.com') || src === 'applemusic') return 'applemusic';
+    if (uri.includes('jiosaavn.com') || src === 'jiosaavn') return 'jiosaavn';
+    if (uri.includes('youtube.com') || uri.includes('youtu.be') ||
+        src === 'youtube' || src === 'youtubemusic') return 'youtube';
+    return 'youtube';
+}
+
+// Returns Lavalink search engine(s) for a given platform — primary first
+function getPlatformEngines(platform) {
+    switch (platform) {
+        case 'spotify':    return ['spsearch', 'ytmsearch'];
+        case 'soundcloud': return ['scsearch', 'ytmsearch'];
+        case 'deezer':     return ['dzsearch', 'ytmsearch'];
+        case 'applemusic': return ['amsearch', 'ytmsearch'];
+        case 'jiosaavn':   return ['jssearch', 'ytmsearch'];
+        case 'youtube':
+        default:           return ['ytmsearch', 'ytsearch'];
+    }
+}
+
+// Human-readable platform label (used in NP badge)
+function getPlatformLabel(platform) {
+    switch (platform) {
+        case 'spotify':    return 'Spotify';
+        case 'soundcloud': return 'SoundCloud';
+        case 'deezer':     return 'Deezer';
+        case 'applemusic': return 'Apple Music';
+        case 'jiosaavn':   return 'JioSaavn';
+        case 'youtube':
+        default:           return 'YouTube';
+    }
+}
+
+module.exports.getPlatformLabel = getPlatformLabel;
+
+// ── Spotify Recommendations API ───────────────────────────────────────────────
+
+let _spotifyToken = null;
+let _spotifyTokenExpiresAt = 0;
+
+async function getSpotifyToken(clientId, clientSecret) {
+    if (_spotifyToken && Date.now() < _spotifyTokenExpiresAt) return _spotifyToken;
+    const res = await axios.post(
+        'https://accounts.spotify.com/api/token',
+        'grant_type=client_credentials',
+        {
+            headers: {
+                Authorization: 'Basic ' + Buffer.from(`${clientId}:${clientSecret}`).toString('base64'),
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            timeout: 6000,
+        }
+    );
+    _spotifyToken = res.data.access_token;
+    _spotifyTokenExpiresAt = Date.now() + (res.data.expires_in - 60) * 1000;
+    return _spotifyToken;
+}
+
+function extractSpotifyTrackId(uri) {
+    if (!uri) return null;
+    const http = uri.match(/spotify\.com\/track\/([a-zA-Z0-9]+)/);
+    if (http) return http[1];
+    const urn = uri.match(/spotify:track:([a-zA-Z0-9]+)/);
+    if (urn) return urn[1];
+    return null;
+}
+
+async function fetchSpotifyRecommendations(clientId, clientSecret, trackId) {
+    if (!clientId || !clientSecret || !trackId) return [];
+    try {
+        const token = await getSpotifyToken(clientId, clientSecret);
+        const res = await axios.get('https://api.spotify.com/v1/recommendations', {
+            headers: { Authorization: `Bearer ${token}` },
+            params: { seed_tracks: trackId, limit: 10, market: 'US' },
+            timeout: 6000,
+        });
+        return res.data?.tracks || [];
+    } catch (e) {
+        console.error('[Autoplay] Spotify recommendations error:', e.message);
+        return [];
+    }
+}
+
 // ── Last.fm similar-track recommendation ─────────────────────────────────────
-// Uses track.getSimilar to get songs similar to the one that just played.
-// Returns a "Artist - Title" query string, or null on failure.
 
 async function fetchLastFmSimilar(title, artist, apiKey) {
     if (!apiKey) return null;
@@ -113,7 +204,6 @@ async function fetchLastFmSimilar(title, artist, apiKey) {
         const tracks = res.data?.similartracks?.track;
         if (!tracks || !tracks.length) return null;
 
-        // Pick randomly from top 5 for variety
         const pool = tracks.slice(0, 5);
         const pick = pool[Math.floor(Math.random() * pool.length)];
         const artistName = pick.artist?.name || pick.artist || '';
@@ -149,6 +239,9 @@ async function attemptAutoplay(client, player) {
             return;
         }
 
+        // Detect the source platform of the last track
+        const platform = detectPlatform(lastTrack);
+
         // Recent-track memory — avoid repeating the last 5 autoplay picks
         const recentKey = 'recentAutoplayIds';
         const recent = player.data?.get(recentKey) || [];
@@ -171,33 +264,94 @@ async function attemptAutoplay(client, player) {
 
         let foundTrack = null;
         let isAiPick = false;
+        let autoplaySource = 'unknown';
 
-        // ── Phase 1: Last.fm getSimilar (primary AI recommendation) ─────────
-        const apiKey = client.config?.lastfmKey;
-        const lastFmQuery = await fetchLastFmSimilar(lastTrack.title, lastTrack.author, apiKey);
+        // ── Phase 1: Platform-native recommendation ───────────────────────────
+        // Spotify → Spotify API → spsearch
+        if (platform === 'spotify') {
+            const spotifyId = extractSpotifyTrackId(lastTrack.uri);
+            const clientId = client.config?.SpotifyID;
+            const clientSecret = client.config?.SpotifySecret;
 
-        if (lastFmQuery) {
-            for (const engine of ['ytmsearch', 'ytsearch', 'spsearch']) {
-                try {
-                    const res = await player.search(lastFmQuery, {
-                        engine,
-                        requester: lastTrack.requester || client.user,
-                    });
-                    const best = pickBest(res?.tracks || []);
-                    if (best) {
-                        foundTrack = best;
-                        isAiPick = true;
-                        player.data?.set('lastAutoplaySource', `lastfm→${engine}`);
-                        break;
-                    }
-                } catch { continue; }
+            if (spotifyId && clientId && clientSecret) {
+                const spTracks = await fetchSpotifyRecommendations(clientId, clientSecret, spotifyId);
+
+                for (const spTrack of spTracks) {
+                    if (!spTrack.name) continue;
+                    const query = `${spTrack.artists?.[0]?.name || ''} ${spTrack.name}`.trim();
+                    try {
+                        const res = await player.search(query, {
+                            engine: 'spsearch',
+                            requester: lastTrack.requester || client.user,
+                        });
+                        const best = pickBest(res?.tracks || []);
+                        if (best) {
+                            foundTrack = best;
+                            isAiPick = true;
+                            autoplaySource = 'spotify-recommendations';
+                            break;
+                        }
+                    } catch { continue; }
+                }
             }
         }
 
-        // ── Phase 2: Fallback — smart query derived from last track ──────────
+        // YouTube / YouTube Music → Last.fm → ytmsearch / ytsearch
+        if (!foundTrack && platform === 'youtube') {
+            const apiKey = client.config?.lastfmKey;
+            const lastFmQuery = await fetchLastFmSimilar(lastTrack.title, lastTrack.author, apiKey);
+
+            if (lastFmQuery) {
+                for (const engine of ['ytmsearch', 'ytsearch']) {
+                    try {
+                        const res = await player.search(lastFmQuery, {
+                            engine,
+                            requester: lastTrack.requester || client.user,
+                        });
+                        const best = pickBest(res?.tracks || []);
+                        if (best) {
+                            foundTrack = best;
+                            isAiPick = true;
+                            autoplaySource = `lastfm→${engine}`;
+                            break;
+                        }
+                    } catch { continue; }
+                }
+            }
+        }
+
+        // Other platforms (SoundCloud, Deezer, Apple Music, JioSaavn)
+        // → Last.fm similar track → same-platform engine first
+        if (!foundTrack && platform !== 'spotify' && platform !== 'youtube') {
+            const apiKey = client.config?.lastfmKey;
+            const lastFmQuery = await fetchLastFmSimilar(lastTrack.title, lastTrack.author, apiKey);
+
+            if (lastFmQuery) {
+                const engines = getPlatformEngines(platform);
+                for (const engine of engines) {
+                    try {
+                        const res = await player.search(lastFmQuery, {
+                            engine,
+                            requester: lastTrack.requester || client.user,
+                        });
+                        const best = pickBest(res?.tracks || []);
+                        if (best) {
+                            foundTrack = best;
+                            isAiPick = true;
+                            autoplaySource = `lastfm→${engine}`;
+                            break;
+                        }
+                    } catch { continue; }
+                }
+            }
+        }
+
+        // ── Phase 2: Smart query on same-platform engines ─────────────────────
         if (!foundTrack) {
             const smartQuery = `${lastTrack.title} ${cleanAuthor(lastTrack.author)}`.trim();
-            for (const engine of ['ytmsearch', 'ytsearch', 'spsearch', 'amsearch', 'dzsearch', 'jssearch']) {
+            const engines = getPlatformEngines(platform);
+
+            for (const engine of engines) {
                 try {
                     const res = await player.search(smartQuery, {
                         engine,
@@ -206,7 +360,26 @@ async function attemptAutoplay(client, player) {
                     const best = pickBest(res?.tracks || []);
                     if (best) {
                         foundTrack = best;
-                        player.data?.set('lastAutoplaySource', engine);
+                        autoplaySource = engine;
+                        break;
+                    }
+                } catch { continue; }
+            }
+        }
+
+        // ── Phase 3: Last resort — any available engine ───────────────────────
+        if (!foundTrack) {
+            const smartQuery = `${lastTrack.title} ${cleanAuthor(lastTrack.author)}`.trim();
+            for (const engine of ['ytmsearch', 'ytsearch', 'spsearch']) {
+                try {
+                    const res = await player.search(smartQuery, {
+                        engine,
+                        requester: lastTrack.requester || client.user,
+                    });
+                    const best = pickBest(res?.tracks || []);
+                    if (best) {
+                        foundTrack = best;
+                        autoplaySource = `fallback:${engine}`;
                         break;
                     }
                 } catch { continue; }
@@ -219,17 +392,18 @@ async function attemptAutoplay(client, player) {
             return;
         }
 
-        // Mark track so playerStart can show the AI badge
+        // Mark track so playerStart can show the platform AI badge
         if (isAiPick) {
             player.data?.set('aiRecommendedTrackId', foundTrack.identifier || foundTrack.uri);
         }
+        // Always store the platform so the NP badge can reflect it
+        player.data?.set('aiAutoplayPlatform', platform);
 
         player.queue.add(foundTrack);
         remember(foundTrack);
 
-        const source = player.data?.get('lastAutoplaySource') || 'unknown';
         client.logger?.log(
-            `[Autoplay] Queued "${foundTrack.title}" (${isAiPick ? 'AI via ' : ''}${source}) in guild ${player.guildId}`,
+            `[Autoplay] Queued "${foundTrack.title}" (${isAiPick ? 'AI via ' : ''}${autoplaySource}, platform=${platform}) in guild ${player.guildId}`,
             'log'
         );
 
@@ -241,7 +415,6 @@ async function attemptAutoplay(client, player) {
     } catch (err) {
         client.logger?.log(`[Autoplay] Unexpected error: ${err.message}`, 'error');
 
-        // Notify the text channel so users know something went wrong
         try {
             const { ContainerBuilder, TextDisplayBuilder, MessageFlags } = require('discord.js');
             const channel = client.channels.cache.get(player?.textId);
@@ -263,4 +436,13 @@ async function applyQualityFilters(player) {
     // No-op: quality filters removed so all users get clean, full-speed playback
 }
 
-module.exports = { safeDestroyPlayer, handleSessionError, recreatePlayer, attemptAutoplay, applyQualityFilters };
+module.exports = {
+    safeDestroyPlayer,
+    handleSessionError,
+    recreatePlayer,
+    attemptAutoplay,
+    applyQualityFilters,
+    detectPlatform,
+    getPlatformLabel,
+    getPlatformEngines,
+};

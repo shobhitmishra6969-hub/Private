@@ -37,9 +37,37 @@ function getCleanThumbnail(url) {
   return url;
 }
 
+// ── Platform badge helper ────────────────────────────────────────────────────────
+
+function buildAutoplayBadge(client, platform, isAiPick) {
+  const emoji = client.emoji;
+  const platformEmoji = {
+    spotify:    emoji.spotify    || '🟢',
+    soundcloud: '🔶',
+    deezer:     emoji.deezer     || '🎵',
+    applemusic: emoji.ytmusic    || '🍎',
+    jiosaavn:   emoji.jiosaavn   || '🎵',
+    youtube:    emoji.youtube    || '▶️',
+  }[platform] || (emoji.youtube || '▶️');
+
+  const platformLabel = {
+    spotify:    'Spotify',
+    soundcloud: 'SoundCloud',
+    deezer:     'Deezer',
+    applemusic: 'Apple Music',
+    jiosaavn:   'JioSaavn',
+    youtube:    'YouTube',
+  }[platform] || 'YouTube';
+
+  if (isAiPick) {
+    return `🤖 **AI Recommendation** via ${platformEmoji} ${platformLabel}\n`;
+  }
+  return `${platformEmoji} **Autoplay** via ${platformLabel}\n`;
+}
+
 // ── Default style (V2 Components) ───────────────────────────────────────────────
 
-function buildDefaultContainer(client, player, track, isPaused = false, buttonsEnabled = true, isAiTrack = false) {
+function buildDefaultContainer(client, player, track, isPaused = false, buttonsEnabled = true, isAiTrack = false, autoplayPlatform = null) {
   const artist = cleanAuthorName(track.author);
   const duration = formatMSS(track.length);
   const thumbnail = getCleanThumbnail(track.thumbnail || track.artworkUrl);
@@ -51,7 +79,9 @@ function buildDefaultContainer(client, player, track, isPaused = false, buttonsE
       ? `\nRequested by **${track.requester.username}**`
       : "";
 
-  const aiPrefix = isAiTrack ? `🤖 **Now Playing (AI Recommendation)**\n` : '';
+  const aiPrefix = (isAiTrack && autoplayPlatform)
+    ? buildAutoplayBadge(client, autoplayPlatform, true)
+    : '';
   const headerText = `${aiPrefix}🎵 Playing **[${track.title}](${track.uri})** by **[${artist}](${track.uri})**${requesterLine}`;
 
   const section = new SectionBuilder()
@@ -224,6 +254,10 @@ module.exports = {
       const isAiTrack = Boolean(aiId && (aiId === track.identifier || aiId === track.uri));
       if (isAiTrack) player.data?.delete("aiRecommendedTrackId");
 
+      // Read which platform the autoplay recommendation came from
+      const autoplayPlatform = player.data?.get("aiAutoplayPlatform") || null;
+      player.data?.delete("aiAutoplayPlatform");
+
       try {
         if (track.requester?.id) {
           const UserHistory = require("../../schema/userhistory");
@@ -263,7 +297,7 @@ module.exports = {
           components: buttonsEnabled ? components : [],
         });
       } else {
-        const container = buildDefaultContainer(client, player, track, false, buttonsEnabled, isAiTrack);
+        const container = buildDefaultContainer(client, player, track, false, buttonsEnabled, isAiTrack, autoplayPlatform);
         message = await channel.send({
           components: [container],
           flags: MessageFlags.IsComponentsV2,
