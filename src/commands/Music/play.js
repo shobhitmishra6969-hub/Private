@@ -964,6 +964,13 @@ async function sendTrackAdded({ guildId, requester, track, position, player, rep
   const collector = msg.createMessageComponentCollector({ time: 300000 });
 
   collector.on('collect', async (i) => {
+    if (i.user.id !== requester.id) {
+      return i.reply({
+        content: '❌ You cannot use these buttons. Only the person who requested the song can control this menu.',
+        ephemeral: true,
+      });
+    }
+
     const voiceCh = i.member?.voice?.channel;
     if (!voiceCh || voiceCh.id !== player.voiceId) {
       return i.reply({ content: '**You must be in my voice channel to use this.**', ephemeral: true });

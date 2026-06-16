@@ -493,6 +493,15 @@ module.exports = {
       // Handle Now Playing Buttons
       const player = client.manager.players.get(interaction.guildId);
       if (player && player.data.get("nowPlayingMessage")?.id === interaction.message.id) {
+        const currentTrack = player.queue.current;
+        const trackRequester = currentTrack?.requester;
+        if (trackRequester && interaction.user.id !== trackRequester.id) {
+          return interaction.reply({
+            content: '❌ You cannot use these buttons. Only the person who requested the song can control this menu.',
+            ephemeral: true,
+          });
+        }
+
         if (!interaction.member.voice.channel || interaction.member.voice.channel.id !== player.voiceId) {
           return interaction.reply({ content: `**${client.emoji.warn} You must be in my voice channel to use these buttons.**`, ephemeral: true });
         }
