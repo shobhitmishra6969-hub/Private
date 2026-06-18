@@ -994,51 +994,50 @@ module.exports = {
       }
 
       if (interaction.customId === "preset_style_select") {
-        await interaction.deferUpdate().catch(() => {});
-
         const chosen = interaction.values[0];
 
-        const STYLES = [
+        const PRESET_STYLES = [
           { value: 'default',   label: 'Default',    emoji: '🎵', description: 'Classic layout with progress bar' },
           { value: 'basic',     label: 'Basic',       emoji: '✨', description: 'Simple and clean design' },
           { value: 'detailed',  label: 'Detailed',    emoji: '📋', description: 'Extended track information' },
           { value: 'dynamic',   label: 'Dynamic',     emoji: '⚡', description: 'Interactive with queue preview' },
           { value: 'aesthetic', label: 'Aesthetic',   emoji: '🌸', description: 'Visually enhanced layout' },
-          { value: 'midnight',  label: 'Midnight',    emoji: '🌙', description: 'Dark console layout with tight stats' },
+          { value: 'midnight',  label: 'Midnight',    emoji: '🌙', description: 'Dark console layout' },
           { value: 'gallery',   label: 'Gallery',     emoji: '🖼️', description: 'Artwork-first cover showcase' },
           { value: 'broadcast', label: 'Broadcast',   emoji: '📻', description: 'Clean live-radio style card' },
           { value: 'luxe',      label: 'Luxe',        emoji: '💎', description: 'Compact gold-accent premium style' },
           { value: 'card',      label: 'Canvas Luxe', emoji: '🎨', description: 'Full PNG canvas now-playing card' },
         ];
 
-        const chosenStyle = STYLES.find(s => s.value === chosen) || STYLES[0];
+        const chosenStyle = PRESET_STYLES.find(s => s.value === chosen) || PRESET_STYLES[0];
 
         try {
           const { EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, AttachmentBuilder } = require('discord.js');
           const setupSchema = require('../../schema/setup');
           const { generateStylePreview, PREVIEW_DATA } = require('../../utils/styleCards');
 
+          // Acknowledge immediately so Discord doesn't time out
+          await interaction.deferUpdate().catch(() => {});
+
+          // Save to DB and generate canvas preview in parallel
           const [, previewBuf] = await Promise.all([
             setupSchema.findOneAndUpdate(
               { Guild: interaction.guildId },
               { Guild: interaction.guildId, npStyle: chosen, updatedAt: Date.now() },
               { upsert: true, new: true }
-            ),
+            ).catch(() => null),
             generateStylePreview(chosen, PREVIEW_DATA).catch(() => null),
           ]);
 
-          const styleList = STYLES.map(s => `• **${s.label}** — ${s.description}`).join('\n');
+          const styleList = PRESET_STYLES.map(s => `• **${s.label}** — ${s.description}`).join('\n');
+
           const updatedEmbed = new EmbedBuilder()
             .setTitle('Player Style Configuration')
             .setDescription(
               `Select a style for the music player from the dropdown below.\n\n` +
-              `**Current Style: ${chosenStyle.label}**\n` +
+              `**Current Style: ${chosenStyle.emoji} ${chosenStyle.label}**\n\n` +
               `**Available Styles:**\n${styleList}`
             )
-            .setColor(0x2b2d31);
-
-          const confirmEmbed = new EmbedBuilder()
-            .setDescription(`✅ Player style updated to **${chosenStyle.emoji} ${chosenStyle.label}**!\n-# Preview of how the now-playing card will look is shown below.`)
             .setColor(0x7B2FBE);
 
           const selectMenu = new ActionRowBuilder().addComponents(
@@ -1046,7 +1045,7 @@ module.exports = {
               .setCustomId('preset_style_select')
               .setPlaceholder('Select a player style...')
               .addOptions(
-                STYLES.map(s =>
+                PRESET_STYLES.map(s =>
                   new StringSelectMenuOptionBuilder()
                     .setLabel(s.label)
                     .setValue(s.value)
@@ -1057,23 +1056,30 @@ module.exports = {
               )
           );
 
+          // Use message.edit() directly — more reliable than editReply() for prefix-command messages
           if (previewBuf) {
-            confirmEmbed.setImage('attachment://style-preview.png');
-            await interaction.editReply({
-              embeds: [updatedEmbed, confirmEmbed],
+            updatedEmbed.setImage('attachment://style-preview.png');
+            await interaction.message.edit({
+              embeds: [updatedEmbed],
               components: [selectMenu],
               files: [new AttachmentBuilder(previewBuf, { name: 'style-preview.png' })],
-            }).catch(() => {});
+            });
           } else {
-            await interaction.editReply({
-              embeds: [updatedEmbed, confirmEmbed],
+            await interaction.message.edit({
+              embeds: [updatedEmbed],
               components: [selectMenu],
-            }).catch(() => {});
+            });
           }
+
+          await interaction.followUp({
+            content: `✅ Player style set to **${chosenStyle.emoji} ${chosenStyle.label}**!`,
+            ephemeral: true,
+          }).catch(() => {});
+
         } catch (err) {
           client.logger?.log(`[preset_style_select] Error: ${err.stack}`, 'error');
           await interaction.followUp({
-            content: `**${client.emoji?.cross || '❌'} Failed to update style. Please try again.**`,
+            content: `**❌ Failed to update style. Please try again.**`,
             ephemeral: true,
           }).catch(() => {});
         }
