@@ -38,7 +38,7 @@ const VIBE_PLAYLISTS = [
 function buildInfoEmbed(client, prefix) {
   const imageUrl = client.config?.links?.BG || null;
   const embed = new EmbedBuilder()
-    .setColor(0x00D4FF)
+    .setColor(0x7B2FBE)
     .setTitle('🎵 Tone Vibes')
     .setDescription(
       `Tone Vibes is the easiest way to listen to music with your friends on Discord.\n` +
@@ -97,7 +97,7 @@ function buildVcPromptEmbed(client, vcNames) {
     ? vcNames.map(n => `• 🔊 ${n}`).join('\n')
     : '• No accessible voice channels found';
   return new EmbedBuilder()
-    .setColor(0x00D4FF)
+    .setColor(0x7B2FBE)
     .setTitle('Welcome to Tone Vibes')
     .setDescription("The best way to listen to music on Discord, let's get started")
     .addFields({
@@ -122,7 +122,7 @@ function buildVcPromptRow() {
 
 function buildVibeSelectEmbed(client, voiceChannelName) {
   return new EmbedBuilder()
-    .setColor(0x00D4FF)
+    .setColor(0x7B2FBE)
     .setTitle('Welcome to Tone Vibes')
     .setDescription(`Connected to: 🔊 **${voiceChannelName}**`)
     .addFields({ name: 'Choose your vibe', value: 'Select a genre to start playing music:' })
