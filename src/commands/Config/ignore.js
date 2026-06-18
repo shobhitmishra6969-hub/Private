@@ -1,270 +1,133 @@
+'use strict';
 const {
   PermissionsBitField,
   ContainerBuilder,
   TextDisplayBuilder,
   SeparatorBuilder,
-  MessageFlags
-} = require("discord.js");
-const IgnoreChannelModel = require("../../schema/ignorechannel");
-const emoji = require("../../emojis");
+  ActionRowBuilder,
+  ChannelSelectMenuBuilder,
+  StringSelectMenuBuilder,
+  StringSelectMenuOptionBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  ChannelType,
+  MessageFlags,
+} = require('discord.js');
+const IgnoreChannelModel = require('../../schema/ignorechannel');
+const emoji = require('../../emojis');
+
+async function buildPanel(guild) {
+  const ignored = await IgnoreChannelModel.find({ guildId: guild.id });
+  const validIgnored = ignored.filter(d => guild.channels.cache.has(d.channelId));
+
+  const ignoredText = validIgnored.length
+    ? validIgnored.map(d => `<#${d.channelId}>`).join('  ')
+    : '*None — bot responds in all channels*';
+
+  const headerDisplay = new TextDisplayBuilder().setContent(
+    `**🔇 Ignored Channels**\n\n` +
+    `Bot will not respond to commands in these channels:\n${ignoredText}\n\n` +
+    `-# Use the menus below to add or remove channels.`
+  );
+
+  const addMenu = new ActionRowBuilder().addComponents(
+    new ChannelSelectMenuBuilder()
+      .setCustomId('ignore_add_select')
+      .setPlaceholder('➕  Select channels to ignore...')
+      .setChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement)
+      .setMinValues(1)
+      .setMaxValues(10)
+  );
+
+  const components = [addMenu];
+
+  if (validIgnored.length > 0) {
+    const removeMenu = new ActionRowBuilder().addComponents(
+      new StringSelectMenuBuilder()
+        .setCustomId('ignore_remove_select')
+        .setPlaceholder('➖  Select channels to unignore...')
+        .setMinValues(1)
+        .setMaxValues(Math.min(validIgnored.length, 10))
+        .addOptions(
+          validIgnored.slice(0, 25).map(d => {
+            const ch = guild.channels.cache.get(d.channelId);
+            return new StringSelectMenuOptionBuilder()
+              .setLabel(`#${ch?.name || d.channelId}`)
+              .setValue(d.channelId)
+              .setEmoji('🔇');
+          })
+        )
+    );
+    components.push(removeMenu);
+  }
+
+  const btnRow = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId('ignore_clear')
+      .setLabel('Clear All')
+      .setEmoji('🗑️')
+      .setStyle(ButtonStyle.Danger)
+      .setDisabled(validIgnored.length === 0)
+  );
+  components.push(btnRow);
+
+  const container = new ContainerBuilder()
+    .setAccentColor(0x7B2FBE)
+    .addTextDisplayComponents(headerDisplay)
+    .addSeparatorComponents(new SeparatorBuilder());
+
+  return { container, components };
+}
 
 module.exports = {
-  name: "ignore",
-  aliases: ["ig"],
-  category: "Config",
-  description: "Ignorechannel",
-  usage: "",
+  buildPanel,
+  name: 'ignore',
+  aliases: ['ig'],
+  category: 'Config',
+  description: 'Manage channels where the bot ignores commands.',
+  usage: '',
   userPerms: [],
   args: false,
   cooldown: 3,
-  slashOptions: [
-    {
-      name: "action",
-      description: "Action to perform (add/remove/list/reset)",
-      type: 3,
-      required: true,
-      choices: [
-        { name: "add", value: "add" },
-        { name: "remove", value: "remove" },
-        { name: "list", value: "list" },
-        { name: "reset", value: "reset" }
-      ]
-    },
-    {
-      name: "channel",
-      description: "Channel to add or remove from ignore list",
-      type: 7,
-      required: false
-    }
-  ],
-  async slashExecute(interaction, client) {
-    const interactionWrapper = {
-      guild: interaction.guild,
-      channel: interaction.channel,
-      author: interaction.user,
-      member: interaction.member,
-      createdTimestamp: interaction.createdTimestamp,
-      reply: async (options) => {
-        if (interaction.deferred) {
-          return await interaction.editReply(options);
-        } else if (interaction.replied) {
-          return await interaction.followUp(options);
-        } else {
-          return await interaction.reply(options);
-        }
-      },
-    };
+  slashOptions: [],
 
-    const args = [];
-    if (interaction.options) {
-      const options = interaction.options.data;
-      for (const option of options) {
-        if (option.value !== undefined) {
-          args.push(option.value.toString());
-        }
-      }
+  async execute(message, args, client) {
+    if (!message.member.permissions.has(PermissionsBitField.resolve('ManageChannels'))) {
+      const display = new TextDisplayBuilder()
+        .setContent(`**${emoji.warn} You need \`Manage Channels\` permission to use this command.**`);
+      const container = new ContainerBuilder().setAccentColor(0x7B2FBE).addTextDisplayComponents(display);
+      return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
     }
 
-    const prefix = client.prefix;
-    return this.execute(interactionWrapper, args, client, prefix);
+    const { container, components } = await buildPanel(message.guild);
+    return message.reply({
+      components: [container, ...components],
+      flags: MessageFlags.IsComponentsV2,
+    });
   },
 
-  async execute(message, args, client, prefix) {
-    if (
-      !message.member.permissions.has(
-        PermissionsBitField.resolve("ManageChannels"),
-      )
-    ) {
-      const errorDisplay = new TextDisplayBuilder()
-        .setContent(`-# **${emoji.warn} You must have \`Manage Channels\` permissions to use this command.**`);
-
-      const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
-        .addTextDisplayComponents(errorDisplay);
-
-      return message.reply({
-        components: [container],
-        flags: MessageFlags.IsComponentsV2
-      });
-    }
-
-    if (!args[0]) {
-      const usageDisplay = new TextDisplayBuilder()
-        .setContent(` \`\`\`[] = Optional Argument\n<> = Required Argument\nDo NOT type these when using commands!\`\`\``);
-
-      const separator1 = new SeparatorBuilder();
-
-      const aliasesDisplay = new TextDisplayBuilder()
-        .setContent(`**Aliases:** \`\`[ignore]\`\``);
-
-      const usageInfoDisplay = new TextDisplayBuilder()
-        .setContent(`**Usage:** \`\`add/remove/list/reset\`\``);
-
-      const separator2 = new SeparatorBuilder();
-
-      const footerDisplay = new TextDisplayBuilder()
-        .setContent(`Requested By ${message.author.displayName}`);
-
-      const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
-        .addTextDisplayComponents(usageDisplay)
-        .addSeparatorComponents(separator1)
-        .addTextDisplayComponents(aliasesDisplay)
-        .addTextDisplayComponents(usageInfoDisplay)
-        .addSeparatorComponents(separator2)
-        .addTextDisplayComponents(footerDisplay);
-
-      return message.channel.send({
-        components: [container],
-        flags: MessageFlags.IsComponentsV2
-      });
-    }
-
-    const option = args[0].toLowerCase();
-    if (option === "add") {
-      const channel =
-        message.mentions.channels.first() ||
-        message.guild.channels.cache.get(args[1]);
-      if (!channel) {
-        const errorDisplay = new TextDisplayBuilder()
-          .setContent(`**${emoji.warn} Please provide a valid channel.**`);
-
-        const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
-          .addTextDisplayComponents(errorDisplay);
-
-        return message.channel.send({
-          components: [container],
-          flags: MessageFlags.IsComponentsV2
-        });
-      }
-      const data = await IgnoreChannelModel.findOne({
-        guildId: message.guild.id,
-        channelId: channel.id,
-      });
-      if (data) {
-        const infoDisplay = new TextDisplayBuilder()
-          .setContent(`**${emoji.info} This channel is already in the ignore channel list.**`);
-
-        const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
-          .addTextDisplayComponents(infoDisplay);
-
-        return message.channel.send({
-          components: [container],
-          flags: MessageFlags.IsComponentsV2
-        });
-      }
-      await IgnoreChannelModel.create({
-        guildId: message.guild.id,
-        channelId: channel.id,
-      });
-
-      const successDisplay = new TextDisplayBuilder()
-        .setContent(`**${emoji.check} Successfully added ${channel} to the ignore channel list.**`);
-
-      const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
-        .addTextDisplayComponents(successDisplay);
-
-      return message.channel.send({
-        components: [container],
-        flags: MessageFlags.IsComponentsV2
-      });
-    } else if (option === "remove") {
-      const channel =
-        message.mentions.channels.first() ||
-        message.guild.channels.cache.get(args[1]);
-      if (!channel) {
-        const errorDisplay = new TextDisplayBuilder()
-          .setContent(`**${emoji.warn} Please provide a valid channel.**`);
-
-        const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
-          .addTextDisplayComponents(errorDisplay);
-
-        return message.channel.send({
-          components: [container],
-          flags: MessageFlags.IsComponentsV2
+  async componentsV2(interaction, client) {
+    if (interaction.customId === 'ignore_clear') {
+      if (!interaction.member.permissions.has(PermissionsBitField.resolve('ManageChannels'))) {
+        return interaction.reply({
+          content: `**${emoji.warn} You need \`Manage Channels\` permission.**`,
+          ephemeral: true,
         });
       }
 
-      const data = await IgnoreChannelModel.findOneAndDelete({
-        guildId: message.guild.id,
-        channelId: channel.id,
-      });
+      await interaction.deferUpdate().catch(() => {});
+      await IgnoreChannelModel.deleteMany({ guildId: interaction.guildId });
 
-      if (!data) {
-        const infoDisplay = new TextDisplayBuilder()
-          .setContent(`**${emoji.info} This channel is not in the ignore channel list.**`);
+      const { container, components } = await buildPanel(interaction.guild);
+      await interaction.message.edit({
+        components: [container, ...components],
+        flags: MessageFlags.IsComponentsV2,
+      }).catch(() => {});
 
-        const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
-          .addTextDisplayComponents(infoDisplay);
-
-        return message.channel.send({
-          components: [container],
-          flags: MessageFlags.IsComponentsV2
-        });
-      } else {
-        const successDisplay = new TextDisplayBuilder()
-          .setContent(`**${emoji.check} Successfully removed ${channel} from the ignore channel list.**`);
-
-        const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
-          .addTextDisplayComponents(successDisplay);
-
-        return message.channel.send({
-          components: [container],
-          flags: MessageFlags.IsComponentsV2
-        });
-      }
-    } else if (option === "list") {
-      const data = await IgnoreChannelModel.find({ guildId: message.guild.id });
-      if (data.length === 0) {
-        const infoDisplay = new TextDisplayBuilder()
-          .setContent(`**${emoji.info} There are no channels in the ignore channel list.**`);
-
-        const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
-          .addTextDisplayComponents(infoDisplay);
-
-        return message.channel.send({
-          components: [container],
-          flags: MessageFlags.IsComponentsV2
-        });
-      }
-      const channels = data
-        .map((d, i) => `\`${i + 1}.\` <#${d.channelId}>`)
-        .join("\n");
-
-      const listDisplay = new TextDisplayBuilder()
-        .setContent(`**${emoji.check} Ignore channel list :**\n\n** ${channels}**`);
-
-      const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
-        .addTextDisplayComponents(listDisplay);
-
-      return message.channel.send({
-        components: [container],
-        flags: MessageFlags.IsComponentsV2
-      });
-    } else if (option === "reset") {
-      const data = await IgnoreChannelModel.find({ guildId: message.guild.id });
-      if (data.length === 0) {
-        const infoDisplay = new TextDisplayBuilder()
-          .setContent(`**${emoji.info} There are no channels in the ignore channel list.**`);
-
-        const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
-          .addTextDisplayComponents(infoDisplay);
-
-        return message.channel.send({
-          components: [container],
-          flags: MessageFlags.IsComponentsV2
-        });
-      }
-      await IgnoreChannelModel.deleteMany({ guildId: message.guild.id });
-
-      const successDisplay = new TextDisplayBuilder()
-        .setContent(`**${emoji.check} Successfully cleared the ignore channel list.**`);
-
-      const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
-        .addTextDisplayComponents(successDisplay);
-
-      return message.channel.send({
-        components: [container],
-        flags: MessageFlags.IsComponentsV2
-      });
+      await interaction.followUp({
+        content: `**${emoji.check} Cleared all ignored channels.**`,
+        ephemeral: true,
+      }).catch(() => {});
     }
   },
 };

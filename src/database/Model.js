@@ -264,6 +264,14 @@ class Model {
         return { deletedCount: info.changes };
     }
 
+    async deleteMany(filter = {}) {
+        const { where, values } = this._buildWhere(filter);
+        const info = this.db.prepare(
+            `DELETE FROM "${this.tableName}" ${where}`
+        ).run(...values);
+        return { deletedCount: info.changes };
+    }
+
     async updateOne(filter, update) {
         return this.findOneAndUpdate(filter, update);
     }

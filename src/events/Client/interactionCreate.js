@@ -869,6 +869,28 @@ module.exports = {
         }
       }
 
+      if (interaction.customId === "ignore_remove_select") {
+        const { PermissionsBitField, MessageFlags } = require('discord.js');
+        if (!interaction.member.permissions.has(PermissionsBitField.resolve('ManageChannels'))) {
+          return interaction.reply({ content: `**You need \`Manage Channels\` permission.**`, ephemeral: true }).catch(() => {});
+        }
+        await interaction.deferUpdate().catch(() => {});
+
+        const IgnoreChannelModel = require('../../schema/ignorechannel');
+        const channelIds = interaction.values;
+        for (const channelId of channelIds) {
+          await IgnoreChannelModel.deleteOne({ guildId: interaction.guildId, channelId }).catch(() => {});
+        }
+
+        const { buildPanel } = require('../../commands/Config/ignore');
+        const { container, components } = await buildPanel(interaction.guild);
+        await interaction.message.edit({ components: [container, ...components], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
+
+        const names = channelIds.map(id => `<#${id}>`).join(', ');
+        await interaction.followUp({ content: `**✅ Removed ${names} from ignore list.**`, ephemeral: true }).catch(() => {});
+        return;
+      }
+
       if (interaction.customId === "np_playlist_select") {
         const player = client.manager.players.get(interaction.guildId);
         const pending = player?.data?.get("pendingAddTrack");
@@ -993,6 +1015,38 @@ module.exports = {
         }
       }
 
+    }
+
+    if (interaction.isChannelSelectMenu()) {
+      if (interaction.customId === 'ignore_add_select') {
+        const { PermissionsBitField, MessageFlags } = require('discord.js');
+        if (!interaction.member.permissions.has(PermissionsBitField.resolve('ManageChannels'))) {
+          return interaction.reply({ content: `**You need \`Manage Channels\` permission.**`, ephemeral: true }).catch(() => {});
+        }
+        await interaction.deferUpdate().catch(() => {});
+
+        const IgnoreChannelModel = require('../../schema/ignorechannel');
+        const channelIds = interaction.values;
+        const added = [];
+
+        for (const channelId of channelIds) {
+          const exists = await IgnoreChannelModel.findOne({ guildId: interaction.guildId, channelId }).catch(() => null);
+          if (!exists) {
+            await IgnoreChannelModel.create({ guildId: interaction.guildId, channelId }).catch(() => {});
+            added.push(channelId);
+          }
+        }
+
+        const { buildPanel } = require('../../commands/Config/ignore');
+        const { container, components } = await buildPanel(interaction.guild);
+        await interaction.message.edit({ components: [container, ...components], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
+
+        const skipped = channelIds.length - added.length;
+        let msg = added.length ? `**✅ Now ignoring: ${added.map(id => `<#${id}>`).join(', ')}**` : '';
+        if (skipped > 0) msg += (msg ? '\n' : '') + `*${skipped} channel(s) already in the ignore list.*`;
+        if (msg) await interaction.followUp({ content: msg, ephemeral: true }).catch(() => {});
+        return;
+      }
     }
   },
 };
