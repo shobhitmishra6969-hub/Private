@@ -162,6 +162,12 @@ function getDb() {
             playlists TEXT NOT NULL DEFAULT '[]'
         );
 
+        CREATE TABLE IF NOT EXISTS djrole (
+            guildId   TEXT PRIMARY KEY,
+            roleId    TEXT,
+            updatedAt INTEGER
+        );
+
         CREATE TABLE IF NOT EXISTS lastfm (
             userId     TEXT PRIMARY KEY,
             username   TEXT NOT NULL,
