@@ -49,8 +49,8 @@ module.exports = {
     description: 'Advanced DM system — styled DMs, anonymous mode, embed composer, and role DMs',
     category: 'Utility',
     usage: '@user <message> | embed @user | anon @user <message> | role @role <message>',
-    userPerms: ['Administrator'],
-    owner: false,
+    userPerms: [],
+    owner: true,
 
     async execute(message, args, client) {
         const sub = args[0]?.toLowerCase();
