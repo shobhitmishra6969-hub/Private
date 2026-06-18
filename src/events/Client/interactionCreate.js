@@ -1002,7 +1002,7 @@ module.exports = {
           { value: 'detailed',  label: 'Detailed',    emoji: '📋', description: 'Extended track information' },
           { value: 'dynamic',   label: 'Dynamic',     emoji: '⚡', description: 'Interactive with queue preview' },
           { value: 'aesthetic', label: 'Aesthetic',   emoji: '🌸', description: 'Visually enhanced layout' },
-          { value: 'midnight',  label: 'Midnight',    emoji: '🌙', description: 'Dark console layout' },
+          { value: 'midnight',  label: 'Midnight',    emoji: '🌙', description: 'Dark console layout with tight stats' },
           { value: 'gallery',   label: 'Gallery',     emoji: '🖼️', description: 'Artwork-first cover showcase' },
           { value: 'broadcast', label: 'Broadcast',   emoji: '📻', description: 'Clean live-radio style card' },
           { value: 'luxe',      label: 'Luxe',        emoji: '💎', description: 'Compact gold-accent premium style' },
@@ -1010,53 +1010,58 @@ module.exports = {
         ];
 
         const chosenStyle = PRESET_STYLES.find(s => s.value === chosen) || PRESET_STYLES[0];
+        const { EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, AttachmentBuilder } = require('discord.js');
 
+        // Step 1: Acknowledge immediately — must happen within 3s
+        await interaction.deferUpdate().catch(() => {});
+
+        // Step 2: Save to DB (isolated — never blocks the UI update)
+        const setupSchema = require('../../schema/setup');
+        await setupSchema.findOneAndUpdate(
+          { Guild: interaction.guildId },
+          { Guild: interaction.guildId, npStyle: chosen, updatedAt: Date.now() },
+          { upsert: true, new: true }
+        ).catch(e => client.logger?.log(`[preset] DB save failed: ${e.message}`, 'warn'));
+
+        // Step 3: Generate canvas preview (isolated — never blocks the UI update)
+        let previewBuf = null;
         try {
-          const { EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, AttachmentBuilder } = require('discord.js');
-          const setupSchema = require('../../schema/setup');
           const { generateStylePreview, PREVIEW_DATA } = require('../../utils/styleCards');
-
-          // Acknowledge immediately so Discord doesn't time out
-          await interaction.deferUpdate().catch(() => {});
-
-          // Save to DB and generate canvas preview in parallel
-          const [, previewBuf] = await Promise.all([
-            setupSchema.findOneAndUpdate(
-              { Guild: interaction.guildId },
-              { Guild: interaction.guildId, npStyle: chosen, updatedAt: Date.now() },
-              { upsert: true, new: true }
-            ).catch(() => null),
-            generateStylePreview(chosen, PREVIEW_DATA).catch(() => null),
+          previewBuf = await Promise.race([
+            generateStylePreview(chosen, PREVIEW_DATA),
+            new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 8000)),
           ]);
+        } catch { previewBuf = null; }
 
-          const styleList = PRESET_STYLES.map(s => `• **${s.label}** — ${s.description}`).join('\n');
+        // Step 4: Build the updated embed + select menu
+        const styleList = PRESET_STYLES.map(s => `• **${s.label}** — ${s.description}`).join('\n');
+        const updatedEmbed = new EmbedBuilder()
+          .setTitle('Player Style Configuration')
+          .setDescription(
+            `Select a style for the music player from the dropdown below.\n\n` +
+            `**Current Style: ${chosenStyle.emoji} ${chosenStyle.label}**\n\n` +
+            `**Available Styles:**\n${styleList}`
+          )
+          .setColor(0x7B2FBE);
 
-          const updatedEmbed = new EmbedBuilder()
-            .setTitle('Player Style Configuration')
-            .setDescription(
-              `Select a style for the music player from the dropdown below.\n\n` +
-              `**Current Style: ${chosenStyle.emoji} ${chosenStyle.label}**\n\n` +
-              `**Available Styles:**\n${styleList}`
-            )
-            .setColor(0x7B2FBE);
-
-          const selectMenu = new ActionRowBuilder().addComponents(
-            new StringSelectMenuBuilder()
-              .setCustomId('preset_style_select')
-              .setPlaceholder('Select a player style...')
-              .addOptions(
-                PRESET_STYLES.map(s =>
-                  new StringSelectMenuOptionBuilder()
-                    .setLabel(s.label)
-                    .setValue(s.value)
-                    .setDescription(s.description)
-                    .setEmoji(s.emoji)
-                    .setDefault(s.value === chosen)
-                )
+        const selectMenu = new ActionRowBuilder().addComponents(
+          new StringSelectMenuBuilder()
+            .setCustomId('preset_style_select')
+            .setPlaceholder('Select a player style...')
+            .addOptions(
+              PRESET_STYLES.map(s =>
+                new StringSelectMenuOptionBuilder()
+                  .setLabel(s.label)
+                  .setValue(s.value)
+                  .setDescription(s.description)
+                  .setEmoji(s.emoji)
+                  .setDefault(s.value === chosen)
               )
-          );
+            )
+        );
 
-          // Use message.edit() directly — more reliable than editReply() for prefix-command messages
+        // Step 5: Update the message (isolated — failures only lose the visual, not the save)
+        try {
           if (previewBuf) {
             updatedEmbed.setImage('attachment://style-preview.png');
             await interaction.message.edit({
@@ -1070,19 +1075,16 @@ module.exports = {
               components: [selectMenu],
             });
           }
-
-          await interaction.followUp({
-            content: `✅ Player style set to **${chosenStyle.emoji} ${chosenStyle.label}**!`,
-            ephemeral: true,
-          }).catch(() => {});
-
-        } catch (err) {
-          client.logger?.log(`[preset_style_select] Error: ${err.stack}`, 'error');
-          await interaction.followUp({
-            content: `**❌ Failed to update style. Please try again.**`,
-            ephemeral: true,
-          }).catch(() => {});
+        } catch (e) {
+          client.logger?.log(`[preset] message.edit failed: ${e.message}`, 'warn');
         }
+
+        // Step 6: Always confirm to user regardless of above failures
+        await interaction.followUp({
+          content: `✅ Player style set to **${chosenStyle.emoji} ${chosenStyle.label}**!`,
+          ephemeral: true,
+        }).catch(() => {});
+
         return;
       }
     }
