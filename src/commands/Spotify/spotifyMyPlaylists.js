@@ -54,7 +54,66 @@ async function refreshAccessToken(refreshToken) {
   return res.data.access_token;
 }
 
-// ── Card builder ──────────────────────────────────────────────────────────────
+// Normalize DB-stored playlist to Spotify API shape so buildCard works for both
+function normalizeCached(p) {
+  return {
+    name: p.name || 'Untitled Playlist',
+    external_urls: { spotify: p.url || '' },
+    tracks: { total: p.trackCount ?? 0 },
+    images: [],
+    id: null,
+    owner: { display_name: 'Unknown' },
+  };
+}
+
+// ── Fetch playlists (OAuth → public → DB cache) ───────────────────────────────
+
+async function fetchPlaylists(linked) {
+  let playlists = [];
+
+  // 1) OAuth token — gets private playlists too
+  if (linked.refreshToken || linked.accessToken) {
+    let token = linked.accessToken;
+    if (linked.refreshToken) {
+      try { token = await refreshAccessToken(linked.refreshToken); }
+      catch {}
+    }
+    if (token) {
+      try {
+        const data = await fetchOAuthPlaylists(token);
+        playlists = data?.items?.filter(Boolean) || [];
+        if (playlists.length && token !== linked.accessToken) {
+          SpotifyProfile.findOneAndUpdate(
+            { userId: linked.userId },
+            { accessToken: token, updatedAt: Date.now() },
+            { upsert: false }
+          ).catch(() => {});
+        }
+      } catch {}
+    }
+  }
+
+  // 2) Public playlists via client credentials
+  if (!playlists.length && linked.spotifyUserId) {
+    let credToken;
+    try { credToken = await getClientCredToken(); } catch {}
+    if (credToken) {
+      try {
+        const data = await fetchPublicPlaylists(linked.spotifyUserId, credToken);
+        playlists = data?.items?.filter(Boolean) || [];
+      } catch {}
+    }
+  }
+
+  // 3) Fallback: DB-cached playlists (so the UI still works if Spotify API is inaccessible)
+  if (!playlists.length && Array.isArray(linked.playlists) && linked.playlists.length) {
+    playlists = linked.playlists.map(normalizeCached);
+  }
+
+  return playlists;
+}
+
+// ── Card builder (one playlist at a time) ─────────────────────────────────────
 
 function buildCard(displayName, playlists, page) {
   const pl     = playlists[page];
@@ -62,7 +121,7 @@ function buildCard(displayName, playlists, page) {
   const cover  = pl.images?.[0]?.url || null;
   const owner  = pl.owner?.display_name || 'Unknown';
   const tracks = pl.tracks?.total ?? 0;
-  const url    = pl.external_urls?.spotify || `https://open.spotify.com/playlist/${pl.id}`;
+  const url    = pl.external_urls?.spotify || (pl.id ? `https://open.spotify.com/playlist/${pl.id}` : 'https://spotify.com');
 
   const infoText = new TextDisplayBuilder().setContent(
     `### ${displayName}'s Playlists\n` +
@@ -87,7 +146,7 @@ function buildCard(displayName, playlists, page) {
 
   container.addSeparatorComponents(new SeparatorBuilder().setDivider(true));
 
-  // ◀ Play ▶
+  // ◀  ▶ Play  ▶
   container.addActionRowComponents(
     new ActionRowBuilder().addComponents(
       new ButtonBuilder()
@@ -107,18 +166,20 @@ function buildCard(displayName, playlists, page) {
     )
   );
 
-  // Open in Spotify (link button)
-  container.addActionRowComponents(
-    new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setLabel('Open')
-        .setStyle(ButtonStyle.Link)
-        .setURL(url)
-        .setEmoji('🔗'),
-    )
-  );
+  // Open in Spotify
+  if (url && url !== 'https://spotify.com') {
+    container.addActionRowComponents(
+      new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setLabel('Open')
+          .setStyle(ButtonStyle.Link)
+          .setURL(url)
+          .setEmoji('🔗'),
+      )
+    );
+  }
 
-  // Jump select (max 25 options)
+  // Jump to a playlist — max 25 options allowed by Discord
   const jumpOptions = playlists.slice(0, 25).map((p, i) => ({
     label: (p.name || 'Untitled Playlist').slice(0, 100),
     description: `${p.tracks?.total ?? '?'} tracks`,
@@ -133,103 +194,45 @@ function buildCard(displayName, playlists, page) {
     )
   );
 
-  // Back button
+  // Back
   container.addActionRowComponents(
     new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setCustomId('spmpl_back')
         .setLabel('Back')
-        .setStyle(ButtonStyle.Secondary)
-        .setEmoji('◀️'),
+        .setStyle(ButtonStyle.Secondary),
     )
   );
 
   return [container];
 }
 
-// ── Fetch playlists ───────────────────────────────────────────────────────────
+// ── Loading card ──────────────────────────────────────────────────────────────
 
-async function fetchPlaylists(linked) {
-  let playlists = [];
-
-  // Try OAuth token first (gets private playlists too)
-  if (linked.refreshToken || linked.accessToken) {
-    let token = linked.accessToken;
-    if (linked.refreshToken) {
-      try { token = await refreshAccessToken(linked.refreshToken); }
-      catch {}
-    }
-    if (token) {
-      try {
-        const data = await fetchOAuthPlaylists(token);
-        playlists = data?.items?.filter(Boolean) || [];
-        if (playlists.length) {
-          // Persist fresh token (fire-and-forget)
-          if (token !== linked.accessToken)
-            SpotifyProfile.findOneAndUpdate({ userId: linked.userId }, { accessToken: token, updatedAt: Date.now() }, { upsert: false }).catch(() => {});
-        }
-      } catch {}
-    }
-  }
-
-  // Fallback: public playlists via client credentials
-  if (!playlists.length) {
-    let credToken;
-    try { credToken = await getClientCredToken(); } catch {}
-    if (credToken) {
-      try {
-        const data = await fetchPublicPlaylists(linked.spotifyUserId, credToken);
-        playlists = data?.items?.filter(Boolean) || [];
-      } catch {}
-    }
-  }
-
-  return playlists;
+function buildLoadingCard(displayName) {
+  return [
+    new ContainerBuilder().setAccentColor(0x7B2FBE)
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          `### ${displayName}'s Playlists\n-# Fetching your playlists from Spotify...`
+        )
+      ),
+  ];
 }
 
-// ── Core launcher (shared by button handler + standalone command) ──────────────
+// ── Error card ────────────────────────────────────────────────────────────────
 
-/**
- * @param {object} opts
- * @param {Function} opts.sendCard   — async (components) => Message   (initial card send/edit)
- * @param {Function} opts.sendError  — async (text) => void
- * @param {string}   opts.userId
- * @param {object}   opts.client
- * @param {Function} [opts.onBack]   — called when Back is pressed; receives (i, linked, playlists)
- */
-async function launchPlaylistBrowser({ sendCard, sendError, userId, client, onBack }) {
-  const linked = await SpotifyProfile.findOne({ userId }).catch(() => null);
+function buildErrorCard(text) {
+  return [
+    new ContainerBuilder().setAccentColor(0x7B2FBE)
+      .addTextDisplayComponents(new TextDisplayBuilder().setContent(text)),
+  ];
+}
 
-  if (!linked?.spotifyUserId) {
-    return sendError(
-      `**${emoji.cross} You haven't linked a Spotify account yet.**\n` +
-      `-# Run \`${client.prefix}spotify-login\` to connect your account.`
-    );
-  }
+// ── Attach collector to a message ─────────────────────────────────────────────
 
-  const playlists = await fetchPlaylists(linked);
-
-  if (!playlists.length) {
-    return sendError(
-      `**${emoji.warn} No playlists found.**\n` +
-      `-# Your Spotify profile may be private, or you have no playlists yet.`
-    );
-  }
-
-  // Persist to DB (fire-and-forget)
-  SpotifyProfile.findOneAndUpdate({ userId }, {
-    playlists: playlists.map(p => ({
-      name: p.name || 'Untitled',
-      url: p.external_urls?.spotify || `https://open.spotify.com/playlist/${p.id}`,
-      trackCount: p.tracks?.total ?? 0,
-    })),
-    updatedAt: Date.now(),
-  }, { upsert: false }).catch(() => {});
-
-  const displayName = linked.displayName || 'Your';
+function attachCollector(sentMsg, { displayName, playlists, userId, client, onBack }) {
   let page = 0;
-
-  const sentMsg = await sendCard(buildCard(displayName, playlists, page));
 
   const collector = sentMsg.createMessageComponentCollector({
     filter: i => i.user.id === userId,
@@ -255,22 +258,23 @@ async function launchPlaylistBrowser({ sendCard, sendError, userId, client, onBa
 
       if (i.customId === 'spmpl_back') {
         collector.stop('back');
-        if (onBack) return onBack(i, linked, playlists);
-        // Default back: just remove the card
-        const backCard = new ContainerBuilder().setAccentColor(0x7B2FBE)
-          .addTextDisplayComponents(
-            new TextDisplayBuilder().setContent(`**${emoji.info} Closed playlist browser.**`)
-          );
-        return i.update({ components: [backCard], flags: MessageFlags.IsComponentsV2 });
+        if (onBack) return onBack(i);
+        return i.update({
+          components: buildErrorCard(`**${emoji.info} Closed playlist browser.**`),
+          flags: MessageFlags.IsComponentsV2,
+        });
       }
 
       if (i.customId === 'spmpl_play') {
         const pl = playlists[page];
-        const spotifyUrl = pl.external_urls?.spotify || `https://open.spotify.com/playlist/${pl.id}`;
+        const spotifyUrl = pl.external_urls?.spotify;
         const voiceChannel = i.member?.voice?.channel;
 
         if (!voiceChannel) {
           return i.reply({ content: `**${emoji.warn} Join a voice channel first to play music.**`, ephemeral: true });
+        }
+        if (!spotifyUrl) {
+          return i.reply({ content: `**${emoji.cross} No Spotify URL for this playlist.**`, ephemeral: true });
         }
 
         await i.deferUpdate().catch(() => {});
@@ -312,13 +316,7 @@ async function launchPlaylistBrowser({ sendCard, sendError, userId, client, onBa
     }
   });
 
-  collector.on('end', (_, reason) => {
-    if (reason === 'time') {
-      sentMsg.edit({
-        components: buildCard(displayName, playlists, page),
-      }).catch(() => {});
-    }
-  });
+  return collector;
 }
 
 // ── Standalone command ────────────────────────────────────────────────────────
@@ -330,36 +328,88 @@ module.exports = {
   description: 'Browse and play your linked Spotify playlists.',
   cooldown: 5,
   args: false,
-
   slashOptions: [],
 
   async slashExecute(interaction, client) {
     await interaction.deferReply();
-    return launchPlaylistBrowser({
-      userId: interaction.user.id,
-      client,
-      sendCard: (components) => interaction.editReply({ components, flags: MessageFlags.IsComponentsV2 }),
-      sendError: (text) => interaction.editReply({
-        components: [new ContainerBuilder().setAccentColor(0x7B2FBE)
-          .addTextDisplayComponents(new TextDisplayBuilder().setContent(text))],
+    const userId = interaction.user.id;
+
+    const linked = await SpotifyProfile.findOne({ userId }).catch(() => null);
+    if (!linked?.spotifyUserId) {
+      return interaction.editReply({
+        components: buildErrorCard(
+          `**${emoji.cross} You haven't linked a Spotify account yet.**\n` +
+          `-# Run \`${client.prefix}spotify-login\` to connect your account.`
+        ),
         flags: MessageFlags.IsComponentsV2,
-      }),
+      });
+    }
+
+    const playlists = await fetchPlaylists(linked);
+    if (!playlists.length) {
+      return interaction.editReply({
+        components: buildErrorCard(
+          `**${emoji.warn} No playlists found.**\n` +
+          `-# Your Spotify profile may be private. Try linking via OAuth for full access.`
+        ),
+        flags: MessageFlags.IsComponentsV2,
+      });
+    }
+
+    const displayName = linked.displayName || 'Your';
+    const sentMsg = await interaction.editReply({
+      components: buildCard(displayName, playlists, 0),
+      flags: MessageFlags.IsComponentsV2,
     });
+
+    attachCollector(sentMsg, { displayName, playlists, userId: interaction.user.id, client });
   },
 
   async execute(message, args, client) {
-    return launchPlaylistBrowser({
-      userId: message.author.id,
-      client,
-      sendCard: (components) => message.reply({ components, flags: MessageFlags.IsComponentsV2 }),
-      sendError: (text) => message.reply({
-        components: [new ContainerBuilder().setAccentColor(0x7B2FBE)
-          .addTextDisplayComponents(new TextDisplayBuilder().setContent(text))],
+    const userId = message.author.id;
+
+    const linked = await SpotifyProfile.findOne({ userId }).catch(() => null);
+    if (!linked?.spotifyUserId) {
+      return message.reply({
+        components: buildErrorCard(
+          `**${emoji.cross} You haven't linked a Spotify account yet.**\n` +
+          `-# Run \`${client.prefix}spotify-login\` to connect your account.`
+        ),
         flags: MessageFlags.IsComponentsV2,
-      }),
+      });
+    }
+
+    // Send loading card first so the interaction is immediate
+    const sentMsg = await message.reply({
+      components: buildLoadingCard(linked.displayName || 'Your'),
+      flags: MessageFlags.IsComponentsV2,
     });
+
+    const playlists = await fetchPlaylists(linked);
+    if (!playlists.length) {
+      return sentMsg.edit({
+        components: buildErrorCard(
+          `**${emoji.warn} No playlists found.**\n` +
+          `-# Your Spotify profile may be private. Try linking via OAuth for full access.`
+        ),
+        flags: MessageFlags.IsComponentsV2,
+      });
+    }
+
+    const displayName = linked.displayName || 'Your';
+    await sentMsg.edit({
+      components: buildCard(displayName, playlists, 0),
+      flags: MessageFlags.IsComponentsV2,
+    });
+
+    attachCollector(sentMsg, { displayName, playlists, userId, client });
   },
 
-  // Export for use in spotifyAuth.js button handler
-  launchPlaylistBrowser,
+  // ── Used by spotifyAuth.js "View Playlists" button ────────────────────────
+  buildCard,
+  buildLoadingCard,
+  buildErrorCard,
+  fetchPlaylists,
+  attachCollector,
+  normalizeCached,
 };

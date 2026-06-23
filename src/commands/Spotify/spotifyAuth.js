@@ -192,32 +192,64 @@ module.exports = {
     }
 
     if (interaction.customId === `spotify-login_playlists_${userId}`) {
-      await interaction.deferUpdate();
+      const {
+        buildCard, buildLoadingCard, buildErrorCard, fetchPlaylists, attachCollector,
+      } = require('./spotifyMyPlaylists');
 
-      const { launchPlaylistBrowser } = require('./spotifyMyPlaylists');
+      // interaction.message is the real Message object — grab it BEFORE update()
+      const sentMsg = interaction.message;
 
-      const linked = await SpotifyProfile.findOne({ userId }).catch(() => null);
-      const profileUrl = linked?.profileUrl || `https://open.spotify.com/user/${linked?.spotifyUserId || ''}`;
-      const avatarUrl  = linked?.avatarUrl || null;
-      const displayName = linked?.displayName || linked?.spotifyUserId || 'User';
-      const prefix = client.prefix || '+';
-
-      const sendCard  = async (components) => interaction.editReply({ components, flags: MessageFlags.IsComponentsV2 });
-      const sendError = async (text) => interaction.editReply({
-        components: [new ContainerBuilder().setAccentColor(0x7B2FBE)
-          .addTextDisplayComponents(new TextDisplayBuilder().setContent(text))],
+      // 1) Acknowledge immediately (updates the message, < 3s required)
+      await interaction.update({
+        components: buildLoadingCard('Your'),
         flags: MessageFlags.IsComponentsV2,
       });
 
-      const onBack = async (i) => {
-        const playlistCount = Array.isArray(linked?.playlists) ? linked.playlists.length : 0;
+      // 2) Async work — safe now, interaction already acknowledged
+      const linked = await SpotifyProfile.findOne({ userId }).catch(() => null);
+
+      if (!linked?.spotifyUserId) {
+        return sentMsg.edit({
+          components: buildErrorCard(
+            `**${emoji.cross} You haven't linked a Spotify account yet.**\n` +
+            `-# Run \`${client.prefix}spotify-login\` to connect your account.`
+          ),
+          flags: MessageFlags.IsComponentsV2,
+        }).catch(() => {});
+      }
+
+      const displayName   = linked.displayName || linked.spotifyUserId || 'Your';
+      const profileUrl    = linked.profileUrl || `https://open.spotify.com/user/${linked.spotifyUserId}`;
+      const avatarUrl     = linked.avatarUrl || null;
+      const prefix        = client.prefix || '+';
+      const playlistCount = Array.isArray(linked.playlists) ? linked.playlists.length : 0;
+
+      const playlists = await fetchPlaylists(linked);
+
+      if (!playlists.length) {
+        return sentMsg.edit({
+          components: buildErrorCard(
+            `**${emoji.warn} No playlists found.**\n` +
+            `-# Your Spotify profile may be private. Add playlists manually with \`${prefix}spotify-addplaylist <url>\``
+          ),
+          flags: MessageFlags.IsComponentsV2,
+        }).catch(() => {});
+      }
+
+      // 3) Show paginated card + attach collector
+      await sentMsg.edit({
+        components: buildCard(displayName, playlists, 0),
+        flags: MessageFlags.IsComponentsV2,
+      }).catch(() => {});
+
+      const onBack = (i) => {
         const container = buildProfileContainer(displayName, playlistCount, avatarUrl, profileUrl, prefix);
-        const row = buildProfileButtons(userId, profileUrl);
-        container.addActionRowComponents(row);
+        container.addActionRowComponents(buildProfileButtons(userId, profileUrl));
         return i.update({ components: [container], flags: MessageFlags.IsComponentsV2 });
       };
 
-      return launchPlaylistBrowser({ sendCard, sendError, userId, client, onBack });
+      attachCollector(sentMsg, { displayName, playlists, userId, client, onBack });
+      return;
     }
 
     if (interaction.customId === `spotify-login_disconnect_${userId}`) {
