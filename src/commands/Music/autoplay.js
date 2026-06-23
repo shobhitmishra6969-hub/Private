@@ -242,7 +242,12 @@ async function enableMood(player, client, voiceChannel, textChannel, moodKey, in
     return null;
   };
 
-  let searchResult = await trySearch(mood.playlistUrl, undefined);
+  // When a specific non-English language is chosen, skip the generic playlist URL
+  // and go straight to the language-targeted search query so Punjabi → Punjabi songs, etc.
+  let searchResult = null;
+  if (!langPref || langPref === 'English') {
+    searchResult = await trySearch(mood.playlistUrl, undefined);
+  }
   if (!searchResult) searchResult = await trySearch(smartQuery, 'ytmsearch');
   if (!searchResult) searchResult = await trySearch(mood.fallback, 'ytmsearch');
 
