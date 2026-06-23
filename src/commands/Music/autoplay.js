@@ -141,28 +141,33 @@ function buildMoodQuery(moodKey, langPref) {
 
 // ── Core enablers ─────────────────────────────────────────────────────────────
 
-async function enableRelated(player, msg, isInteraction = false, userId = null) {
+async function enableRelated(player, interaction, isInteraction = false, userId = null) {
   player.data.set('autoplay', true);
   player.data.delete('autoplayMood');
-
-  // Store the requester's userId so attemptAutoplay can inject their taste profile
   if (userId) player.data.set('autoplayUserId', userId);
 
   const panel = buildStatusPanel(
     `${emoji.check || '✅'} **Autoplay → Related** is now **ON**.`,
-    `-# Playing songs similar to your listening history${userId ? ' & current track' : ''}.`
+    `-# Playing songs similar to your listening history.`
   );
 
-  const send = isInteraction
-    ? (opts) => msg.update({ ...opts, flags: MessageFlags.IsComponentsV2 })
-    : (opts) => msg.edit({ ...opts, flags: MessageFlags.IsComponentsV2 });
-
-  await send({ components: [panel] }).catch(() => {});
+  if (isInteraction) {
+    // Defer first to avoid timeout, then edit
+    await interaction.deferUpdate().catch(() => {});
+    await interaction.editReply({ components: [panel], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
+  } else {
+    await interaction.edit({ components: [panel], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
+  }
 }
 
-async function enableMood(player, client, voiceChannel, textChannel, moodKey, msg, isInteraction = false, userId = null) {
+async function enableMood(player, client, voiceChannel, textChannel, moodKey, interaction, isInteraction = false, userId = null) {
   const mood = MOODS[moodKey];
   if (!mood) return;
+
+  // ── Immediately acknowledge the interaction so Discord doesn't time out ──
+  if (isInteraction) {
+    await interaction.deferUpdate().catch(() => {});
+  }
 
   player.data.set('autoplay', true);
   player.data.set('autoplayMood', moodKey);
@@ -174,12 +179,10 @@ async function enableMood(player, client, voiceChannel, textChannel, moodKey, ms
     try { langPref = UserHistory.getLanguagePreference(userId); } catch {}
   }
 
-  // Build a language-aware search query
   const smartQuery = buildMoodQuery(moodKey, langPref);
-  const langNote   = langPref ? ` (${langPref} preference detected)` : '';
+  const langNote   = langPref ? ` · ${langPref} vibe detected` : '';
 
-  // Try the playlist URL first, then smart query, then generic fallback
-  let searchResult;
+  // Try playlist URL → smart query → generic fallback
   const trySearch = async (q, engine) => {
     try {
       const r = await player.search(q, { requester: client.user, engine });
@@ -188,35 +191,40 @@ async function enableMood(player, client, voiceChannel, textChannel, moodKey, ms
     return null;
   };
 
-  searchResult = await trySearch(mood.playlistUrl, undefined);
+  let searchResult = await trySearch(mood.playlistUrl, undefined);
   if (!searchResult) searchResult = await trySearch(smartQuery, 'ytmsearch');
   if (!searchResult) searchResult = await trySearch(mood.fallback, 'ytmsearch');
 
   const tracks = searchResult?.tracks ?? [];
 
-  const send = isInteraction
-    ? (opts) => msg.update({ ...opts, flags: MessageFlags.IsComponentsV2 })
-    : (opts) => msg.edit({ ...opts, flags: MessageFlags.IsComponentsV2 });
+  // Helper to send the final response
+  const send = async (opts) => {
+    if (isInteraction) {
+      await interaction.editReply({ ...opts, flags: MessageFlags.IsComponentsV2 }).catch(() => {});
+    } else {
+      await interaction.edit({ ...opts, flags: MessageFlags.IsComponentsV2 }).catch(() => {});
+    }
+  };
 
   if (!tracks.length) {
-    return send({ components: [buildStatusPanel(`${emoji.cross || '❌'} Couldn't load the **${mood.label}** playlist. Try again later.`)] }).catch(() => {});
+    return send({ components: [buildStatusPanel(`${emoji.cross || '❌'} Couldn't load the **${mood.label}** playlist. Try again later.`)] });
   }
 
-  // Shuffle, skip recently played tracks, then queue
-  const recentIds  = player.data.get('recentlyPlayed') || [];
-  const shuffled   = tracks.sort(() => Math.random() - 0.5);
-  const filtered   = shuffled.filter(t => !recentIds.includes(t.identifier || t.uri));
-  const toQueue    = filtered.length ? filtered : shuffled; // fall back to unfiltered if all were recent
+  // Shuffle, filter recently played, queue
+  const recentIds = player.data.get('recentlyPlayed') || [];
+  const shuffled  = tracks.sort(() => Math.random() - 0.5);
+  const filtered  = shuffled.filter(t => !recentIds.includes(t.identifier || t.uri));
+  const toQueue   = filtered.length ? filtered : shuffled;
 
   for (const t of toQueue) player.queue.add(t);
-
   if (!player.playing && !player.paused) await player.play().catch(() => {});
 
-  const panel = buildStatusPanel(
-    `${mood.emoji} **Autoplay → ${mood.label}** is now **ON**${langNote ? ` · ${langNote}` : ''}.`,
-    `Queued **${toQueue.length}** tracks. ${mood.description}\n-# Filtered recent tracks · Shuffled and ready.`
-  );
-  await send({ components: [panel] }).catch(() => {});
+  await send({
+    components: [buildStatusPanel(
+      `${mood.emoji} **Autoplay → ${mood.label}** is now **ON**${langNote}.`,
+      `Queued **${toQueue.length}** tracks. ${mood.description}\n-# Filtered recent tracks · Shuffled and ready.`
+    )],
+  });
 }
 
 // ── Button collector ──────────────────────────────────────────────────────────
