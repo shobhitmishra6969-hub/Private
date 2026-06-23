@@ -1,4 +1,4 @@
-﻿const {
+const {
   PermissionsBitField,
   WebhookClient,
   EmbedBuilder,
@@ -17,13 +17,15 @@ const IgnoreChannelModel = require("../../schema/ignorechannel");
 const NoPrefixSchema = require("../../schema/noprefix");
 const UserStats = require("../../schema/userstats");
 const AfkSchema = require("../../schema/afk");
+const { prefixCache, ignoreCache, blacklistCache, noprefixCache } = require("../../utils/cache");
+
 const cooldowns = new Map();
 const ratelimitHits = new Map();
 
 // ── Anti-ping-spam tracker ───────────────────────────────────────────────────
-const pingSpam = new Map();           // userId → { count, timer }
-const PING_LIMIT  = 4;               // pings before blacklist
-const PING_WINDOW = 60_000;          // 60-second sliding window
+const pingSpam = new Map();
+const PING_LIMIT  = 4;
+const PING_WINDOW = 60_000;
 const RETALIATION = 'Try too ratelimit lmao papa hi bolde randi';
 
 function safeResolvePerms(perms, commandName, type, logger) {
@@ -37,6 +39,49 @@ function safeResolvePerms(perms, commandName, type, logger) {
 const RATELIMIT_THRESHOLD = 5;
 const RATELIMIT_WINDOW = 20000;
 
+// ── Cached DB helpers ────────────────────────────────────────────────────────
+
+async function getPrefix(guildId, clientPrefix) {
+  const cached = prefixCache.get(guildId);
+  if (cached !== undefined) return cached;
+  const row = await PrefixSchema.findOne({ Guild: guildId }).catch(() => null);
+  const val = row?.Prefix || clientPrefix;
+  prefixCache.set(guildId, val);
+  return val;
+}
+
+async function getIgnored(guildId, channelId) {
+  const key = `${guildId}:${channelId}`;
+  const cached = ignoreCache.get(key);
+  if (cached !== undefined) return cached;
+  const row = await IgnoreChannelModel.findOne({ guildId, channelId }).catch(() => null);
+  const val = !!row;
+  ignoreCache.set(key, val);
+  return val;
+}
+
+async function isBlacklisted(userId) {
+  const cached = blacklistCache.get(userId);
+  if (cached !== undefined) return cached;
+  const row = await BlacklistSchema.findOne({ userId }).catch(() => null);
+  const val = !!row;
+  blacklistCache.set(userId, val);
+  return val;
+}
+
+async function hasNoPrefix(userId) {
+  const cached = noprefixCache.get(userId);
+  if (cached !== undefined) return cached;
+  const row = await NoPrefixSchema.findOne({
+    userId,
+    guildId: "GLOBAL",
+    noprefix: true,
+    $or: [{ expiresAt: null }, { expiresAt: { $gt: Date.now() } }]
+  }).catch(() => null);
+  const val = !!row;
+  noprefixCache.set(userId, val);
+  return val;
+}
 
 module.exports = {
   name: "messageCreate",
@@ -44,30 +89,30 @@ module.exports = {
   run: async (client, message) => {
     if (message.author.bot || !message.guild) return;
 
-    // ── Anti-ping-spam: detect bot mentions ─────────────────────────────────
     const ownerIds = Array.isArray(client.config?.ownerID) ? client.config.ownerID : [];
-    if (message.mentions.users.has(client.user.id) && !ownerIds.includes(message.author.id)) {
-      const userId = message.author.id;
+    const userId = message.author.id;
+    const isBotMention = message.mentions.users.has(client.user.id);
 
-      // Already blacklisted → edgy retaliation, stop all processing
-      const alreadyBanned = await BlacklistSchema.findOne({ userId }).catch(() => null);
-      if (alreadyBanned) {
+    // ── Phase 1: fetch prefix + AFK self record in parallel (always needed) ──
+    const [prefix, afkRecord] = await Promise.all([
+      getPrefix(message.guild.id, client.prefix),
+      AfkSchema.findOne({ userId }).catch(() => null),
+    ]);
+
+    // ── Anti-ping-spam ───────────────────────────────────────────────────────
+    if (isBotMention && !ownerIds.includes(userId)) {
+      const banned = await isBlacklisted(userId);
+      if (banned) {
         await message.reply(RETALIATION).catch(() => {});
         return;
       }
 
-      // Track the ping
-      if (!pingSpam.has(userId)) {
-        pingSpam.set(userId, { count: 0, timer: null });
-      }
+      if (!pingSpam.has(userId)) pingSpam.set(userId, { count: 0, timer: null });
       const entry = pingSpam.get(userId);
       entry.count += 1;
-
-      // Reset window on each new ping
       if (entry.timer) clearTimeout(entry.timer);
       entry.timer = setTimeout(() => pingSpam.delete(userId), PING_WINDOW);
 
-      // Hit the limit → blacklist and warn
       if (entry.count >= PING_LIMIT) {
         pingSpam.delete(userId);
         await BlacklistSchema.create({
@@ -75,22 +120,23 @@ module.exports = {
           reason: 'Auto-blacklisted for ping-spamming the bot',
           timestamp: new Date(),
         }).catch(() => {});
+        blacklistCache.set(userId, true);
         await message.reply(`⚠️ <@${userId}>, you have been blacklisted for spamming the bot!`).catch(() => {});
         return;
       }
     }
 
     // ── AFK: auto-remove when the AFK user sends a message ──────────────────
-    const afkRecord = await AfkSchema.findOne({ userId: message.author.id });
     if (afkRecord) {
       const isServerAfk = afkRecord.mode === 'server';
       const belongsHere = !isServerAfk || afkRecord.guildId === message.guild.id;
       if (belongsHere) {
-        await AfkSchema.deleteOne({ userId: message.author.id });
-        const removeText = new TextDisplayBuilder().setContent(
-          `**${client.emoji.check} Welcome back, ${message.author}! I have removed your AFK status.**`
+        await AfkSchema.deleteOne({ userId });
+        const container = new ContainerBuilder().addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(
+            `**${client.emoji.check} Welcome back, ${message.author}! I have removed your AFK status.**`
+          )
         );
-        const container = new ContainerBuilder().addTextDisplayComponents(removeText);
         const msg = await message.channel.send({
           components: [container],
           flags: MessageFlags.IsComponentsV2,
@@ -102,38 +148,38 @@ module.exports = {
     // ── AFK: notify when someone mentions an AFK user ───────────────────────
     if (message.mentions.users.size > 0) {
       for (const [, mentionedUser] of message.mentions.users) {
-        if (mentionedUser.bot || mentionedUser.id === message.author.id) continue;
-        const mentionedAfk = await AfkSchema.findOne({ userId: mentionedUser.id });
+        if (mentionedUser.bot || mentionedUser.id === userId) continue;
+        const mentionedAfk = await AfkSchema.findOne({ userId: mentionedUser.id }).catch(() => null);
         if (!mentionedAfk) continue;
         const isServerAfk = mentionedAfk.mode === 'server';
         if (isServerAfk && mentionedAfk.guildId !== message.guild.id) continue;
         const sinceTs = Math.floor(mentionedAfk.createdAt.getTime() / 1000);
 
-        // Notify in channel
-        const afkText = new TextDisplayBuilder().setContent(
-          `**${client.emoji.info} ${mentionedUser.username} is currently AFK**\n` +
-          `>  **Reason:** ${mentionedAfk.reason}\n` +
-          `>  **Since:** <t:${sinceTs}:R>`
+        const container = new ContainerBuilder().addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(
+            `**${client.emoji.info} ${mentionedUser.username} is currently AFK**\n` +
+            `>  **Reason:** ${mentionedAfk.reason}\n` +
+            `>  **Since:** <t:${sinceTs}:R>`
+          )
         );
-        const container = new ContainerBuilder().addTextDisplayComponents(afkText);
         const msg = await message.channel.send({
           components: [container],
           flags: MessageFlags.IsComponentsV2,
         }).catch(() => null);
         if (msg) setTimeout(() => msg.delete().catch(() => {}), 10000);
 
-        // DM the AFK user if they opted in
         if (mentionedAfk.dmNotify) {
           const jumpUrl = `https://discord.com/channels/${message.guild.id}/${message.channel.id}/${message.id}`;
-          const dmText = new TextDisplayBuilder().setContent(
-            `**${client.emoji.info} You were mentioned while AFK!**\n\n` +
-            `**Server:** ${message.guild.name}\n` +
-            `**Channel:** #${message.channel.name}\n` +
-            `**Mentioned by:** ${message.author.username} (\`${message.author.tag}\`)\n` +
-            `**Message:** ${message.content.slice(0, 200) || '*(no text)*'}\n\n` +
-            `[Jump to Message](${jumpUrl})`
+          const dmContainer = new ContainerBuilder().addTextDisplayComponents(
+            new TextDisplayBuilder().setContent(
+              `**${client.emoji.info} You were mentioned while AFK!**\n\n` +
+              `**Server:** ${message.guild.name}\n` +
+              `**Channel:** #${message.channel.name}\n` +
+              `**Mentioned by:** ${message.author.username} (\`${message.author.tag}\`)\n` +
+              `**Message:** ${message.content.slice(0, 200) || '*(no text)*'}\n\n` +
+              `[Jump to Message](${jumpUrl})`
+            )
           );
-          const dmContainer = new ContainerBuilder().addTextDisplayComponents(dmText);
           mentionedUser.send({
             components: [dmContainer],
             flags: MessageFlags.IsComponentsV2,
@@ -142,13 +188,9 @@ module.exports = {
       }
     }
 
-    let prefix = client.prefix;
-    const prefixData = await PrefixSchema.findOne({ Guild: message.guild.id });
-    if (prefixData?.Prefix) prefix = prefixData.Prefix;
-
-    // ── Bot mention reply ────────────────────────────────────────────────────
+    // ── Bot mention-only reply ────────────────────────────────────────────────
     const mentionOnly = new RegExp(`^<@!?${client.user.id}>\\s*$`);
-    if (message.mentions.users.has(client.user.id) && mentionOnly.test(message.content.trim())) {
+    if (isBotMention && mentionOnly.test(message.content.trim())) {
       const { buildInfoEmbed, buildInfoRows } = require('../../utils/vibeData');
       await message.channel.send({
         embeds: [buildInfoEmbed(client, prefix)],
@@ -157,31 +199,16 @@ module.exports = {
       return;
     }
 
-    const isIgnored = await IgnoreChannelModel.findOne({
-      guildId: message.guild.id,
-      channelId: message.channel.id
-    });
-    if (isIgnored) {
-      return;
-    }
-
-    const hasNoPrefix = await NoPrefixSchema.findOne({
-      userId: message.author.id,
-      guildId: "GLOBAL",
-      noprefix: true,
-      $or: [
-        { expiresAt: null },
-        { expiresAt: { $gt: Date.now() } }
-      ]
-    });
-
+    // ── Determine used prefix ────────────────────────────────────────────────
     let usedPrefix = '';
     if (message.content.startsWith(prefix)) {
       usedPrefix = prefix;
     } else if (message.content.match(new RegExp(`^<@!?${client.user.id}>`))) {
       usedPrefix = message.content.match(new RegExp(`^<@!?${client.user.id}>`))[0];
-    } else if (!hasNoPrefix) {
-      return;
+    } else {
+      // Only do noprefix DB check if message doesn't already match a prefix
+      const noprefix = await hasNoPrefix(userId);
+      if (!noprefix) return;
     }
 
     const args = message.content.slice(usedPrefix.length).trim().split(/ +/);
@@ -190,224 +217,158 @@ module.exports = {
 
     const command = client.commands.get(commandName)
       || client.commands.find(cmd => cmd.aliases && cmd.aliases.includes(commandName));
-
     if (!command) return;
 
-    const isBlacklisted = await BlacklistSchema.findOne({ userId: message.author.id });
-    if (isBlacklisted && !ownerIds.includes(message.author.id)) {
-      const blacklistDisplay = new TextDisplayBuilder()
-        .setContent(`**${client.emoji.warn} You have been blacklisted from using the bot!**`);
+    // ── Phase 2: ignore channel + blacklist in parallel ──────────────────────
+    const [ignored, banned] = await Promise.all([
+      getIgnored(message.guild.id, message.channel.id),
+      isBlacklisted(userId),
+    ]);
 
-      const container = new ContainerBuilder()
-        .addTextDisplayComponents(blacklistDisplay);
+    if (ignored) return;
 
+    if (banned && !ownerIds.includes(userId)) {
+      const container = new ContainerBuilder().addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(`**${client.emoji.warn} You have been blacklisted from using the bot!**`)
+      );
       const reply = await message.channel.send({
         components: [container],
         flags: MessageFlags.IsComponentsV2
       }).catch(() => null);
-      if (reply) setTimeout(() => reply.delete().catch(() => { }), 5000);
+      if (reply) setTimeout(() => reply.delete().catch(() => {}), 5000);
       return;
     }
 
-    if (!cooldowns.has(command.name)) {
-      cooldowns.set(command.name, new Map());
-    }
-
+    // ── Cooldown ─────────────────────────────────────────────────────────────
+    if (!cooldowns.has(command.name)) cooldowns.set(command.name, new Map());
     const now = Date.now();
     const timestamps = cooldowns.get(command.name);
     const cooldownAmount = (command.cooldown || 3) * 1000;
 
-    if (timestamps.has(message.author.id)) {
-      const expirationTime = timestamps.get(message.author.id) + cooldownAmount;
-
+    if (timestamps.has(userId)) {
+      const expirationTime = timestamps.get(userId) + cooldownAmount;
       if (now < expirationTime) {
         const timeLeft = ((expirationTime - now) / 1000).toFixed(1);
-        const userId = message.author.id;
-
-        if (!ratelimitHits.has(userId)) {
-          ratelimitHits.set(userId, { count: 0, timer: null });
-        }
-
+        if (!ratelimitHits.has(userId)) ratelimitHits.set(userId, { count: 0, timer: null });
         const hitData = ratelimitHits.get(userId);
         hitData.count += 1;
-
         if (hitData.timer) clearTimeout(hitData.timer);
         hitData.timer = setTimeout(() => ratelimitHits.delete(userId), RATELIMIT_WINDOW);
 
         if (hitData.count >= RATELIMIT_THRESHOLD) {
           ratelimitHits.delete(userId);
-
-          const alreadyBlacklisted = await BlacklistSchema.findOne({ userId });
-          if (!alreadyBlacklisted) {
+          const alreadyBanned = await isBlacklisted(userId);
+          if (!alreadyBanned) {
             await BlacklistSchema.create({ userId, reason: 'Auto-blacklisted for command spam', timestamp: new Date() }).catch(() => {});
-
-            const blacklistedDisplay = new TextDisplayBuilder()
-              .setContent(
+            blacklistCache.set(userId, true);
+            const container = new ContainerBuilder().addTextDisplayComponents(
+              new TextDisplayBuilder().setContent(
                 `**${client.emoji.cross} You have been automatically blacklisted for spamming commands.**\n` +
                 `-# Repeated rate limit violations are not allowed.`
-              );
-
-            const container = new ContainerBuilder().addTextDisplayComponents(blacklistedDisplay);
-
-            return message.reply({
-              components: [container],
-              flags: MessageFlags.IsComponentsV2
-            }).catch(() => {});
+              )
+            );
+            return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
           }
           return;
         }
 
-        const cooldownDisplay = new TextDisplayBuilder()
-          .setContent(`**${client.emoji.warn} Please wait ${timeLeft}s before using \`${command.name}\` command again.** (${hitData.count}/${RATELIMIT_THRESHOLD})`);
-
-        const container = new ContainerBuilder()
-          .addTextDisplayComponents(cooldownDisplay);
-
-        return message.reply({
-          components: [container],
-          flags: MessageFlags.IsComponentsV2
-        }).then((msg) => {
-          const delayTime = expirationTime - now;
-          setTimeout(() => {
-            msg.delete().catch(() => { });
-          }, delayTime);
-        });
+        const container = new ContainerBuilder().addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(
+            `**${client.emoji.warn} Please wait ${timeLeft}s before using \`${command.name}\` command again.** (${hitData.count}/${RATELIMIT_THRESHOLD})`
+          )
+        );
+        return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 })
+          .then(msg => setTimeout(() => msg.delete().catch(() => {}), expirationTime - now));
       }
     }
-    timestamps.set(message.author.id, now);
-    setTimeout(() => timestamps.delete(message.author.id), cooldownAmount);
+    timestamps.set(userId, now);
+    setTimeout(() => timestamps.delete(userId), cooldownAmount);
 
+    // ── Bot permission checks ─────────────────────────────────────────────────
     if (!message.guild.members.me.permissions.has(PermissionsBitField.Flags.SendMessages)) {
-      const errorDisplay = new TextDisplayBuilder()
-        .setContent(`**${client.emoji.cross} I don't have \`SEND_MESSAGES\` permission in ${message.guild.name} to execute the \`${command.name}\` command.**`);
-
-      const container = new ContainerBuilder()
-        .addTextDisplayComponents(errorDisplay);
-
-      return await message.author.send({
-        components: [container],
-        flags: MessageFlags.IsComponentsV2
-      }).catch(() => { });
+      const container = new ContainerBuilder().addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          `**${client.emoji.cross} I don't have \`SEND_MESSAGES\` permission in ${message.guild.name} to execute the \`${command.name}\` command.**`
+        )
+      );
+      return message.author.send({ components: [container], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
     }
 
     if (!message.guild.members.me.permissions.has(PermissionsBitField.Flags.EmbedLinks)) {
-      const errorDisplay = new TextDisplayBuilder()
-        .setContent(`**${client.emoji.cross} I don't have \`EMBED_LINKS\` permission in this channel to execute the \`${command.name}\` command.**`);
-
-      const container = new ContainerBuilder()
-        .addTextDisplayComponents(errorDisplay);
-
-      return await message.channel.send({
-        components: [container],
-        flags: MessageFlags.IsComponentsV2
-      }).catch(() => { });
+      const container = new ContainerBuilder().addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          `**${client.emoji.cross} I don't have \`EMBED_LINKS\` permission in this channel to execute the \`${command.name}\` command.**`
+        )
+      );
+      return message.channel.send({ components: [container], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
     }
 
     if (command.args && !args.length) {
       let reply = `You didn't provide any arguments, ${message.author}!`;
-      if (command.usage) {
-        reply += `\nUsage: \`${prefix}${command.name} ${command.usage}\``;
-      }
-
-      const argsDisplay = new TextDisplayBuilder()
-        .setContent(reply);
-
-      const container = new ContainerBuilder()
-        .addTextDisplayComponents(argsDisplay);
-
-      return message.channel.send({
-        components: [container],
-        flags: MessageFlags.IsComponentsV2
-      }).catch(() => null);
+      if (command.usage) reply += `\nUsage: \`${prefix}${command.name} ${command.usage}\``;
+      const container = new ContainerBuilder().addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(reply)
+      );
+      return message.channel.send({ components: [container], flags: MessageFlags.IsComponentsV2 }).catch(() => null);
     }
 
     if (command.botPerms && !message.guild.members.me.permissions.has(safeResolvePerms(command.botPerms, command.name, 'botPerms', client.logger))) {
-      const permDisplay = new TextDisplayBuilder()
-        .setContent(`I need the **\`${command.botPerms.join(', ')}\`** permission(s) to execute this command.`);
-
-      const container = new ContainerBuilder()
-        .addTextDisplayComponents(permDisplay);
-
-      return message.channel.send({
-        components: [container],
-        flags: MessageFlags.IsComponentsV2
-      }).catch(() => null);
+      const container = new ContainerBuilder().addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(`I need the **\`${command.botPerms.join(', ')}\`** permission(s) to execute this command.`)
+      );
+      return message.channel.send({ components: [container], flags: MessageFlags.IsComponentsV2 }).catch(() => null);
     }
 
     if (command.userPerms && !message.member.permissions.has(safeResolvePerms(command.userPerms, command.name, 'userPerms', client.logger))) {
-      const permDisplay = new TextDisplayBuilder()
-        .setContent(`You need the **\`${command.userPerms.join(', ')}\`** permission(s) to use this command.`);
-
-      const container = new ContainerBuilder()
-        .addTextDisplayComponents(permDisplay);
-
-      return message.channel.send({
-        components: [container],
-        flags: MessageFlags.IsComponentsV2
-      }).catch(() => null);
+      const container = new ContainerBuilder().addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(`You need the **\`${command.userPerms.join(', ')}\`** permission(s) to use this command.`)
+      );
+      return message.channel.send({ components: [container], flags: MessageFlags.IsComponentsV2 }).catch(() => null);
     }
 
-    if (command.owner && !client.config.ownerID.includes(message.author.id)) {
-      return;
-    }
+    if (command.owner && !ownerIds.includes(userId)) return;
 
     const player = client.manager.players.get(message.guild.id);
     if (command.player && !player) {
-      const playerDisplay = new TextDisplayBuilder()
-        .setContent(`**${client.emoji.warn} There is no music player active in this server.**`);
-
-      const container = new ContainerBuilder()
-        .addTextDisplayComponents(playerDisplay);
-
-      return message.channel.send({
-        components: [container],
-        flags: MessageFlags.IsComponentsV2
-      }).catch(() => null);
+      const container = new ContainerBuilder().addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(`**${client.emoji.warn} There is no music player active in this server.**`)
+      );
+      return message.channel.send({ components: [container], flags: MessageFlags.IsComponentsV2 }).catch(() => null);
     }
 
     if (command.inVoiceChannel && !message.member.voice.channel) {
-      const vcDisplay = new TextDisplayBuilder()
-        .setContent(`**${client.emoji.warn} You must be in a voice channel to use this command.**`);
-
-      const container = new ContainerBuilder()
-        .addTextDisplayComponents(vcDisplay);
-
-      return message.channel.send({
-        components: [container],
-        flags: MessageFlags.IsComponentsV2
-      }).catch(() => null);
+      const container = new ContainerBuilder().addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(`**${client.emoji.warn} You must be in a voice channel to use this command.**`)
+      );
+      return message.channel.send({ components: [container], flags: MessageFlags.IsComponentsV2 }).catch(() => null);
     }
 
     if (command.sameVoiceChannel && player && message.member.voice.channel.id !== player.voiceId) {
-      const sameVcDisplay = new TextDisplayBuilder()
-        .setContent(`**${client.emoji.warn} You must be in the same voice channel as me.**`);
-
-      const container = new ContainerBuilder()
-        .addTextDisplayComponents(sameVcDisplay);
-
-      return message.channel.send({
-        components: [container],
-        flags: MessageFlags.IsComponentsV2
-      }).catch(() => null);
+      const container = new ContainerBuilder().addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(`**${client.emoji.warn} You must be in the same voice channel as me.**`)
+      );
+      return message.channel.send({ components: [container], flags: MessageFlags.IsComponentsV2 }).catch(() => null);
     }
 
+    // ── Execute ───────────────────────────────────────────────────────────────
     try {
       await command.execute(message, args, client, prefix);
 
-      UserStats.findOne({ userId: message.author.id }).then(async (stat) => {
+      // Track stats fire-and-forget (doesn't block response)
+      UserStats.findOne({ userId }).then(async (stat) => {
         if (stat) {
           stat.commandsRun = (stat.commandsRun || 0) + 1;
           stat.updatedAt = new Date();
           await stat.save();
         } else {
-          await UserStats.create({ userId: message.author.id, commandsRun: 1, updatedAt: Date.now() });
+          await UserStats.create({ userId, commandsRun: 1, updatedAt: Date.now() });
         }
       }).catch(() => {});
 
+      // Webhook log fire-and-forget
       const cmdrunUrl = client.config.Webhooks?.cmdrun;
       if (cmdrunUrl && cmdrunUrl.startsWith("https://discord.com/api/webhooks/")) {
         const web = new WebhookClient({ url: cmdrunUrl });
-
         const commandlog = new EmbedBuilder()
           .setAuthor({ name: message.author.tag, iconURL: message.author.displayAvatarURL({ dynamic: true }) })
           .setColor(client.color)
@@ -420,25 +381,16 @@ module.exports = {
             `**${client.emoji.dot} Executor:** \`${message.author.tag} | ${message.author.id}\`\n` +
             `**${client.emoji.dot} Content:** \`${message.content}\``
           );
-
-        web.send({ embeds: [commandlog] }).catch((e) => client.logger.log(e, "error"));
+        web.send({ embeds: [commandlog] }).catch(() => {});
       }
     } catch (error) {
       client.logger.log(`Error executing command ${command.name}: ${error.stack}`, "error");
-
-      const errorDisplay = new TextDisplayBuilder()
-        .setContent(`**${client.emoji.warn} An error occurred while executing this command!**`);
-
-      const container = new ContainerBuilder()
-        .addTextDisplayComponents(errorDisplay);
-
+      const container = new ContainerBuilder().addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(`**${client.emoji.warn} An error occurred while executing this command!**`)
+      );
       try {
-        await message.channel.send({
-          components: [container],
-          flags: MessageFlags.IsComponentsV2
-        });
-      } catch (sendError) {
-        client.logger.log(`Failed to send error message: ${sendError}`, "error");
+        await message.channel.send({ components: [container], flags: MessageFlags.IsComponentsV2 });
+      } catch {
         message.author.send(`**An error occurred while running \`${command.name}\`.** Please make sure I have permission to send messages in that channel.`).catch(() => {});
       }
     }

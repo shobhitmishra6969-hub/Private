@@ -5,6 +5,7 @@ const {
 } = require("discord.js");
 const db = require("../../schema/prefix.js");
 const emoji = require("../../emojis");
+const { prefixCache } = require("../../utils/cache");
 
 module.exports = {
   name: "setprefix",
@@ -94,6 +95,7 @@ module.exports = {
           Prefix: newPrefix,
           oldPrefix: prefix,
         });
+        prefixCache.set(message.guild.id, newPrefix);
       } catch (err) {
         console.error(err);
 
@@ -113,6 +115,7 @@ module.exports = {
       data.Prefix = newPrefix;
       try {
         await data.save();
+        prefixCache.set(message.guild.id, newPrefix);
       } catch (err) {
         console.error(err);
 

@@ -21,13 +21,21 @@ function safeResolvePerms(perms, commandName, type, logger) {
 const db = require("../../schema/prefix.js");
 const db3 = require("../../schema/setup");
 const Liked = require("../../schema/liked.js");
+const { prefixCache } = require("../../utils/cache");
+
+async function getPrefix(guildId, clientPrefix) {
+  const cached = prefixCache.get(guildId);
+  if (cached !== undefined) return cached;
+  const row = await db.findOne({ Guild: guildId }).catch(() => null);
+  const val = row?.Prefix || clientPrefix;
+  prefixCache.set(guildId, val);
+  return val;
+}
 
 module.exports = {
   name: "interactionCreate",
   run: async (client, interaction) => {
-    let prefix = client.prefix;
-    const ress = await db.findOne({ Guild: interaction.guildId });
-    if (ress && ress.Prefix) prefix = ress.Prefix;
+    const prefix = await getPrefix(interaction.guildId, client.prefix);
 
     if (interaction.type === InteractionType.ApplicationCommandAutocomplete) {
       const command = client.slashCommands.get(interaction.commandName);
