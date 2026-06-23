@@ -37,7 +37,7 @@ function getCleanThumbnail(url) {
   return url;
 }
 
-function buildQueueContainer(current, queue, page, totalDuration, loopMode) {
+function buildQueueContainer(current, queue, page, totalDuration, loopMode, autoplay) {
   const totalPages = Math.max(1, Math.ceil(queue.length / TRACKS_PER_PAGE));
   const start = page * TRACKS_PER_PAGE;
   const slice = queue.slice(start, start + TRACKS_PER_PAGE);
@@ -83,9 +83,12 @@ function buildQueueContainer(current, queue, page, totalDuration, loopMode) {
   const loopLabel = loopMode === "track" ? "Track" : loopMode === "queue" ? "Queue" : "Off";
   const totalTracks = queue.length;
 
+  const autoplayLabel = autoplay ? "🔗 ON" : "OFF";
+  const autoplayPart = `Autoplay: \`${autoplayLabel}\``;
+
   container.addTextDisplayComponents(
     new TextDisplayBuilder().setContent(
-      `Page \`${page + 1}/${totalPages}\` • \`${totalTracks}\` track${totalTracks !== 1 ? "s" : ""} in queue • Total: \`${formatMSS(totalDuration)}\` • Loop: \`${loopLabel}\``
+      `Page \`${page + 1}/${totalPages}\` • \`${totalTracks}\` track${totalTracks !== 1 ? "s" : ""} in queue • Total: \`${formatMSS(totalDuration)}\` • Loop: \`${loopLabel}\` • ${autoplayPart}`
     )
   );
 
@@ -172,8 +175,10 @@ module.exports = {
     const totalPages = Math.max(1, Math.ceil(queue.length / TRACKS_PER_PAGE));
     let page = 0;
 
+    const autoplay = Boolean(player.data?.get("autoplay"));
+
     const components = [
-      buildQueueContainer(current, queue, page, totalDuration, loopMode),
+      buildQueueContainer(current, queue, page, totalDuration, loopMode, autoplay),
       buildNavRow(page, totalPages),
     ];
 
@@ -227,7 +232,7 @@ module.exports = {
 
       await queueMsg.edit({
         components: [
-          buildQueueContainer(player.queue.current || current, player.queue, page, updatedTotalDuration, updatedLoop),
+          buildQueueContainer(player.queue.current || current, player.queue, page, updatedTotalDuration, updatedLoop, Boolean(player.data?.get("autoplay"))),
           buildNavRow(page, updatedTotal),
         ],
         flags: MessageFlags.IsComponentsV2,
@@ -243,7 +248,7 @@ module.exports = {
 
       queueMsg.edit({
         components: [
-          buildQueueContainer(player.queue.current || current, player.queue, Math.min(page, finalTotal - 1), finalDuration, finalLoop),
+          buildQueueContainer(player.queue.current || current, player.queue, Math.min(page, finalTotal - 1), finalDuration, finalLoop, Boolean(player.data?.get("autoplay"))),
         ],
         flags: MessageFlags.IsComponentsV2,
       }).catch(() => {});

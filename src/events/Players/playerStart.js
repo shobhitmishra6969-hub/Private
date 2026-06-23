@@ -249,6 +249,8 @@ module.exports = {
         if (!player.data) player.data = new Map();
         player.data.set("lastTrack", track);
         client.voiceHealthMonitor?.updateActivity(player.guildId);
+        const { trackRecentlyPlayed } = require("../../utils/playerUtils");
+        trackRecentlyPlayed(player, track);
       } catch { }
 
       // Detect whether this track was queued by the AI recommendation engine

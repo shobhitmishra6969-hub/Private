@@ -242,13 +242,13 @@ async function attemptAutoplay(client, player) {
         // Detect the source platform of the last track
         const platform = detectPlatform(lastTrack);
 
-        // Recent-track memory — avoid repeating the last 5 autoplay picks
-        const recentKey = 'recentAutoplayIds';
+        // Recent-track memory — avoid repeating the last 25 tracks
+        const recentKey = 'recentlyPlayed';
         const recent = player.data?.get(recentKey) || [];
 
         const remember = (t) => {
             const id = t.identifier || extractYouTubeId(t.uri) || t.uri;
-            const next = Array.from(new Set([id, ...recent])).filter(Boolean).slice(0, 5);
+            const next = Array.from(new Set([id, ...recent])).filter(Boolean).slice(0, 25);
             player.data?.set(recentKey, next);
         };
 
@@ -407,6 +407,32 @@ async function attemptAutoplay(client, player) {
             'log'
         );
 
+        // ── Autoplay announcement card ────────────────────────────────────────
+        try {
+            const { ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, MessageFlags } = require('discord.js');
+            const channel = client.channels.cache.get(player.textId);
+            if (channel) {
+                const platformLabel = getPlatformLabel(platform);
+                const sourceEmoji = {
+                    spotify: '🟢', youtube: '▶️', deezer: '🟣',
+                    applemusic: '🍎', jiosaavn: '🎵', soundcloud: '🔶',
+                }[platform] || '▶️';
+
+                const artistClean = cleanAuthor(foundTrack.author || '');
+                const modeTag = isAiPick ? '🤖 AI Pick' : '🔗 Related';
+                const announceLine =
+                    `### 🎵 Autoplay — ${modeTag}\n` +
+                    `**${foundTrack.title}**${artistClean ? ` by **${artistClean}**` : ''}\n` +
+                    `-# Source: ${sourceEmoji} ${platformLabel}`;
+
+                const card = new ContainerBuilder()
+                    .setAccentColor(0x7B2FBE)
+                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(announceLine));
+
+                await channel.send({ components: [card], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
+            }
+        } catch { }
+
         if (!player.playing && !player.paused) {
             await player.play().catch(e => {
                 client.logger?.log(`[Autoplay] Play error: ${e.message}`, 'error');
@@ -436,6 +462,18 @@ async function applyQualityFilters(player) {
     // No-op: quality filters removed so all users get clean, full-speed playback
 }
 
+// ── Per-guild recentlyPlayed tracker (called from playerStart) ────────────────
+
+function trackRecentlyPlayed(player, track) {
+    if (!player?.data || !track) return;
+    const id = track.identifier || extractYouTubeId(track.uri) || track.uri;
+    if (!id) return;
+    const key = 'recentlyPlayed';
+    const recent = player.data.get(key) || [];
+    const next = Array.from(new Set([id, ...recent])).filter(Boolean).slice(0, 25);
+    player.data.set(key, next);
+}
+
 module.exports = {
     safeDestroyPlayer,
     handleSessionError,
@@ -445,4 +483,5 @@ module.exports = {
     detectPlatform,
     getPlatformLabel,
     getPlatformEngines,
+    trackRecentlyPlayed,
 };
