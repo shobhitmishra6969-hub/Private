@@ -192,46 +192,32 @@ module.exports = {
     }
 
     if (interaction.customId === `spotify-login_playlists_${userId}`) {
-      await interaction.deferReply({ ephemeral: true });
+      await interaction.deferUpdate();
+
+      const { launchPlaylistBrowser } = require('./spotifyMyPlaylists');
+
       const linked = await SpotifyProfile.findOne({ userId }).catch(() => null);
-      if (!linked) return interaction.editReply({ content: '**No Spotify profile linked.**' });
+      const profileUrl = linked?.profileUrl || `https://open.spotify.com/user/${linked?.spotifyUserId || ''}`;
+      const avatarUrl  = linked?.avatarUrl || null;
+      const displayName = linked?.displayName || linked?.spotifyUserId || 'User';
+      const prefix = client.prefix || '+';
 
-      let token;
-      try { token = await getClientCredentialsToken(); } catch {}
-      if (!token) return interaction.editReply({ content: '**Failed to connect to Spotify API.**' });
-
-      let playlistData;
-      try { playlistData = await fetchPublicPlaylists(linked.spotifyUserId, token, 50); }
-      catch { return interaction.editReply({ content: '**Could not fetch playlists. The profile may be private.**' }); }
-
-      const playlists = playlistData?.items || [];
-      if (!playlists.length) return interaction.editReply({ content: '**No public playlists found for this profile.**' });
-
-      const playlistsToSave = playlists.map(p => ({
-        name: p.name || 'Untitled Playlist',
-        url: p.external_urls?.spotify || `https://open.spotify.com/playlist/${p.id}`,
-        trackCount: p.tracks?.total ?? 0,
-      }));
-      SpotifyProfile.findOneAndUpdate({ userId }, { playlists: playlistsToSave, updatedAt: Date.now() }, { upsert: false }).catch(() => {});
-
-      const showCount = Math.min(playlists.length, 10);
-      const listText  = playlists.slice(0, showCount)
-        .map((p, i) => `\`${i + 1}.\` [${p.name}](${p.external_urls?.spotify}) — ${p.tracks?.total ?? '?'} tracks`)
-        .join('\n');
-
-      return interaction.editReply({
-        components: [
-          new ContainerBuilder()
-            .setAccentColor(0x7B2FBE)
-            .addTextDisplayComponents(
-              new TextDisplayBuilder().setContent(`### ${emoji.spotify} Public Playlists\n${listText}`)
-            )
-            .addTextDisplayComponents(
-              new TextDisplayBuilder().setContent(`-# Showing ${showCount} of ${playlistData.total} public playlists`)
-            ),
-        ],
+      const sendCard  = async (components) => interaction.editReply({ components, flags: MessageFlags.IsComponentsV2 });
+      const sendError = async (text) => interaction.editReply({
+        components: [new ContainerBuilder().setAccentColor(0x7B2FBE)
+          .addTextDisplayComponents(new TextDisplayBuilder().setContent(text))],
         flags: MessageFlags.IsComponentsV2,
       });
+
+      const onBack = async (i) => {
+        const playlistCount = Array.isArray(linked?.playlists) ? linked.playlists.length : 0;
+        const container = buildProfileContainer(displayName, playlistCount, avatarUrl, profileUrl, prefix);
+        const row = buildProfileButtons(userId, profileUrl);
+        container.addActionRowComponents(row);
+        return i.update({ components: [container], flags: MessageFlags.IsComponentsV2 });
+      };
+
+      return launchPlaylistBrowser({ sendCard, sendError, userId, client, onBack });
     }
 
     if (interaction.customId === `spotify-login_disconnect_${userId}`) {
