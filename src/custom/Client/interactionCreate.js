@@ -488,14 +488,25 @@ module.exports = {
           }
 
           case "np_autoplay": {
-            const currentAuto = player.data.get("autoplay") || false;
-            const newAutoStatus = !currentAuto;
-            player.data.set("autoplay", newAutoStatus);
-            await updateNowPlayingButtons(client, player, player.shoukaku.paused);
-            await interaction.followUp({ 
-              content: `**${client.emoji.dance} Autoplay has been \`${newAutoStatus ? "Enabled" : "Disabled"}\`**`, 
-              ephemeral: true 
-            }).catch(() => {});
+            try {
+              const autoplayCmd = require("../../commands/Music/autoplay");
+              const panel = autoplayCmd.buildModePanel();
+              const modeMsg = await interaction.followUp({
+                components: [panel],
+                flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+                fetchReply: true,
+              }).catch(() => null);
+              if (modeMsg) {
+                autoplayCmd.attachCollector(
+                  modeMsg, player, client,
+                  interaction.member?.voice?.channel,
+                  interaction.channel,
+                  interaction.user.id
+                );
+              }
+            } catch (e) {
+              console.error('[np_autoplay] panel error:', e);
+            }
             break;
           }
         }

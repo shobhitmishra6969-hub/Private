@@ -220,6 +220,12 @@ function getDb() {
     try {
         _db.exec(`ALTER TABLE afk ADD COLUMN dmNotify INTEGER DEFAULT 0`);
     } catch (_) {}
+    try {
+        _db.exec(`ALTER TABLE userhistory ADD COLUMN language TEXT DEFAULT 'English'`);
+    } catch (_) {}
+    try {
+        _db.exec(`ALTER TABLE userhistory ADD COLUMN vibe TEXT DEFAULT 'mixed'`);
+    } catch (_) {}
 
     return _db;
 }

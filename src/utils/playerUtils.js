@@ -215,6 +215,21 @@ async function fetchLastFmSimilar(title, artist, apiKey) {
     }
 }
 
+// ── User taste profile builder ────────────────────────────────────────────────
+
+/**
+ * Build a taste-aware seed query by combining the current track with a user's
+ * top-2 most-played artists from their persistent history.
+ */
+function buildTasteQuery(lastTrack, topArtists) {
+    const trackArtist = cleanAuthor(lastTrack.author || '');
+    const combined    = [trackArtist, ...topArtists.filter(a => a !== trackArtist)].slice(0, 2);
+    if (combined.length > 0) {
+        return `${combined[0]} songs mix`; // e.g. "Diljit Dosanjh songs mix"
+    }
+    return `${lastTrack.title} ${trackArtist}`.trim();
+}
+
 // ── Main autoplay function ────────────────────────────────────────────────────
 
 async function attemptAutoplay(client, player) {
@@ -262,13 +277,55 @@ async function attemptAutoplay(client, player) {
             || tracks.find(t => !isSameTrack(lastTrack, t))
             || null;
 
+        // ── User taste profile (Related mode) ────────────────────────────────
+        const autoplayUserId = player.data?.get('autoplayUserId');
+        let topArtists = [];
+        let tasteQuery = null;
+
+        if (autoplayUserId) {
+            try {
+                const UserHistory = require('../schema/userhistory');
+                topArtists = UserHistory.getTopArtists(autoplayUserId, 2);
+                if (topArtists.length) {
+                    tasteQuery = buildTasteQuery(lastTrack, topArtists);
+                    client.logger?.log(
+                        `[Autoplay] Taste profile for ${autoplayUserId}: [${topArtists.join(', ')}] → "${tasteQuery}"`,
+                        'log'
+                    );
+                }
+            } catch (histErr) {
+                client.logger?.log(`[Autoplay] Taste profile error: ${histErr.message}`, 'warn');
+            }
+        }
+
         let foundTrack = null;
         let isAiPick = false;
         let autoplaySource = 'unknown';
 
+        // ── Phase 0: User taste injection (Related mode) ──────────────────────
+        // If we have a taste query from user history, try it first on the same platform
+        if (tasteQuery) {
+            const engines = getPlatformEngines(platform);
+            for (const engine of engines) {
+                try {
+                    const res = await player.search(tasteQuery, {
+                        engine,
+                        requester: lastTrack.requester || client.user,
+                    });
+                    const best = pickBest(res?.tracks || []);
+                    if (best) {
+                        foundTrack = best;
+                        isAiPick = true;
+                        autoplaySource = `taste:${engine}`;
+                        break;
+                    }
+                } catch { continue; }
+            }
+        }
+
         // ── Phase 1: Platform-native recommendation ───────────────────────────
         // Spotify → Spotify API → spsearch
-        if (platform === 'spotify') {
+        if (!foundTrack && platform === 'spotify') {
             const spotifyId = extractSpotifyTrackId(lastTrack.uri);
             const clientId = client.config?.SpotifyID;
             const clientSecret = client.config?.SpotifySecret;
