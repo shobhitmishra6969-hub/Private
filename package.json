@@ -12,7 +12,7 @@
     "@flytri/lyrics-finder": "^1.0.7",
     "@napi-rs/canvas": "^1.0.0",
     "axios": "^1.16.1",
-    "better-sqlite3": "^12.10.0",
+    "better-sqlite3": "^12.11.1",
     "discord-hybrid-sharding": "^3.0.1",
     "discord.js": "^14.26.4",
     "dokdo": "1.0.1",
