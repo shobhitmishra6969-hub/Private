@@ -37,7 +37,7 @@ function safeResolvePerms(perms, commandName, type, logger) {
   }
 }
 const RATELIMIT_THRESHOLD = 5;
-const RATELIMIT_WINDOW = 20000;
+const RATELIMIT_WINDOW = 120_000; // 2 minutes
 
 // ── Cached DB helpers ────────────────────────────────────────────────────────
 

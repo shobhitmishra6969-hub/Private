@@ -12,6 +12,7 @@ const {
 const Blacklist = require('../../schema/blacklist.js');
 const config = require('../../config.js');
 const emoji = require('../../emojis');
+const { blacklistCache } = require('../../utils/cache');
 
 const ITEMS_PER_PAGE = 10;
 
@@ -72,7 +73,7 @@ module.exports = {
     aliases: ['bl', 'ban-user'],
     category: 'Owner',
     description: 'Manage the bot blacklist (Owner only)',
-    usage: '<add|remove|list|check> [@user] [reason]',
+    usage: '<add|remove|removeall|list|check> [@user] [reason]',
     args: false,
     userPerms: [],
     owner: true,
@@ -196,6 +197,7 @@ module.exports = {
                 return err(message, `**${emoji.warn} \`${target.username}\` is not blacklisted.**`);
 
             await Blacklist.deleteOne({ userId: target.id });
+            blacklistCache.del(target.id);
 
             try {
                 await target.send({
@@ -288,10 +290,87 @@ module.exports = {
             });
         }
 
+        // ── REMOVE ALL ────────────────────────────────────────────────────────
+        if (sub === 'removeall' || sub === 'clearall' || sub === 'wipebl') {
+            const entries = await Blacklist.find({});
+            const count = entries.length;
+
+            if (count === 0)
+                return err(message, `**${emoji.info} The blacklist is already empty.**`);
+
+            // Confirmation step — send a button prompt
+            const confirmContainer = new ContainerBuilder().setAccentColor(0x7B2FBE)
+                .addTextDisplayComponents(
+                    new TextDisplayBuilder().setContent(
+                        `**${emoji.warn} Are you sure you want to remove ALL ${count} blacklisted user${count !== 1 ? 's' : ''}?**\n` +
+                        `-# This action cannot be undone.`
+                    )
+                )
+                .addActionRowComponents(
+                    new ActionRowBuilder().addComponents(
+                        new ButtonBuilder()
+                            .setCustomId('bl_removeall_confirm')
+                            .setLabel('Yes, clear all')
+                            .setStyle(ButtonStyle.Danger),
+                        new ButtonBuilder()
+                            .setCustomId('bl_removeall_cancel')
+                            .setLabel('Cancel')
+                            .setStyle(ButtonStyle.Secondary),
+                    )
+                );
+
+            const sent = await message.reply({
+                components: [confirmContainer],
+                flags: MessageFlags.IsComponentsV2,
+            });
+
+            const collector = sent.createMessageComponentCollector({
+                filter: i => i.user.id === message.author.id,
+                time: 30_000,
+                max: 1,
+            });
+
+            collector.on('collect', async i => {
+                if (i.customId === 'bl_removeall_cancel') {
+                    return i.update({
+                        components: [new ContainerBuilder().setAccentColor(0x7B2FBE)
+                            .addTextDisplayComponents(new TextDisplayBuilder().setContent(`**${emoji.info} Cancelled. No users were removed.**`))],
+                        flags: MessageFlags.IsComponentsV2,
+                    });
+                }
+
+                // Confirmed — wipe the entire blacklist
+                const allEntries = await Blacklist.find({});
+                for (const entry of allEntries) blacklistCache.del(entry.userId);
+                await Blacklist.deleteMany({});
+
+                return i.update({
+                    components: [new ContainerBuilder().setAccentColor(0x7B2FBE)
+                        .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                            `**${emoji.check} Done. Removed all ${count} user${count !== 1 ? 's' : ''} from the blacklist.**\n` +
+                            `-# All users can now use the bot again.`
+                        ))],
+                    flags: MessageFlags.IsComponentsV2,
+                });
+            });
+
+            collector.on('end', (collected, reason) => {
+                if (reason === 'time') {
+                    sent.edit({
+                        components: [new ContainerBuilder().setAccentColor(0x7B2FBE)
+                            .addTextDisplayComponents(new TextDisplayBuilder().setContent(`**${emoji.warn} Timed out. No users were removed.**`))],
+                        flags: MessageFlags.IsComponentsV2,
+                    }).catch(() => {});
+                }
+            });
+
+            return;
+        }
+
         // ── UNKNOWN SUBCOMMAND ────────────────────────────────────────────────
         return err(message,
             `**${emoji.cross} Unknown subcommand \`${sub}\`.**\n` +
-            `**Usage:** \`${client.prefix}blacklist <add|remove|list|check> [@user] [reason]\``
+            `**Usage:** \`${client.prefix}blacklist <add|remove|removeall|list|check> [@user] [reason]\``
         );
     },
 };
