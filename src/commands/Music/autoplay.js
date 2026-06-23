@@ -102,7 +102,6 @@ function buildMoodPanel() {
   );
   const sep = new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true);
 
-  // 2×2 grid: row1 = Chill + Party, row2 = Lo-Fi + Sad
   const row1 = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId('ap_mood_chill').setLabel('Chill').setEmoji('🌊').setStyle(ButtonStyle.Secondary),
     new ButtonBuilder().setCustomId('ap_mood_party').setLabel('Party').setEmoji('🎉').setStyle(ButtonStyle.Secondary),
@@ -110,6 +109,58 @@ function buildMoodPanel() {
   const row2 = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId('ap_mood_lofi').setLabel('Lo-Fi').setEmoji('☕').setStyle(ButtonStyle.Secondary),
     new ButtonBuilder().setCustomId('ap_mood_sad').setLabel('Sad').setEmoji('🌧️').setStyle(ButtonStyle.Secondary),
+  );
+
+  return new ContainerBuilder().setAccentColor(0x7B2FBE)
+    .addTextDisplayComponents(header)
+    .addSeparatorComponents(sep)
+    .addActionRowComponents(row1)
+    .addActionRowComponents(row2);
+}
+
+// Supported languages with their display info
+const LANGUAGES = [
+  { key: 'Hindi',    emoji: '🇮🇳', label: 'Hindi'    },
+  { key: 'Punjabi',  emoji: '🎺', label: 'Punjabi'   },
+  { key: 'English',  emoji: '🌍', label: 'English'   },
+  { key: 'Bhojpuri', emoji: '🌾', label: 'Bhojpuri'  },
+  { key: 'Tamil',    emoji: '🎭', label: 'Tamil'     },
+  { key: 'Telugu',   emoji: '🎵', label: 'Telugu'    },
+];
+
+/**
+ * Build the language selection panel shown after a mood is chosen.
+ * @param {string} moodKey    - which mood was selected (for display)
+ * @param {string|null} suggestedLang - user's detected preferred language (highlighted)
+ */
+function buildLanguagePanel(moodKey, suggestedLang) {
+  const moodInfo = MOODS[moodKey] || { emoji: '🎵', label: moodKey };
+  const headerText = suggestedLang
+    ? `## 🌐 Choose a Language\n${moodInfo.emoji} **${moodInfo.label}** selected · Your preference: **${suggestedLang}**`
+    : `## 🌐 Choose a Language\n${moodInfo.emoji} **${moodInfo.label}** selected · Pick a language for your playlist.`;
+
+  const header = new TextDisplayBuilder().setContent(headerText);
+  const sep    = new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true);
+
+  // Row 1: Hindi, Punjabi, English
+  const row1 = new ActionRowBuilder().addComponents(
+    ...LANGUAGES.slice(0, 3).map(lang =>
+      new ButtonBuilder()
+        .setCustomId(`ap_lang_${lang.key}`)
+        .setLabel(lang.label)
+        .setEmoji(lang.emoji)
+        .setStyle(lang.key === suggestedLang ? ButtonStyle.Primary : ButtonStyle.Secondary)
+    )
+  );
+  // Row 2: Bhojpuri, Tamil, Telugu
+  const row2 = new ActionRowBuilder().addComponents(
+    ...LANGUAGES.slice(3).map(lang =>
+      new ButtonBuilder()
+        .setCustomId(`ap_lang_${lang.key}`)
+        .setLabel(lang.label)
+        .setEmoji(lang.emoji)
+        .setStyle(lang.key === suggestedLang ? ButtonStyle.Primary : ButtonStyle.Secondary)
+    )
   );
 
   return new ContainerBuilder().setAccentColor(0x7B2FBE)
@@ -160,7 +211,7 @@ async function enableRelated(player, interaction, isInteraction = false, userId 
   }
 }
 
-async function enableMood(player, client, voiceChannel, textChannel, moodKey, interaction, isInteraction = false, userId = null) {
+async function enableMood(player, client, voiceChannel, textChannel, moodKey, interaction, isInteraction = false, userId = null, langOverride = null) {
   const mood = MOODS[moodKey];
   if (!mood) return;
 
@@ -173,14 +224,14 @@ async function enableMood(player, client, voiceChannel, textChannel, moodKey, in
   player.data.set('autoplayMood', moodKey);
   if (userId) player.data.set('autoplayUserId', userId);
 
-  // Detect user's language preference from history
-  let langPref = null;
-  if (userId) {
+  // Use explicitly chosen language, or fall back to history preference
+  let langPref = langOverride || null;
+  if (!langPref && userId) {
     try { langPref = UserHistory.getLanguagePreference(userId); } catch {}
   }
 
   const smartQuery = buildMoodQuery(moodKey, langPref);
-  const langNote   = langPref ? ` · ${langPref} vibe detected` : '';
+  const langNote   = langPref ? ` · ${langPref}` : '';
 
   // Try playlist URL → smart query → generic fallback
   const trySearch = async (q, engine) => {
@@ -227,18 +278,22 @@ async function enableMood(player, client, voiceChannel, textChannel, moodKey, in
   });
 }
 
-// ── Button collector ──────────────────────────────────────────────────────────
+// ── Button collector (3-stage: Mode → Mood → Language → Play) ────────────────
 
 function attachCollector(reply, player, client, voiceChannel, textChannel, userId) {
+  // Closure state to remember mood between stage 2 and stage 3
+  let pendingMoodKey = null;
+
   const collector = reply.createMessageComponentCollector({
     componentType: ComponentType.Button,
-    time: 60_000,
+    time: 90_000,                          // 90s total window for all stages
     filter: (i) => i.user.id === userId,
   });
 
   collector.on('collect', async (i) => {
     const id = i.customId;
 
+    // ── Stage 1: Mode selection ─────────────────────────────────────────────
     if (id === 'ap_mode_related') {
       collector.stop('done');
       return enableRelated(player, i, true, userId);
@@ -254,15 +309,38 @@ function attachCollector(reply, player, client, voiceChannel, textChannel, userI
     }
 
     if (id === 'ap_mode_mood') {
-      const moodPanel = buildMoodPanel();
-      await i.update({ components: [moodPanel], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
+      await i.update({ components: [buildMoodPanel()], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
       return;
     }
 
+    // ── Stage 2: Mood selection → show language picker ──────────────────────
     if (id.startsWith('ap_mood_')) {
+      pendingMoodKey = id.replace('ap_mood_', '');
+
+      // Detect user's preferred language to pre-highlight it in the panel
+      let suggestedLang = null;
+      if (userId) {
+        try { suggestedLang = UserHistory.getLanguagePreference(userId); } catch {}
+      }
+
+      const langPanel = buildLanguagePanel(pendingMoodKey, suggestedLang);
+      await i.update({ components: [langPanel], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
+      return;
+    }
+
+    // ── Stage 3: Language selection → load playlist ─────────────────────────
+    if (id.startsWith('ap_lang_')) {
       collector.stop('done');
-      const moodKey = id.replace('ap_mood_', '');
-      return enableMood(player, client, voiceChannel, textChannel, moodKey, i, true, userId);
+      const langKey  = id.replace('ap_lang_', '');
+      const moodKey  = pendingMoodKey;
+
+      if (!moodKey) {
+        // Edge case: somehow got here without a mood — restart from mood panel
+        await i.update({ components: [buildMoodPanel()], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
+        return;
+      }
+
+      return enableMood(player, client, voiceChannel, textChannel, moodKey, i, true, userId, langKey);
     }
   });
 
