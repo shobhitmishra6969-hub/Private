@@ -272,10 +272,15 @@ async function attemptAutoplay(client, player) {
             return recent.includes(id);
         };
 
-        const pickBest = (tracks) =>
-            tracks.find(t => !isSameTrack(lastTrack, t) && !isRecent(t))
-            || tracks.find(t => !isSameTrack(lastTrack, t))
-            || null;
+        const { AutoplayManager } = require('./autoplayManager');
+        const activeVCUsers = AutoplayManager.getActiveVCUsers(client, player);
+
+        const pickBest = (tracks) => {
+            const ranked = AutoplayManager.rankByTaste(tracks, client, player);
+            return ranked.find(t => !isSameTrack(lastTrack, t) && !isRecent(t))
+                || ranked.find(t => !isSameTrack(lastTrack, t))
+                || null;
+        };
 
         // ── User taste profile (Related mode) ────────────────────────────────
         const autoplayUserId = player.data?.get('autoplayUserId');

@@ -685,6 +685,14 @@ module.exports = {
                   await userLiked.save();
                 }
               } catch (e) { console.error('[np_like] save error:', e); }
+              try {
+                const { processInteraction } = require('../../utils/tasteEngine');
+                processInteraction(userId, {
+                  title:  song.title,
+                  author: song.author,
+                  uri:    song.uri,
+                }, 'LIKE');
+              } catch { /* taste engine errors must never break the like flow */ }
               await interaction.followUp({ content: `**${client.emoji.like} Added to favourites!**`, ephemeral: true }).catch(() => {});
             }
             player.data.set("likes", likes);

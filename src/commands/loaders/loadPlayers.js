@@ -14,4 +14,7 @@ module.exports = (client) => {
   }
 
   client.logger.log(`Player Events Loaded: ${totalEvents}`, "event");
+
+  const { AutoplayManager } = require("../../utils/autoplayManager");
+  AutoplayManager.instance.init(client);
 };
