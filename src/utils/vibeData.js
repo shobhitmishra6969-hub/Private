@@ -120,11 +120,12 @@ function buildVcPromptRow() {
   );
 }
 
-function buildVibeSelectEmbed(client, voiceChannelName) {
+function buildVibeSelectEmbed(client, voiceChannelName, user) {
+  const startedBy = user ? ` • started by @${user.username}` : '';
   return new EmbedBuilder()
     .setColor(0x7B2FBE)
     .setTitle('Welcome to Tone Vibes')
-    .setDescription(`Connected to: 🔊 **${voiceChannelName}**`)
+    .setDescription(`Connected to: 🔊 **${voiceChannelName}**${startedBy}`)
     .addFields({ name: 'Choose your vibe', value: 'Select a genre to start playing music:' })
     .setFooter({
       text: 'Tone Vibes • Vibe with the tone',
@@ -150,10 +151,10 @@ function buildVibeSelectRow() {
 function buildPlayHintRow() {
   return new ActionRowBuilder().addComponents(
     new ButtonBuilder()
-      .setCustomId('setup_playhint')
-      .setLabel('Or use /play to search for a specific song')
+      .setCustomId('setup_searchmusic')
+      .setLabel('Search for Music Instead')
       .setStyle(ButtonStyle.Secondary)
-      .setDisabled(true),
+      .setEmoji('🔍'),
   );
 }
 

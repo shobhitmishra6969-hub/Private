@@ -346,6 +346,81 @@ module.exports = {
           }).catch(() => { });
         }
       }
+
+      if (interaction.customId === 'add_music_modal') {
+        const query = interaction.fields.getTextInputValue('music_query');
+        const voiceChannel = interaction.member?.voice?.channel;
+
+        if (!voiceChannel) {
+          return interaction.reply({
+            content: `**${client.emoji.warn} You need to be in a voice channel to play music!**`,
+            flags: MessageFlags.Ephemeral,
+          }).catch(() => {});
+        }
+
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral }).catch(() => {});
+
+        try {
+          const { EmbedBuilder, PermissionsBitField } = require('discord.js');
+
+          const perms = voiceChannel.permissionsFor(interaction.guild.members.me);
+          if (!perms?.has(PermissionsBitField.Flags.Connect) || !perms?.has(PermissionsBitField.Flags.Speak)) {
+            return interaction.editReply({
+              content: `**${client.emoji.warn} I don't have permission to join **${voiceChannel.name}**.**`,
+            }).catch(() => {});
+          }
+
+          let player = client.manager.players.get(interaction.guildId);
+          if (!player) {
+            player = await client.manager.createPlayer({
+              guildId: interaction.guildId,
+              voiceId: voiceChannel.id,
+              textId: interaction.channelId,
+              volume: 80,
+              deaf: true,
+            });
+            client.voiceHealthMonitor?.startMonitoring(player);
+          } else if (player.voiceId !== voiceChannel.id) {
+            await player.setVoiceChannel(voiceChannel.id).catch(() => {});
+          }
+
+          const searchResult = await player.search(query, { requester: interaction.user });
+
+          if (!searchResult || !searchResult.tracks?.length) {
+            return interaction.editReply({
+              content: `**${client.emoji.cross} No results found for \`${query}\`. Try a different search.**`,
+            }).catch(() => {});
+          }
+
+          const track = searchResult.tracks[0];
+          player.queue.add(track);
+
+          if (!player.playing && !player.paused) {
+            await player.play().catch(() => {});
+          }
+
+          const addedEmbed = new EmbedBuilder()
+            .setColor(0x7B2FBE)
+            .setTitle('🎵 Added to Queue')
+            .setDescription(`**[${track.title}](${track.uri})**\nby **${track.author}**`)
+            .addFields(
+              { name: '🔊 Channel', value: voiceChannel.name, inline: true },
+              { name: '⏱ Duration', value: track.isStream ? 'Live' : new Date(track.length).toISOString().substr(11, 8).replace(/^00:/, ''), inline: true },
+            )
+            .setFooter({ text: 'Tone Vibes • Vibe with the tone', iconURL: client.user.displayAvatarURL() })
+            .setTimestamp();
+
+          if (track.thumbnail) addedEmbed.setThumbnail(track.thumbnail);
+
+          return interaction.editReply({ embeds: [addedEmbed] }).catch(() => {});
+
+        } catch (err) {
+          client.logger?.log(`[AddMusicModal Error] ${err.message}`, 'error');
+          return interaction.editReply({
+            content: `**${client.emoji.cross} Something went wrong: ${err.message}**`,
+          }).catch(() => {});
+        }
+      }
     }
 
     if (interaction.isButton()) {
@@ -397,12 +472,28 @@ module.exports = {
           client.logger?.log(`[setup_joined] VC join error: ${joinErr.message}`, 'error');
         }
 
-        const embed = buildVibeSelectEmbed(client, voiceChannel.name);
+        const embed = buildVibeSelectEmbed(client, voiceChannel.name, interaction.user);
         const opts = { embeds: [embed], components: [buildVibeSelectRow(), buildPlayHintRow()] };
         if (action === 'joined') {
           return interaction.update(opts).catch(() => {});
         }
         return interaction.reply({ ...opts, flags: MessageFlags.Ephemeral }).catch(() => {});
+      }
+
+      // ── "Search for Music Instead" — open Add Music modal ───────────────────
+      if (interaction.customId === 'setup_searchmusic') {
+        const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder: AR } = require('discord.js');
+        const modal = new ModalBuilder()
+          .setCustomId('add_music_modal')
+          .setTitle('Add Music');
+        const input = new TextInputBuilder()
+          .setCustomId('music_query')
+          .setLabel('What would you like to play?')
+          .setPlaceholder('Song, artist, album, or playlist')
+          .setStyle(TextInputStyle.Short)
+          .setRequired(true);
+        modal.addComponents(new AR().addComponents(input));
+        return interaction.showModal(modal).catch(() => {});
       }
 
       // ── "I've Joined!" — join the user's VC via Kazagumo ────────────────────
