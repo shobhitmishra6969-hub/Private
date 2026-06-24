@@ -276,7 +276,7 @@ module.exports = {
 
     let token = null;
     try { token = await getClientCredentialsToken(); }
-    catch (err) { console.warn('[Spotify Login] Token error (non-fatal):', err?.response?.data || err.message); }
+    catch (err) { console.warn('[Spotify Login] Token error:', err?.response?.data || err.message); }
 
     let profile = null;
     if (token) {
@@ -284,13 +284,14 @@ module.exports = {
       catch (err) {
         const status = err?.response?.status;
         if (status === 404) return reply(interaction, `**Could not find Spotify user \`${spotifyUserId}\`.**\nMake sure the URL or username is correct.`);
-        console.warn(`[Spotify Login] Profile fetch failed (${status}), using URL fallback:`, err?.response?.data?.error?.message || err.message);
+        console.warn(`[Spotify Login] Profile fetch failed (${status}):`, err?.response?.data?.error?.message || err.message);
       }
     }
 
     let playlistData = null;
     if (token) {
-      try { playlistData = await fetchPublicPlaylists(profile?.id || spotifyUserId, token, 50); } catch {}
+      try { playlistData = await fetchPublicPlaylists(profile?.id || spotifyUserId, token, 50); }
+      catch (err) { console.warn('[Spotify Login] Playlist fetch failed:', err?.response?.data || err.message); }
     }
 
     const resolvedId = profile?.id || spotifyUserId;

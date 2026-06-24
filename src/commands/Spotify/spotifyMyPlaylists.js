@@ -76,7 +76,7 @@ async function fetchPlaylists(linked) {
     let token = linked.accessToken;
     if (linked.refreshToken) {
       try { token = await refreshAccessToken(linked.refreshToken); }
-      catch {}
+      catch (e) { console.warn('[Spotify] refreshAccessToken failed:', e?.response?.data || e.message); }
     }
     if (token) {
       try {
@@ -89,19 +89,20 @@ async function fetchPlaylists(linked) {
             { upsert: false }
           ).catch(() => {});
         }
-      } catch {}
+      } catch (e) { console.warn('[Spotify] fetchOAuthPlaylists failed:', e?.response?.data || e.message); }
     }
   }
 
   // 2) Public playlists via client credentials
   if (!playlists.length && linked.spotifyUserId) {
     let credToken;
-    try { credToken = await getClientCredToken(); } catch {}
+    try { credToken = await getClientCredToken(); }
+    catch (e) { console.warn('[Spotify] getClientCredToken failed:', e?.response?.data || e.message); }
     if (credToken) {
       try {
         const data = await fetchPublicPlaylists(linked.spotifyUserId, credToken);
         playlists = data?.items?.filter(Boolean) || [];
-      } catch {}
+      } catch (e) { console.warn('[Spotify] fetchPublicPlaylists failed:', e?.response?.data || e.message); }
     }
   }
 
