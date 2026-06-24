@@ -196,16 +196,22 @@ module.exports = {
         buildCard, buildLoadingCard, buildErrorCard, fetchPlaylists, attachCollector,
       } = require('./spotifyMyPlaylists');
 
-      // interaction.message is the real Message object — grab it BEFORE update()
+      // Grab the message object before any async work
       const sentMsg = interaction.message;
 
-      // 1) Acknowledge immediately (updates the message, < 3s required)
-      await interaction.update({
+      // 1) Acknowledge the interaction — deferUpdate is silent (no message change yet)
+      //    If already acknowledged (rare race), we skip this and rely on sentMsg.edit()
+      if (!interaction.deferred && !interaction.replied) {
+        await interaction.deferUpdate().catch(() => {});
+      }
+
+      // 2) Show loading state directly on the message (works even if deferUpdate failed)
+      await sentMsg.edit({
         components: buildLoadingCard('Your'),
         flags: MessageFlags.IsComponentsV2,
-      });
+      }).catch(() => {});
 
-      // 2) Async work — safe now, interaction already acknowledged
+      // 3) Async work — fetch profile + playlists
       const linked = await SpotifyProfile.findOne({ userId }).catch(() => null);
 
       if (!linked?.spotifyUserId) {
@@ -227,25 +233,41 @@ module.exports = {
       const playlists = await fetchPlaylists(linked);
 
       if (!playlists.length) {
+        const fetchError = playlists._fetchError;
+        let errMsg;
+        if (fetchError === 'PRIVATE_PROFILE') {
+          errMsg =
+            `**${emoji.warn} Your Spotify playlist library is set to private.**\n\n` +
+            `To fix this, open Spotify and go to **Settings → Social**, then turn off **Private Session** and make sure your playlists are set to **Public**.\n\n` +
+            `-# Once public, click View Playlists again.`;
+        } else if (fetchError === 'AUTH_ERROR') {
+          errMsg =
+            `**${emoji.cross} Spotify API error — could not authenticate.**\n` +
+            `-# This is a bot-side issue. Please contact the bot owner.`;
+        } else {
+          errMsg =
+            `**${emoji.warn} No public playlists found for this account.**\n` +
+            `-# Make sure your Spotify playlists are set to **Public**, or add them manually with \`${prefix}spotify-addplaylist <url>\``;
+        }
         return sentMsg.edit({
-          components: buildErrorCard(
-            `**${emoji.warn} No playlists found.**\n` +
-            `-# Your Spotify profile may be private. Add playlists manually with \`${prefix}spotify-addplaylist <url>\``
-          ),
+          components: buildErrorCard(errMsg),
           flags: MessageFlags.IsComponentsV2,
         }).catch(() => {});
       }
 
-      // 3) Show paginated card + attach collector
+      // 4) Show paginated card + attach collector
       await sentMsg.edit({
         components: buildCard(displayName, playlists, 0),
         flags: MessageFlags.IsComponentsV2,
       }).catch(() => {});
 
-      const onBack = (i) => {
+      const onBack = async (i) => {
         const container = buildProfileContainer(displayName, playlistCount, avatarUrl, profileUrl, prefix);
         container.addActionRowComponents(buildProfileButtons(userId, profileUrl));
-        return i.update({ components: [container], flags: MessageFlags.IsComponentsV2 });
+        if (!i.deferred && !i.replied) {
+          await i.deferUpdate().catch(() => {});
+        }
+        return i.message.edit({ components: [container], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
       };
 
       attachCollector(sentMsg, { displayName, playlists, userId, client, onBack });
@@ -253,19 +275,29 @@ module.exports = {
     }
 
     if (interaction.customId === `spotify-login_disconnect_${userId}`) {
-      await interaction.deferReply({ ephemeral: true });
+      if (!interaction.deferred && !interaction.replied) {
+        await interaction.deferReply({ ephemeral: true }).catch(() => {});
+      }
       try { await SpotifyProfile.deleteOne({ userId }); }
       catch (err) {
         console.error('[Spotify Disconnect] DB error:', err.message);
-        return interaction.editReply({ content: '**Failed to disconnect your account. Please try again.**' });
+        if (interaction.deferred || interaction.replied) {
+          return interaction.editReply({ content: '**Failed to disconnect your account. Please try again.**' }).catch(() => {});
+        }
+        return;
       }
-      return interaction.editReply({ content: '**Your Spotify profile has been disconnected.**\nRun `spotify-login` again to reconnect.' });
+      if (interaction.deferred || interaction.replied) {
+        return interaction.editReply({ content: '**Your Spotify profile has been disconnected.**\nRun `spotify-login` again to reconnect.' }).catch(() => {});
+      }
+      return;
     }
   },
 
   async modalHandler(interaction, client) {
     const userId = interaction.user.id;
-    await interaction.deferReply();
+    if (!interaction.deferred && !interaction.replied) {
+      await interaction.deferReply().catch(() => {});
+    }
 
     const rawInput = interaction.fields.getTextInputValue('spotify_url_input').trim();
     if (!rawInput) return reply(interaction, '**Please enter a valid Spotify profile URL or username.**');

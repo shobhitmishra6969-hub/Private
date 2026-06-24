@@ -68,8 +68,15 @@ function normalizeCached(p) {
 
 // ── Fetch playlists (OAuth → public → DB cache) ───────────────────────────────
 
+const FETCH_ERRORS = {
+  PRIVATE_PROFILE: 'PRIVATE_PROFILE',
+  AUTH_ERROR: 'AUTH_ERROR',
+  UNKNOWN: 'UNKNOWN',
+};
+
 async function fetchPlaylists(linked) {
   let playlists = [];
+  let lastError = null;
 
   // 1) OAuth token — gets private playlists too
   if (linked.refreshToken || linked.accessToken) {
@@ -89,7 +96,11 @@ async function fetchPlaylists(linked) {
             { upsert: false }
           ).catch(() => {});
         }
-      } catch (e) { console.warn('[Spotify] fetchOAuthPlaylists failed:', e?.response?.data || e.message); }
+      } catch (e) {
+        const status = e?.response?.status;
+        console.warn('[Spotify] fetchOAuthPlaylists failed:', status, e?.response?.data || e.message);
+        if (status === 401 || status === 403) lastError = FETCH_ERRORS.AUTH_ERROR;
+      }
     }
   }
 
@@ -97,12 +108,22 @@ async function fetchPlaylists(linked) {
   if (!playlists.length && linked.spotifyUserId) {
     let credToken;
     try { credToken = await getClientCredToken(); }
-    catch (e) { console.warn('[Spotify] getClientCredToken failed:', e?.response?.data || e.message); }
+    catch (e) {
+      const status = e?.response?.status;
+      console.warn('[Spotify] getClientCredToken failed:', status, e?.response?.data || e.message);
+      lastError = FETCH_ERRORS.AUTH_ERROR;
+    }
     if (credToken) {
       try {
         const data = await fetchPublicPlaylists(linked.spotifyUserId, credToken);
         playlists = data?.items?.filter(Boolean) || [];
-      } catch (e) { console.warn('[Spotify] fetchPublicPlaylists failed:', e?.response?.data || e.message); }
+      } catch (e) {
+        const status = e?.response?.status;
+        console.warn('[Spotify] fetchPublicPlaylists failed:', status, e?.response?.data || e.message);
+        if (status === 403) lastError = FETCH_ERRORS.PRIVATE_PROFILE;
+        else if (status === 401) lastError = FETCH_ERRORS.AUTH_ERROR;
+        else lastError = FETCH_ERRORS.UNKNOWN;
+      }
     }
   }
 
@@ -111,6 +132,8 @@ async function fetchPlaylists(linked) {
     playlists = linked.playlists.map(normalizeCached);
   }
 
+  // Attach lastError to the result so callers can show better messages
+  playlists._fetchError = playlists.length ? null : lastError;
   return playlists;
 }
 
