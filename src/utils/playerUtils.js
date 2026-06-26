@@ -597,36 +597,62 @@ async function safePlay(player, client, opts = {}) {
             // Try to identify the failed track from current or opts
             const badTrack = opts.track || player.queue?.current;
             const title  = badTrack?.title  || '';
-            const author = (badTrack?.author || '').replace(/\s*-\s*topic\s*$/i, '').trim();
-            const searchQuery = `${title} ${author}`.trim();
+            // Build the most precise query possible — prefer exact URI so Lavalink
+            // re-encodes the *same* video on the current node, avoiding wrong-song substitution.
+            const trackUri  = badTrack?.uri || '';
+            const author    = (badTrack?.author || '').replace(/\s*-\s*topic\s*$/i, '').trim();
+            const titleQuery = `${title} ${author}`.trim();
 
+            const guildTag = opts.guildId || player?.guildId;
             client.logger?.log(
-                `[SafePlay] 500 decode error in guild ${opts.guildId || player?.guildId} — re-searching with ytsearch: "${searchQuery}"`,
+                `[SafePlay] 500 decode error in guild ${guildTag} — re-encoding track "${title}" (uri: ${trackUri || 'none'})`,
                 'warn'
             );
 
-            if (!searchQuery) throw err;
+            if (!trackUri && !titleQuery) throw err;
 
-            try {
-                const res = await player.search(searchQuery, {
-                    requester: badTrack?.requester || client.user,
-                    engine: 'ytsearch',
-                });
-                const fresh = res?.tracks?.[0];
-                if (!fresh) throw new Error('Re-search returned no tracks');
-
-                // Remove any broken track sitting at the front of the queue
-                // and substitute the freshly encoded one
+            // Helper: substitute the broken track and retry
+            const substituteAndPlay = async (fresh) => {
                 if (player.queue?.size > 0) player.queue.splice(0, 1);
                 player.queue.unshift(fresh);
-
                 await player.play();
-                client.logger?.log(`[SafePlay] Recovered with fresh track: "${fresh.title}"`, 'log');
-                return player;
-            } catch (retryErr) {
-                client.logger?.log(`[SafePlay] 500 recovery failed: ${retryErr.message}`, 'error');
-                throw err; // re-throw original decode error
+                client.logger?.log(`[SafePlay] Recovered — now playing: "${fresh.title}"`, 'log');
+            };
+
+            // ── Attempt 1: exact URI lookup (guaranteed same video) ───────────
+            if (trackUri) {
+                try {
+                    const res = await player.search(trackUri, {
+                        requester: badTrack?.requester || client.user,
+                    });
+                    const fresh = res?.tracks?.[0];
+                    if (fresh) {
+                        await substituteAndPlay(fresh);
+                        return player;
+                    }
+                } catch (uriErr) {
+                    client.logger?.log(`[SafePlay] URI re-search failed (${uriErr.message}), falling back to title`, 'warn');
+                }
             }
+
+            // ── Attempt 2: title + author search via ytsearch ─────────────────
+            if (titleQuery) {
+                try {
+                    const res = await player.search(titleQuery, {
+                        requester: badTrack?.requester || client.user,
+                        engine: 'ytsearch',
+                    });
+                    const fresh = res?.tracks?.[0];
+                    if (!fresh) throw new Error('Title re-search returned no tracks');
+                    await substituteAndPlay(fresh);
+                    return player;
+                } catch (titleErr) {
+                    client.logger?.log(`[SafePlay] Title re-search failed: ${titleErr.message}`, 'error');
+                    throw err;
+                }
+            }
+
+            throw err;
         }
 
         throw err;
