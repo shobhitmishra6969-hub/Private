@@ -230,20 +230,31 @@ module.exports = {
 
       let searchResult;
       try {
-        searchResult = await player.search(query, {
-          requester: interaction.user,
-          engine: isUrl ? undefined : 'ytmsearch'
-        });
+        if (isUrl) {
+          searchResult = await player.search(query, { requester: interaction.user });
+        } else {
+          const userEngine = (() => {
+            try {
+              const UserPreferences = require("../../schema/userpreferences");
+              return null; // resolved async below
+            } catch { return 'ytmsearch'; }
+          })();
+          let engine = 'ytmsearch';
+          try {
+            const userPref = await require("../../schema/userpreferences").findOne({ userId: interaction.user.id });
+            if (userPref?.musicSource && userPref.musicSource !== 'smart_selection') engine = userPref.musicSource;
+          } catch { /* use default */ }
+          searchResult = await searchWithValidation(player, query, interaction.user, engine);
+        }
       } catch (searchError) {
         const { handleSessionError, recreatePlayer } = require("../../utils/playerUtils");
 
         if (await handleSessionError(searchError, player, client)) {
           try {
             player = await recreatePlayer(client, interaction.guild.id, channel.id, interaction.channel.id);
-            searchResult = await player.search(query, {
-              requester: interaction.user,
-              engine: isUrl ? undefined : 'ytmsearch'
-            });
+            searchResult = isUrl
+              ? await player.search(query, { requester: interaction.user })
+              : await searchWithValidation(player, query, interaction.user, 'ytmsearch');
           } catch (retryError) {
             console.error("Search retry error:", retryError);
             searchResult = { tracks: [] };
@@ -594,49 +605,34 @@ module.exports = {
       let trackCounter = 0;
 
       let searchResult = null;
+      const prefixIsUrl = /^https?:\/\//.test(query) ||
+        query.includes("youtube.com") || query.includes("youtu.be") ||
+        query.includes("spotify.com") || query.includes("deezer.com") ||
+        query.includes("jiosaavn.com") || query.includes("music.apple.com");
+
       if (query) {
         if (searchOptions.engine === 'smart_selection') {
           searchResult = await performSmartSelection(query, message.author, client);
-        } else {
-          const searchOpts = { requester: message.author };
-          if (searchOptions.engine) {
-            searchOpts.engine = searchOptions.engine;
-          }
-
+        } else if (prefixIsUrl) {
           try {
-            searchResult = await player.search(query, searchOpts);
+            searchResult = await player.search(query, { requester: message.author });
+          } catch (e) {
+            console.error("URL search error:", e);
+            searchResult = { tracks: [] };
+          }
+        } else {
+          try {
+            searchResult = await searchWithValidation(
+              player, query, message.author,
+              searchOptions.engine || 'ytmsearch'
+            );
           } catch (searchError) {
-            console.error("Initial search error:", searchError);
-            if (searchOptions.engine && searchOptions.engine !== 'ytsearch') {
-              try {
-                searchResult = await player.search(query, {
-                  requester: message.author,
-                  engine: 'ytsearch'
-                });
-
-                if (searchResult.tracks.length > 0) {
-                  const infoDisplay = new TextDisplayBuilder()
-                    .setContent(`**${emoji.info} Your preferred source encountered an error, searching YouTube instead...**`);
-
-                  const container = new ContainerBuilder().setAccentColor(0x7B2FBE)
-                    .addTextDisplayComponents(infoDisplay);
-
-                  await message.channel.send({
-                    components: [container],
-                    flags: MessageFlags.IsComponentsV2
-                  });
-                }
-              } catch (fallbackError) {
-                console.error("Fallback search error:", fallbackError);
-                searchResult = { tracks: [] };
-              }
-            } else {
-              searchResult = { tracks: [] };
-            }
+            console.error("Search error:", searchError);
+            searchResult = { tracks: [] };
           }
         }
 
-        if (!searchResult.tracks.length && searchOptions.engine && searchOptions.engine !== 'ytsearch' && searchOptions.engine !== 'smart_selection') {
+        if (!searchResult.tracks.length && !prefixIsUrl && searchOptions.engine && searchOptions.engine !== 'ytsearch' && searchOptions.engine !== 'smart_selection') {
           try {
             const fallbackResult = await player.search(query, {
               requester: message.author,
@@ -1183,6 +1179,61 @@ function calculateSimilarity(query, title) {
 
 function cleanAuthorName(author) {
   if (!author) return 'Unknown';
-
   return author.replace(/\s*-\s*Topic\s*$/i, '').trim();
+}
+
+// ── Search accuracy validation ─────────────────────────────────────────────────
+// Prevents the wrong track from playing when the primary engine returns a poor match.
+// Cross-validates with a secondary engine and picks whichever result better matches the query.
+
+function _queryNorm(s) {
+  return (s || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function _titleSimilarity(query, title) {
+  const qw = _queryNorm(query).split(' ').filter(Boolean);
+  const tw = _queryNorm(title).split(' ').filter(Boolean);
+  if (!qw.length) return 0;
+  const hits = qw.filter(w => tw.some(t => t.includes(w) || w.includes(t)));
+  return hits.length / qw.length;
+}
+
+async function searchWithValidation(player, query, requester, engine) {
+  // Primary search
+  let primary = { tracks: [] };
+  try {
+    primary = await player.search(query, { requester, engine });
+  } catch (e) {
+    console.warn(`[SearchValidation] Primary engine "${engine}" failed:`, e.message);
+  }
+
+  // Playlists / URLs — always trust primary
+  if (primary.type === 'PLAYLIST' || primary.type === 'TRACK') return primary;
+
+  // No results — try ytsearch as hard fallback
+  if (!primary.tracks.length) {
+    try {
+      return await player.search(query, { requester, engine: 'ytsearch' });
+    } catch { return { tracks: [] }; }
+  }
+
+  // Check how well the top result matches the query
+  const topSim = _titleSimilarity(query, primary.tracks[0]?.title || '');
+  if (topSim >= 0.5) return primary;  // Good enough match — use it
+
+  // Top result looks wrong → cross-validate with the other engine
+  const altEngine = (engine === 'ytsearch') ? 'ytmsearch' : 'ytsearch';
+  let alt = { tracks: [] };
+  try {
+    alt = await player.search(query, { requester, engine: altEngine });
+  } catch { /* ignore */ }
+
+  if (!alt.tracks.length) return primary;
+
+  const altSim = _titleSimilarity(query, alt.tracks[0]?.title || '');
+  if (altSim > topSim) {
+    console.log(`[SearchValidation] "${engine}" gave sim=${topSim.toFixed(2)}, "${altEngine}" gave sim=${altSim.toFixed(2)} → using ${altEngine}`);
+    return alt;
+  }
+  return primary;
 }

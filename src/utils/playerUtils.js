@@ -14,16 +14,21 @@ async function safeDestroyPlayer(player) {
 }
 
 async function handleSessionError(error, player, client) {
-    if (error.status === 404 && error.message && error.message.includes('Session not found')) {
-        console.log(`Session lost for guild ${player.guildId}, cleaning up...`);
-        try {
-            if (client.manager.players.has(player.guildId)) {
-                client.manager.players.delete(player.guildId);
+    if (error.status === 404) {
+        const msg = (error.message || '').toLowerCase();
+        // Catch both "Session not found" and "Player not found" (Lavalink desync)
+        if (msg.includes('session not found') || msg.includes('player not found') || msg.includes('not found')) {
+            const guildId = player?.guildId;
+            console.log(`[SessionError] 404 on guild ${guildId}: "${error.message}" — cleaning up stale player...`);
+            try {
+                if (guildId && client.manager.players.has(guildId)) {
+                    client.manager.players.delete(guildId);
+                }
+            } catch (cleanupError) {
+                console.error(`Error during session cleanup:`, cleanupError);
             }
-        } catch (cleanupError) {
-            console.error(`Error during session cleanup:`, cleanupError);
+            return true;
         }
-        return true;
     }
     return false;
 }
@@ -496,9 +501,17 @@ async function attemptAutoplay(client, player) {
         } catch { }
 
         if (!player.playing && !player.paused) {
-            await player.play().catch(e => {
-                client.logger?.log(`[Autoplay] Play error: ${e.message}`, 'error');
-            });
+            try {
+                await player.play();
+            } catch (playErr) {
+                client.logger?.log(`[Autoplay] Play error: ${playErr.message}`, 'error');
+                if (playErr.status === 404) {
+                    client.logger?.log(`[Autoplay] 404 Player not found in guild ${player.guildId} — removing stale player`, 'warn');
+                    if (client.manager.players.has(player.guildId)) {
+                        client.manager.players.delete(player.guildId);
+                    }
+                }
+            }
         }
     } catch (err) {
         client.logger?.log(`[Autoplay] Unexpected error: ${err.message}`, 'error');
