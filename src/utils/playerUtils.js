@@ -502,15 +502,14 @@ async function attemptAutoplay(client, player) {
 
         if (!player.playing && !player.paused) {
             try {
-                await player.play();
+                await safePlay(player, client, {
+                    guildId: player.guildId,
+                    voiceId: player.voiceId,
+                    textId:  player.textId,
+                    track:   foundTrack,
+                });
             } catch (playErr) {
-                client.logger?.log(`[Autoplay] Play error: ${playErr.message}`, 'error');
-                if (playErr.status === 404) {
-                    client.logger?.log(`[Autoplay] 404 Player not found in guild ${player.guildId} — removing stale player`, 'warn');
-                    if (client.manager.players.has(player.guildId)) {
-                        client.manager.players.delete(player.guildId);
-                    }
-                }
+                client.logger?.log(`[Autoplay] safePlay failed: ${playErr.message}`, 'error');
             }
         }
     } catch (err) {
@@ -537,6 +536,103 @@ async function applyQualityFilters(player) {
     // No-op: quality filters removed so all users get clean, full-speed playback
 }
 
+// ── safePlay — recovers from 404 (player desync) and 500 (track decode failure) ─
+
+/**
+ * Drop-in replacement for `await player.play()` that automatically recovers from:
+ *
+ *  • 404 "Player not found" — Lavalink session desynced; cleanup the stale entry
+ *    and, if connection params are provided, recreate the player and retry.
+ *
+ *  • 500 "Failed to decode track" — the track's encoded payload was produced by a
+ *    different Lavalink node / plugin version.  Re-search via `ytsearch` (always
+ *    natively supported) to get a freshly-encoded track and retry play.
+ *
+ * @param {object} player  — Kazagumo player instance
+ * @param {object} client  — MusicBot client
+ * @param {object} [opts]
+ * @param {string} [opts.guildId]  — required for 404 player recreate
+ * @param {string} [opts.voiceId]
+ * @param {string} [opts.textId]
+ * @param {object} [opts.track]    — track to re-add after recreate (single-track play)
+ * @returns {object} the (possibly recreated) player
+ */
+async function safePlay(player, client, opts = {}) {
+    try {
+        await player.play();
+        return player;
+    } catch (err) {
+
+        // ── 404: player entry gone from Lavalink ─────────────────────────────
+        if (err.status === 404) {
+            const guildId = opts.guildId || player?.guildId;
+            client.logger?.log(`[SafePlay] 404 player not found in guild ${guildId} — removing stale entry`, 'warn');
+            if (guildId && client.manager.players.has(guildId)) {
+                client.manager.players.delete(guildId);
+            }
+            if (opts.guildId && opts.voiceId && opts.textId) {
+                try {
+                    const newPlayer = await recreatePlayer(client, opts.guildId, opts.voiceId, opts.textId);
+                    if (opts.track) newPlayer.queue.add(opts.track);
+                    await newPlayer.play();
+                    return newPlayer;
+                } catch (recreateErr) {
+                    client.logger?.log(`[SafePlay] 404 recreate failed: ${recreateErr.message}`, 'error');
+                    throw recreateErr;
+                }
+            }
+            throw err;
+        }
+
+        // ── 500: track decode failure (version mismatch / missing plugin) ────
+        const errMsg = (err.message || '').toLowerCase();
+        const is500Decode = err.status === 500 && (
+            errMsg.includes('decode') ||
+            errMsg.includes('source manager') ||
+            errMsg.includes('illegalstateexception') ||
+            errMsg.includes('request processing failed')
+        );
+
+        if (is500Decode) {
+            // Try to identify the failed track from current or opts
+            const badTrack = opts.track || player.queue?.current;
+            const title  = badTrack?.title  || '';
+            const author = (badTrack?.author || '').replace(/\s*-\s*topic\s*$/i, '').trim();
+            const searchQuery = `${title} ${author}`.trim();
+
+            client.logger?.log(
+                `[SafePlay] 500 decode error in guild ${opts.guildId || player?.guildId} — re-searching with ytsearch: "${searchQuery}"`,
+                'warn'
+            );
+
+            if (!searchQuery) throw err;
+
+            try {
+                const res = await player.search(searchQuery, {
+                    requester: badTrack?.requester || client.user,
+                    engine: 'ytsearch',
+                });
+                const fresh = res?.tracks?.[0];
+                if (!fresh) throw new Error('Re-search returned no tracks');
+
+                // Remove any broken track sitting at the front of the queue
+                // and substitute the freshly encoded one
+                if (player.queue?.size > 0) player.queue.splice(0, 1);
+                player.queue.unshift(fresh);
+
+                await player.play();
+                client.logger?.log(`[SafePlay] Recovered with fresh track: "${fresh.title}"`, 'log');
+                return player;
+            } catch (retryErr) {
+                client.logger?.log(`[SafePlay] 500 recovery failed: ${retryErr.message}`, 'error');
+                throw err; // re-throw original decode error
+            }
+        }
+
+        throw err;
+    }
+}
+
 // ── Per-guild recentlyPlayed tracker (called from playerStart) ────────────────
 
 function trackRecentlyPlayed(player, track) {
@@ -559,4 +655,5 @@ module.exports = {
     getPlatformLabel,
     getPlatformEngines,
     trackRecentlyPlayed,
+    safePlay,
 };

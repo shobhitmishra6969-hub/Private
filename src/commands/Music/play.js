@@ -281,32 +281,16 @@ module.exports = {
       const currentQueueSize = player.queue.size;
       const isPlaying = player.playing || player.paused;
 
+      const { safePlay } = require("../../utils/playerUtils");
+      const _playOpts = { guildId: interaction.guild.id, voiceId: channel.id, textId: interaction.channel.id };
+
       if (searchResult.type === "PLAYLIST") {
         for (const track of searchResult.tracks) {
           player.queue.add(track);
         }
 
-        try {
-          if (!player.playing && !player.paused) {
-            await player.play();
-          }
-        } catch (playError) {
-          const { handleSessionError, recreatePlayer } = require("../../utils/playerUtils");
-
-          if (await handleSessionError(playError, player, client)) {
-            try {
-              player = await recreatePlayer(client, interaction.guild.id, channel.id, interaction.channel.id);
-              for (const track of searchResult.tracks) {
-                player.queue.add(track);
-              }
-              await player.play();
-            } catch (retryError) {
-              console.error("Play retry error:", retryError);
-              throw retryError;
-            }
-          } else {
-            throw playError;
-          }
+        if (!player.playing && !player.paused) {
+          player = await safePlay(player, client, _playOpts);
         }
 
         const successDisplay = new TextDisplayBuilder()
@@ -325,25 +309,8 @@ module.exports = {
       const position = currentQueueSize + (isPlaying ? 1 : 0);
       player.queue.add(track);
 
-      try {
-        if (!player.playing && !player.paused) {
-          await player.play();
-        }
-      } catch (playError) {
-        const { handleSessionError, recreatePlayer } = require("../../utils/playerUtils");
-
-        if (await handleSessionError(playError, player, client)) {
-          try {
-            player = await recreatePlayer(client, interaction.guild.id, channel.id, interaction.channel.id);
-            player.queue.add(track);
-            await player.play();
-          } catch (retryError) {
-            console.error("Play retry error:", retryError);
-            throw retryError;
-          }
-        } else {
-          throw playError;
-        }
+      if (!player.playing && !player.paused) {
+        player = await safePlay(player, client, { ..._playOpts, track });
       }
 
       if (position === 0) {
@@ -741,7 +708,14 @@ module.exports = {
       }
 
       if (!player.playing && !player.paused) {
-        await player.play();
+        const { safePlay } = require("../../utils/playerUtils");
+        const firstTrack = addedTracks[0]?.track || null;
+        player = await safePlay(player, client, {
+          guildId: message.guild.id,
+          voiceId: channel.id,
+          textId: message.channel.id,
+          track: firstTrack,
+        });
       }
 
       if (searchResult.type === "PLAYLIST") {
