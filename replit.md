@@ -1,48 +1,48 @@
-# Shafed Billi - Discord Music Bot
+# Tone Vibes — Discord Music Bot
 
 ## Overview
-A feature-rich Discord music bot built with Discord.js v14 and Lavalink (via kazagumo/shoukaku). Supports music playback, AFK system, giveaways, premium system, and user profiles.
+A feature-rich Discord music bot built with **discord.py** and **ravelink** (Lavalink v4 wrapper). Supports music playback, filters, playlists, giveaways, AFK system, Spotify/Last.fm integration, and a premium system.
 
 ## Architecture
-- **Entry**: `run.js` → `psycho.js` → `index.js`
-- **Client**: `src/structures/MusicClient.js`
-- **Commands**: `src/commands/<Category>/` (auto-loaded)
-- **Events**: `src/events/Client/`, `src/events/Node/`, `src/events/Players/`
-- **Loaders**: `src/commands/loaders/` (loadClients, loadCommands, loadNodes, loadPlayers, loadPlayerManager)
-- **Database**: SQLite via `better-sqlite3` (`data/bot.db`), schema models in `src/database/Model.js`
-- **Schemas**: `src/schema/` — Mongoose-compatible Model wrappers over SQLite tables
+- **Entry**: `run.py` → `bot.py` (ToneVibes class)
+- **Config**: `config.py` — reads all settings from environment variables
+- **Cogs**: `cogs/` — command categories (auto-loaded)
+- **Events**: `events/player_events.py` — ravelink player/node events
+- **Database**: SQLite via `aiosqlite` (`data/bot.db`), models in `database/models.py`
+- **Utils**: `utils/` — formatters, checks, logger
 
-## Command Categories
-- **Music**: play, skip, queue, pause, resume, stop, nowplaying, lyrics, etc.
-- **Filters**: filter/eq with 13+ audio effects (premium)
-- **Favourite**: like, unlike, playliked, showliked
-- **Config**: setprefix, ignore, 247, source
-- **Giveaway**: start, end, reroll, cancel, list, edit
-- **Information**: help, ping, stats, invite, support, premium
-- **Utility**: afk, calculator, avatar, banner, membercount, dm, servericon, serverbanner
-- **Profile**: profile (badges, stats, premium info), bioset
-- **Spotify**: searchTrack, searchAlbum, searchArtist, spotifyPlaylist, spotifyProfile
-- **Owner**: reload, restart, blacklist, premiumuser, node, serverlist, branding
+## Command Categories (Cogs)
+- **music** — play, skip, queue, pause, resume, stop, nowplaying, seek, volume, loop, shuffle, etc.
+- **filters** — nightcore, vaporwave, bassboost, 8d, tremolo, vibrato, karaoke, customfilter
+- **favourite** — like, unlike, playliked, showliked
+- **config_cog** — setprefix, source, ignore, 247, djrole, toggle
+- **giveaway** — start, end, reroll, cancel, list, edit
+- **information** — help, ping, stats, invite, support, about, premium
+- **utility** — afk, calculator, avatar, banner, membercount, dm, servericon, serverbanner
+- **owner** — reload, restart, blacklist, premiumuser, node, serverlist, eval, sync
+- **spotify** — searchTrack, searchAlbum, searchArtist, spotifyPlaylist
+- **playlist** — create, add, remove, load, list, info
+- **lastfm** — link, profile, recent, top artists/tracks
 
 ## Key Files
-- `src/config.js` — Bot configuration (token, prefix, Lavalink nodes, links)
-- `src/emojis.js` — Emoji constants
-- `src/database/index.js` — SQLite schema creation & migrations
-- `src/custom/` — Discord Components V2 builders
+- `run.py` — entry point
+- `bot.py` — ToneVibes bot class, cog loading, event hooks
+- `config.py` — all configuration from environment variables
+- `emojis.py` — emoji constants
+- `database/__init__.py` — SQLite schema creation
+- `database/models.py` — async database helpers
+- `events/player_events.py` — ravelink player event handlers
 
-## Database Tables
-- `afk` — AFK status (userId, guildId, mode, reason, createdAt)
-- `premiumuser` — Premium users (userId, premium, addedBy, addedAt, expiresAt, credits, activatedGuilds)
-- `userstats` — Per-user command run count (userId, commandsRun, updatedAt)
-- `userbadges` — User badges (userId, badges JSON array)
-- `userpreferences` — User settings (userId, musicSource, bio)
-- `giveaway`, `prefix`, `blacklist`, `ignorechannel`, `liked`, `noprefix`, `setup`, `spotifyprofile`, `vcstatus`, `voicerole`, `autorole`
+## Environment Variables
+- `DISCORD_TOKEN` *(secret, required)* — Discord bot token
+- `BOT_PREFIX` — command prefix (default: `+`)
+- `OWNER_ID` — comma-separated owner user IDs
+- `LAVALINK_NODE_1_NAME/URL/AUTH/SECURE` — first Lavalink node
+- `LAVALINK_NODE_2_NAME/URL/AUTH/SECURE` — second Lavalink node
+- `SPOTIFY_CLIENT_ID` / `SPOTIFY_CLIENT_SECRET` — Spotify API (optional)
+- `LASTFM_API_KEY` / `LASTFM_API_SECRET` — Last.fm API (optional)
+- `NODE_SOURCE` — default search source (default: `ytmsearch`)
 
-## Recent Fixes
-- Fixed all loader paths in `src/structures/MusicClient.js` and `src/commands/loaders/` — were pointing to non-existent directories
-- Fixed `loadCommands.js` to correctly scan `src/commands/` and skip the `loaders` subfolder
-- Fixed `loadClients.js`, `loadNodes.js`, `loadPlayers.js` event paths to use `../../events/`
-- Added `userstats` and `userbadges` tables to database
-- Added `credits` and `activatedGuilds` columns to `premiumuser` table
-- Created `profile` command with badges, command count, and premium info panel
-- Command runs now tracked automatically in `userstats` via `messageCreate` event
+## User Preferences
+- Pure Python codebase — no JavaScript
+- ravelink wrapper from https://github.com/ravelink-dev/ravelink
