@@ -16,6 +16,7 @@ from database import get_db
 from database.models import get_guild_prefix, increment_commands, get_blacklist
 from events.player_events import setup_events
 from utils import logger
+from cogs.information import info_embed, info_view
 
 COGS = [
     "cogs.music",
@@ -140,6 +141,24 @@ class ToneVibes(commands.Bot):
     async def on_message(self, message: discord.Message) -> None:
         if message.author.bot:
             return
+
+        # Mention-only reply — when someone pings the bot with nothing else
+        if self.user:
+            content = message.content.strip()
+            is_mention = content in (
+                f"<@{self.user.id}>",
+                f"<@!{self.user.id}>",
+            )
+            if is_mention:
+                try:
+                    await message.reply(
+                        embed=info_embed(self),
+                        view=info_view(self),
+                        mention_author=False,
+                    )
+                except Exception:
+                    pass
+                return
 
         try:
             # Blacklist check
