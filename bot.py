@@ -141,44 +141,47 @@ class ToneVibes(commands.Bot):
         if message.author.bot:
             return
 
-        # Blacklist check
-        bl = await get_blacklist(message.author.id)
-        if bl:
-            return
+        try:
+            # Blacklist check
+            bl = await get_blacklist(message.author.id)
+            if bl:
+                return
 
-        # AFK check
-        from database.models import get_afk, clear_afk
-        afk = await get_afk(message.author.id)
-        if afk:
-            await clear_afk(message.author.id)
-            embed = discord.Embed(
-                description=f"{E.check} Welcome back {message.author.mention}! Your AFK status has been removed.",
-                color=COLOR
-            )
-            try:
-                await message.reply(embed=embed, delete_after=8, mention_author=False)
-            except Exception:
-                pass
-
-        # Ping AFK users
-        if message.mentions:
-            for user in message.mentions:
-                mentioned_afk = await get_afk(user.id)
-                if mentioned_afk:
-                    since = discord.utils.format_dt(
-                        discord.utils.snowflake_time(int(mentioned_afk["createdAt"]) * 1000) if False
-                        else discord.utils.utcnow().__class__.fromtimestamp(mentioned_afk["createdAt"]),
-                        "R"
-                    )
+            # AFK check
+            from database.models import get_afk, clear_afk
+            afk = await get_afk(message.author.id)
+            if afk:
+                try:
+                    await clear_afk(message.author.id)
                     embed = discord.Embed(
-                        description=f"💤 **{user.display_name}** is AFK\n**Reason:** {mentioned_afk['reason']}\n**Since:** {since}",
+                        description=f"{E.check} Welcome back {message.author.mention}! Your AFK status has been removed.",
                         color=COLOR
                     )
+                    await message.reply(embed=embed, delete_after=8, mention_author=False)
+                except Exception:
+                    pass
+
+            # Ping AFK users
+            if message.mentions:
+                for user in message.mentions:
                     try:
-                        await message.reply(embed=embed, delete_after=10, mention_author=False)
+                        mentioned_afk = await get_afk(user.id)
+                        if mentioned_afk:
+                            import datetime
+                            ts = mentioned_afk["createdAt"]
+                            afk_dt = datetime.datetime.fromtimestamp(ts, tz=datetime.timezone.utc)
+                            since = discord.utils.format_dt(afk_dt, "R")
+                            embed = discord.Embed(
+                                description=f"💤 **{user.display_name}** is AFK\n**Reason:** {mentioned_afk['reason']}\n**Since:** {since}",
+                                color=COLOR
+                            )
+                            await message.reply(embed=embed, delete_after=10, mention_author=False)
+                            break
                     except Exception:
                         pass
-                    break
+
+        except Exception as e:
+            logger.log(f"[on_message] Error: {e}", "error")
 
         await self.process_commands(message)
 
