@@ -12,3 +12,4 @@ Pillow
 psutil
 ravelink[voice]
 spotipy
+yt-dlp

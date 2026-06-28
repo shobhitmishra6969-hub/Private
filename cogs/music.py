@@ -216,7 +216,9 @@ class TrackAddedView(discord.ui.LayoutView):
                 "❌ This track is no longer in the queue.", ephemeral=True
             )
 
-        # Move this track to the front and play it immediately
+        # Defer before any async Lavalink operation so Discord doesn't time out
+        await interaction.response.defer()
+
         tracks = list(player.queue)
         target = tracks.pop(pos - 1)
         player.queue.reset()
@@ -244,7 +246,7 @@ class TrackAddedView(discord.ui.LayoutView):
 
         lv = discord.ui.LayoutView(timeout=None)
         lv.add_item(card)
-        await interaction.response.edit_message(view=lv)
+        await interaction.edit_original_response(view=lv)
         self.stop()
 
     async def _remove_cb(self, interaction: discord.Interaction) -> None:
@@ -263,6 +265,9 @@ class TrackAddedView(discord.ui.LayoutView):
                 "❌ This track is no longer in the queue (already playing or removed).",
                 ephemeral=True,
             )
+
+        # Defer before queue mutation so Discord doesn't time out
+        await interaction.response.defer()
 
         tracks = list(player.queue)
         tracks.pop(pos - 1)
@@ -290,7 +295,7 @@ class TrackAddedView(discord.ui.LayoutView):
 
         lv = discord.ui.LayoutView(timeout=None)
         lv.add_item(card)
-        await interaction.response.edit_message(view=lv)
+        await interaction.edit_original_response(view=lv)
         self.stop()
 
 

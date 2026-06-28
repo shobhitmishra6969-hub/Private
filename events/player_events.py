@@ -67,8 +67,8 @@ class NowPlayingView(discord.ui.LayoutView):
         dur = track.length or 0
         bar = progress_bar(pos, dur)
         thumb = clean_thumbnail(track.artwork_url)
-        extras = getattr(track, "extras", {}) or {}
-        req_name = extras.get("requester_name", "")
+        extras = getattr(track, "extras", None)
+        req_name = getattr(extras, "requester_name", "") if extras else ""
         queue_size = len(self.player.queue)
         vol = getattr(self.player, "volume", 100)
         loop_map = {
@@ -170,8 +170,8 @@ def build_np_embed(track: ravelink.Playable, player: ravelink.Player) -> discord
     dur = track.length or 0
     bar = progress_bar(pos, dur)
     thumb = clean_thumbnail(track.artwork_url)
-    extras = getattr(track, "extras", {}) or {}
-    req_name = extras.get("requester_name", "")
+    extras = getattr(track, "extras", None)
+    req_name = getattr(extras, "requester_name", "") if extras else ""
     queue_size = len(player.queue)
     vol = getattr(player, "volume", 100)
     loop_map = {

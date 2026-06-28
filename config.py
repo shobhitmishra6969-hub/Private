@@ -42,17 +42,17 @@ NODES: list[dict] = [
         "uri": ("https://" if _bool(os.getenv("LAVALINK_NODE_1_SECURE", "true"), True) else "http://")
                + os.getenv("LAVALINK_NODE_1_URL", "lavalinkv4.serenetia.com:443"),
         "password": os.getenv("LAVALINK_NODE_1_AUTH", "https://seretia.link/discord"),
-        "retries": 5,
-        "resume_timeout": 60,
-        "request_timeout": 15.0,
+        "retries": 3,           # fail fast → quicker fallback to next node
+        "resume_timeout": 90,   # give session time to resume after blip
+        "request_timeout": 8.0, # tight deadline; dead nodes fail in <8 s
     },
     {
         "identifier": os.getenv("LAVALINK_NODE_2_NAME", "Node 2"),
         "uri": ("https://" if _bool(os.getenv("LAVALINK_NODE_2_SECURE", "true"), True) else "http://")
                + os.getenv("LAVALINK_NODE_2_URL", "lavalink.jirayu.net"),
         "password": os.getenv("LAVALINK_NODE_2_AUTH", "youshallnotpass"),
-        "retries": 5,
-        "resume_timeout": 60,
-        "request_timeout": 15.0,
+        "retries": 3,
+        "resume_timeout": 90,
+        "request_timeout": 8.0,
     },
 ]
