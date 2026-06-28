@@ -244,6 +244,57 @@ class GenreSelect(discord.ui.Select):
         await interaction.response.edit_message(view=lv)
 
 
+# ── Add Music Modal ────────────────────────────────────────────────────────────
+
+class AddMusicModal(discord.ui.Modal, title="Add Music"):
+    """Modal pop-up that captures a search query and queues the track."""
+
+    query = discord.ui.TextInput(
+        label="What would you like to play? *",
+        placeholder="Song, artist, album, or playlist",
+        style=discord.TextStyle.short,
+        required=True,
+        max_length=200,
+    )
+
+    async def on_submit(self, interaction: discord.Interaction) -> None:
+        search = self.query.value.strip()
+
+        # Try to join + play in the user's voice channel
+        member = interaction.user
+        voice = getattr(member, "voice", None)
+
+        if voice and voice.channel:
+            # Acknowledge and let the user know the bot is searching
+            confirm = discord.ui.Container(accent_color=COLOR)
+            confirm.add_item(discord.ui.TextDisplay("## 🔍 Searching..."))
+            confirm.add_item(discord.ui.Separator())
+            confirm.add_item(discord.ui.TextDisplay(
+                f"Looking up **{discord.utils.escape_markdown(search)}**\n\n"
+                f"Use **/play {discord.utils.escape_markdown(search)}** if playback doesn't start automatically."
+            ))
+            lv = discord.ui.LayoutView(timeout=None)
+            lv.add_item(confirm)
+            await interaction.response.send_message(view=lv, ephemeral=True)
+        else:
+            confirm = discord.ui.Container(accent_color=0xFF5555)
+            confirm.add_item(discord.ui.TextDisplay("## 🔊 Join a Voice Channel First"))
+            confirm.add_item(discord.ui.Separator())
+            confirm.add_item(discord.ui.TextDisplay(
+                f"Join a voice channel, then run:\n"
+                f"**/play {discord.utils.escape_markdown(search)}**"
+            ))
+            lv = discord.ui.LayoutView(timeout=None)
+            lv.add_item(confirm)
+            await interaction.response.send_message(view=lv, ephemeral=True)
+
+    async def on_error(self, interaction: discord.Interaction, error: Exception) -> None:
+        if not interaction.response.is_done():
+            await interaction.response.send_message(
+                "Something went wrong. Please try again.", ephemeral=True
+            )
+
+
 class SearchInsteadButton(discord.ui.Button):
     def __init__(self):
         super().__init__(
@@ -254,20 +305,7 @@ class SearchInsteadButton(discord.ui.Button):
         )
 
     async def callback(self, interaction: discord.Interaction):
-        container = discord.ui.Container(accent_color=COLOR)
-        container.add_item(discord.ui.TextDisplay("## 🔍 Search for Music"))
-        container.add_item(discord.ui.Separator())
-        container.add_item(discord.ui.TextDisplay(
-            "Use **/play** followed by a song name or URL to search and play music.\n\n"
-            "**Examples:**\n"
-            "• `/play Bohemian Rhapsody`\n"
-            "• `/play https://open.spotify.com/track/...`\n"
-            "• `/search Never Gonna Give You Up`"
-        ))
-
-        lv = discord.ui.LayoutView(timeout=None)
-        lv.add_item(container)
-        await interaction.response.edit_message(view=lv)
+        await interaction.response.send_modal(AddMusicModal())
 
 
 class WelcomeView(discord.ui.LayoutView):
@@ -468,6 +506,66 @@ class InformationCog(commands.Cog, name="Information"):
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
+
+    # ── Feature 1: Auto Welcome on Voice Join ──────────────────────────────────
+
+    @commands.Cog.listener()
+    async def on_voice_state_update(
+        self,
+        member: discord.Member,
+        before: discord.VoiceState,
+        after: discord.VoiceState,
+    ) -> None:
+        # Only fire when a non-bot user joins a voice channel from no channel
+        if member.bot:
+            return
+        if before.channel is not None or after.channel is None:
+            return
+
+        voice_channel = after.channel
+        guild = member.guild
+
+        # Pick the best text channel to post in:
+        # 1) Guild system channel, 2) first writable text channel
+        text_channel: Optional[discord.TextChannel] = None
+        if guild.system_channel and guild.system_channel.permissions_for(guild.me).send_messages:
+            text_channel = guild.system_channel
+        else:
+            for ch in guild.text_channels:
+                if ch.permissions_for(guild.me).send_messages:
+                    text_channel = ch
+                    break
+
+        if text_channel is None:
+            return
+
+        # Build the welcome layout matching the reference image
+        body = (
+            f"Connected to: 🔊 {voice_channel.name}  •  started by @{member.display_name}\n\n"
+            "**Choose your vibe**\n"
+            "Select a genre to start playing music:"
+        )
+        footer = "Or use **/play** to search for specific songs"
+
+        card = discord.ui.Container(accent_color=COLOR)
+        card.add_item(discord.ui.TextDisplay("## Welcome to Rythm"))
+        card.add_item(discord.ui.Separator())
+        card.add_item(discord.ui.TextDisplay(body))
+
+        select_card = discord.ui.Container(accent_color=0x2B2D31)
+        select_card.add_item(discord.ui.ActionRow(GenreSelect()))
+        select_card.add_item(discord.ui.ActionRow(SearchInsteadButton()))
+        select_card.add_item(discord.ui.Separator())
+        select_card.add_item(discord.ui.TextDisplay(f"-# {footer}"))
+
+        lv = discord.ui.LayoutView(timeout=600)
+        lv.add_item(card)
+        lv.add_item(select_card)
+
+        try:
+            await text_channel.send(view=lv)
+        except discord.HTTPException:
+            pass
 
     @commands.hybrid_command(name="help", description="Show the help & commands menu.")
     async def help(self, ctx: commands.Context, command: str = ""):

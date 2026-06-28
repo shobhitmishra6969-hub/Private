@@ -218,8 +218,8 @@ def setup_events(bot) -> None:
             return
         track = payload.track
 
-        extras = getattr(track, "extras", {}) or {}
-        req_id = extras.get("requester_id")
+        extras = getattr(track, "extras", None)
+        req_id = getattr(extras, "requester_id", None) if extras else None
         if req_id:
             try:
                 await add_history(req_id, {
