@@ -719,9 +719,24 @@ class InformationCog(commands.Cog, name="Information"):
     @commands.hybrid_command(name="ping", description="Check bot latency.")
     async def ping(self, ctx: commands.Context):
         start = time.perf_counter()
-        await v2.send(ctx, v2.container("🏓 Pinging..."))
+        pinging_card = discord.ui.Container(accent_color=COLOR)
+        pinging_card.add_item(discord.ui.TextDisplay("🏓 Pinging..."))
+        lv_init = discord.ui.LayoutView(timeout=None)
+        lv_init.add_item(pinging_card)
+        if ctx.interaction and not ctx.interaction.response.is_done():
+            await ctx.interaction.response.send_message(view=lv_init)
+        else:
+            await ctx.reply(view=lv_init, mention_author=False)
         rest_latency = (time.perf_counter() - start) * 1000
         ws_latency = self.bot.latency * 1000
+
+        # Color accent based on latency quality
+        if ws_latency < 100:
+            accent = 0x57F287   # green — excellent
+        elif ws_latency < 200:
+            accent = 0xFEE75C   # yellow — decent
+        else:
+            accent = 0xFF5555   # red — poor
 
         nodes = list(ravelink.Pool.nodes.values())
         node_lines = "\n".join(
@@ -734,11 +749,16 @@ class InformationCog(commands.Cog, name="Information"):
             f"**REST:** `{rest_latency:.1f}ms`\n\n"
             f"**Lavalink Nodes:**\n{node_lines}"
         )
-        if ctx.interaction and ctx.interaction.response.is_done():
-            lv = v2._wrap(v2.container(body, header="🏓 Pong!"))
+        card = discord.ui.Container(accent_color=accent)
+        card.add_item(discord.ui.TextDisplay("## 🏓 Pong!"))
+        card.add_item(discord.ui.Separator())
+        card.add_item(discord.ui.TextDisplay(body))
+        lv = discord.ui.LayoutView(timeout=None)
+        lv.add_item(card)
+        if ctx.interaction:
             await ctx.interaction.edit_original_response(view=lv)
         else:
-            await v2.send(ctx, v2.container(body, header="🏓 Pong!"))
+            await ctx.reply(view=lv, mention_author=False)
 
     @commands.hybrid_command(name="stats", description="Show bot statistics.")
     async def stats(self, ctx: commands.Context):
@@ -768,7 +788,28 @@ class InformationCog(commands.Cog, name="Information"):
             )
             body += f"\n\n**Lavalink Nodes:** {node_status}"
 
-        await v2.send(ctx, v2.container(body, header="📊 Bot Statistics"))
+        avatar_url = self.bot.user.display_avatar.url if self.bot.user else None
+        card = discord.ui.Container(accent_color=COLOR)
+        card.add_item(discord.ui.TextDisplay("## 📊 Bot Statistics"))
+        card.add_item(discord.ui.Separator())
+        if avatar_url:
+            card.add_item(discord.ui.Section(
+                discord.ui.TextDisplay(body),
+                accessory=discord.ui.Thumbnail(media=avatar_url),
+            ))
+        else:
+            card.add_item(discord.ui.TextDisplay(body))
+
+        bot_id = self.bot.user.id if self.bot.user else 0
+        invite = config.INVITE_URL or (
+            f"https://discord.com/api/oauth2/authorize?client_id={bot_id}&permissions=8&scope=bot+applications.commands"
+        )
+        lv = discord.ui.LayoutView(timeout=None)
+        lv.add_item(card)
+        lv.add_item(discord.ui.ActionRow(
+            discord.ui.Button(label="Invite Bot", emoji="➕", url=invite, style=discord.ButtonStyle.link),
+        ))
+        await ctx.reply(view=lv, mention_author=False)
 
     @commands.hybrid_command(name="invite", description="Get the bot invite link.")
     async def invite(self, ctx: commands.Context):
@@ -799,13 +840,43 @@ class InformationCog(commands.Cog, name="Information"):
             "Supports YouTube, Spotify, SoundCloud, Deezer, and more through Lavalink.\n\n"
             "**Features:** Giveaways · Premium · Last.fm · Playlists · Liked Songs · AFK · Autoplay · Filters"
         )
-        await v2.send(ctx, v2.container(body, header="🎵 About ToneVibes"))
+        avatar_url = self.bot.user.display_avatar.url if self.bot.user else None
+        bot_id = self.bot.user.id if self.bot.user else 0
+        invite = config.INVITE_URL or (
+            f"https://discord.com/api/oauth2/authorize?client_id={bot_id}&permissions=8&scope=bot+applications.commands"
+        )
+        card = discord.ui.Container(accent_color=COLOR)
+        card.add_item(discord.ui.TextDisplay("## 🎵 About ToneVibes"))
+        card.add_item(discord.ui.Separator())
+        if avatar_url:
+            card.add_item(discord.ui.Section(
+                discord.ui.TextDisplay(body),
+                accessory=discord.ui.Thumbnail(media=avatar_url),
+            ))
+        else:
+            card.add_item(discord.ui.TextDisplay(body))
+
+        link_btns: list[discord.ui.Button] = [
+            discord.ui.Button(label="Invite", emoji="➕", url=invite, style=discord.ButtonStyle.link),
+        ]
+        if config.SUPPORT_URL and config.SUPPORT_URL != "https://discord.gg/your-invite-code":
+            link_btns.append(
+                discord.ui.Button(label="Support", emoji="💬", url=config.SUPPORT_URL, style=discord.ButtonStyle.link)
+            )
+        if config.SOURCE_CODE_URL and config.SOURCE_CODE_URL != "https://github.com/":
+            link_btns.append(
+                discord.ui.Button(label="Source", emoji="🔗", url=config.SOURCE_CODE_URL, style=discord.ButtonStyle.link)
+            )
+        lv = discord.ui.LayoutView(timeout=None)
+        lv.add_item(card)
+        lv.add_item(discord.ui.ActionRow(*link_btns))
+        await ctx.reply(view=lv, mention_author=False)
 
     @commands.hybrid_command(name="premium", description="View premium features.")
     async def premium(self, ctx: commands.Context):
         from utils.checks import is_premium as check_premium
         has_prem = await check_premium(ctx.author.id)
-        status = "✅ **You have Premium!**" if has_prem else "❌ You don't have Premium."
+        status = "✅ **You have Premium!**" if has_prem else "❌ You don't have Premium yet."
         body = (
             f"{status}\n\n"
             "**Premium Features:**\n"
@@ -813,10 +884,21 @@ class InformationCog(commands.Cog, name="Information"):
             "• Custom equalizer\n"
             "• Priority support\n"
         )
-        if config.PREMIUM_URL:
-            body += f"\n[Get Premium]({config.PREMIUM_URL})"
         color = 0xFFD700 if has_prem else COLOR
-        await v2.send(ctx, v2.container(body, header="⭐ ToneVibes Premium", color=color))
+        card = discord.ui.Container(accent_color=color)
+        card.add_item(discord.ui.TextDisplay("## ⭐ ToneVibes Premium"))
+        card.add_item(discord.ui.Separator())
+        card.add_item(discord.ui.TextDisplay(body))
+        lv = discord.ui.LayoutView(timeout=None)
+        lv.add_item(card)
+        if config.PREMIUM_URL and not has_prem:
+            lv.add_item(discord.ui.ActionRow(
+                discord.ui.Button(
+                    label="Get Premium", emoji="⭐",
+                    url=config.PREMIUM_URL, style=discord.ButtonStyle.link,
+                )
+            ))
+        await ctx.reply(view=lv, mention_author=False)
 
 
 async def setup(bot):

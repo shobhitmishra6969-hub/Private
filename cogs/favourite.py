@@ -25,18 +25,6 @@ class LikedLayoutView(discord.ui.LayoutView):
 
     def _build(self):
         self.clear_items()
-        self.add_item(self._make_container())
-        prev_btn = discord.ui.Button(
-            label="◀", style=discord.ButtonStyle.secondary, disabled=self.page == 0
-        )
-        prev_btn.callback = self._prev_cb
-        next_btn = discord.ui.Button(
-            label="▶", style=discord.ButtonStyle.secondary, disabled=self.page >= self.max_page
-        )
-        next_btn.callback = self._next_cb
-        self.add_item(discord.ui.ActionRow(prev_btn, next_btn))
-
-    def _make_container(self) -> discord.ui.Container:
         start = self.page * self.per_page
         page_songs = self.songs[start: start + self.per_page]
         lines = [
@@ -44,9 +32,34 @@ class LikedLayoutView(discord.ui.LayoutView):
             f"{s.get('author', 'Unknown')[:25]} `[{ms_to_time(s.get('duration', 0))}]`"
             for i, s in enumerate(page_songs)
         ]
-        body = "\n".join(lines)
-        footer = f"Page {self.page + 1}/{self.max_page + 1} • {len(self.songs)} total"
-        return v2.container(body, header="❤️ Liked Songs", footer=footer)
+        body = "\n".join(lines) if lines else "No liked songs yet."
+        footer = f"Page {self.page + 1}/{self.max_page + 1} • {len(self.songs)} songs liked"
+
+        card = discord.ui.Container(accent_color=0xFF5777)
+        card.add_item(discord.ui.TextDisplay("## ❤️ Liked Songs"))
+        card.add_item(discord.ui.Separator())
+        card.add_item(discord.ui.TextDisplay(body))
+        card.add_item(discord.ui.Separator())
+        card.add_item(discord.ui.TextDisplay(f"-# {footer}"))
+
+        # Navigation + play all inside the container
+        prev_btn = discord.ui.Button(
+            label="◄", style=discord.ButtonStyle.secondary,
+            disabled=self.page == 0, custom_id="lk_prev"
+        )
+        next_btn = discord.ui.Button(
+            label="►", style=discord.ButtonStyle.secondary,
+            disabled=self.page >= self.max_page, custom_id="lk_next"
+        )
+        play_btn = discord.ui.Button(
+            label="Play All", emoji="▶️", style=discord.ButtonStyle.success, custom_id="lk_play"
+        )
+        prev_btn.callback = self._prev_cb
+        next_btn.callback = self._next_cb
+        play_btn.callback = self._play_cb
+        card.add_item(discord.ui.ActionRow(prev_btn, next_btn, play_btn))
+
+        self.add_item(card)
 
     async def _prev_cb(self, interaction: discord.Interaction):
         if interaction.user.id != self.author.id:
@@ -63,6 +76,14 @@ class LikedLayoutView(discord.ui.LayoutView):
             self.page += 1
         self._build()
         await interaction.response.edit_message(view=self)
+
+    async def _play_cb(self, interaction: discord.Interaction):
+        if interaction.user.id != self.author.id:
+            return await interaction.response.send_message("This isn't your list.", ephemeral=True)
+        await interaction.response.send_message(
+            f"▶️ Use `{config.PREFIX}playliked` to play all your liked songs!",
+            ephemeral=True,
+        )
 
 
 class FavouriteCog(commands.Cog, name="Favourite"):

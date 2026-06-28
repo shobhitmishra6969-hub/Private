@@ -300,51 +300,63 @@ class TrackAddedView(discord.ui.LayoutView):
 
 
 class QueueLayoutView(discord.ui.LayoutView):
-    def __init__(self, tracks: list, current_track=None, per_page: int = 10):
+    def __init__(self, tracks: list, current_track=None, per_page: int = 10, player=None):
         super().__init__(timeout=60)
         self.tracks = tracks
         self.current_track = current_track
         self.per_page = per_page
+        self.player = player
         self.page = 0
         self.max_page = max(0, (len(tracks) - 1) // per_page)
         self._build()
 
     def _build(self):
         self.clear_items()
-        self.add_item(self._make_container())
-        prev_btn = discord.ui.Button(
-            label="◀", style=discord.ButtonStyle.secondary, disabled=self.page == 0
-        )
-        prev_btn.callback = self._prev_cb
-        next_btn = discord.ui.Button(
-            label="▶", style=discord.ButtonStyle.secondary, disabled=self.page >= self.max_page
-        )
-        next_btn.callback = self._next_cb
-        self.add_item(discord.ui.ActionRow(prev_btn, next_btn))
-
-    def _make_container(self) -> discord.ui.Container:
         start = self.page * self.per_page
         slice_ = self.tracks[start: start + self.per_page]
-        lines = []
-        for i, t in enumerate(slice_, start=start + 1):
-            dur = ms_to_time(t.length or 0)
-            lines.append(f"`{i}.` **{t.title[:45]}** — {clean_author(t.author)} `[{dur}]`")
-        body = "\n".join(lines) if lines else "Queue is empty."
+        lines = [
+            f"`{start + i + 1}.` **{t.title[:45]}** — {clean_author(t.author)} `[{ms_to_time(t.length or 0)}]`"
+            for i, t in enumerate(slice_)
+        ]
+        body = "\n".join(lines) if lines else "The queue is empty."
 
-        children: list = [discord.ui.TextDisplay("## 📋 Queue")]
-        children.append(discord.ui.Separator())
+        card = discord.ui.Container(accent_color=COLOR)
+        card.add_item(discord.ui.TextDisplay("## 📋 Queue"))
+        card.add_item(discord.ui.Separator())
         if self.current_track:
             ct = self.current_track
-            children.append(discord.ui.TextDisplay(
-                f"🎧 **Now Playing:** {ct.title} — {clean_author(ct.author)} `[{ms_to_time(ct.length or 0)}]`"
+            card.add_item(discord.ui.TextDisplay(
+                f"🎧 **Now Playing:** {ct.title[:50]} — {clean_author(ct.author)} `[{ms_to_time(ct.length or 0)}]`"
             ))
-            children.append(discord.ui.Separator())
-        children.append(discord.ui.TextDisplay(body))
-        children.append(discord.ui.Separator())
-        children.append(discord.ui.TextDisplay(
-            f"-# Page {self.page + 1}/{self.max_page + 1} • {len(self.tracks)} tracks"
+            card.add_item(discord.ui.Separator())
+        card.add_item(discord.ui.TextDisplay(body))
+        card.add_item(discord.ui.Separator())
+        card.add_item(discord.ui.TextDisplay(
+            f"-# Page {self.page + 1}/{self.max_page + 1} • {len(self.tracks)} tracks in queue"
         ))
-        return discord.ui.Container(*children, accent_color=COLOR)
+
+        # Navigation + controls inside the container
+        prev_btn = discord.ui.Button(
+            label="◄", style=discord.ButtonStyle.secondary,
+            disabled=self.page == 0, custom_id="q_prev"
+        )
+        next_btn = discord.ui.Button(
+            label="►", style=discord.ButtonStyle.secondary,
+            disabled=self.page >= self.max_page, custom_id="q_next"
+        )
+        shuffle_btn = discord.ui.Button(
+            label="Shuffle", emoji="🔀", style=discord.ButtonStyle.secondary, custom_id="q_shuffle"
+        )
+        clear_btn = discord.ui.Button(
+            label="Clear", emoji="🗑️", style=discord.ButtonStyle.danger, custom_id="q_clear"
+        )
+        prev_btn.callback = self._prev_cb
+        next_btn.callback = self._next_cb
+        shuffle_btn.callback = self._shuffle_cb
+        clear_btn.callback = self._clear_cb
+        card.add_item(discord.ui.ActionRow(prev_btn, next_btn, shuffle_btn, clear_btn))
+
+        self.add_item(card)
 
     async def _prev_cb(self, interaction: discord.Interaction):
         if self.page > 0:
@@ -357,6 +369,26 @@ class QueueLayoutView(discord.ui.LayoutView):
             self.page += 1
         self._build()
         await interaction.response.edit_message(view=self)
+
+    async def _shuffle_cb(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+        if self.player:
+            self.player.queue.shuffle()
+            self.tracks = list(self.player.queue)
+            self.max_page = max(0, (len(self.tracks) - 1) // self.per_page)
+            self.page = 0
+        self._build()
+        await interaction.edit_original_response(view=self)
+
+    async def _clear_cb(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+        if self.player:
+            self.player.queue.reset()
+            self.tracks = []
+            self.max_page = 0
+            self.page = 0
+        self._build()
+        await interaction.edit_original_response(view=self)
 
 
 class MusicCog(commands.Cog, name="Music"):
@@ -671,7 +703,7 @@ class MusicCog(commands.Cog, name="Music"):
         if not player:
             return await v2.send(ctx, v2.err("Nothing is playing."))
         tracks = list(player.queue)
-        view = QueueLayoutView(tracks, current_track=player.current)
+        view = QueueLayoutView(tracks, current_track=player.current, player=player)
         await ctx.reply(view=view, mention_author=False)
 
     # ── nowplaying ────────────────────────────────────────────────────────────
