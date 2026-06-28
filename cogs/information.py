@@ -79,18 +79,77 @@ UTILITY_COMMANDS = [
     ("lastfm",      [],                     "Link your Last.fm account and view stats"),
 ]
 
-CATEGORIES: dict[str, list] = {
-    "Music":    MUSIC_COMMANDS,
-    "Queue":    QUEUE_COMMANDS,
-    "Controls": CONTROLS_COMMANDS,
-    "Utility":  UTILITY_COMMANDS,
-}
+FILTERS_COMMANDS = [
+    ("filter",       [],          "Apply an audio filter preset (nightcore, bassboost, 8d, etc.)"),
+    ("equalizer",    ["eq"],      "Set a custom equalizer band"),
+    ("customfilter", [],          "Apply a custom timescale filter (speed, pitch, rate)"),
+    ("nightcore",    [],          "Toggle Nightcore audio filter"),
+    ("bassboost",    [],          "Toggle Bass Boost audio filter"),
+    ("8d",           [],          "Toggle 8D spatial audio filter"),
+    ("tremolo",      [],          "Toggle Tremolo audio filter"),
+    ("vibrato",      [],          "Toggle Vibrato audio filter"),
+    ("karaoke",      [],          "Toggle Karaoke audio filter"),
+    ("vaporwave",    [],          "Toggle Vaporwave audio filter"),
+]
 
-CAT_FOOTER: dict[str, str] = {
-    "Music":    "Core music playback, search, likes, and library management",
-    "Queue":    "Queue management, skipping, looping, and navigation",
-    "Controls": "Playback controls, volume, filters, and equalizer",
-    "Utility":  "Server tools, AFK, Spotify, Last.fm, and config",
+FAVOURITES_COMMANDS = [
+    ("like",      [],         "Like the current track"),
+    ("unlike",    [],         "Unlike the current track"),
+    ("likeall",   [],         "Like all songs in the current queue"),
+    ("showliked", ["liked"],  "Show your liked songs"),
+    ("playliked", [],         "Play all your liked songs"),
+]
+
+PLAYLIST_COMMANDS = [
+    ("playlist create",   [], "Create a new playlist"),
+    ("playlist delete",   [], "Delete a playlist"),
+    ("playlist add",      [], "Add the current track to a playlist"),
+    ("playlist addqueue", [], "Add all queued tracks to a playlist"),
+    ("playlist remove",   [], "Remove a track from a playlist by position"),
+    ("playlist list",     [], "List your playlists"),
+    ("playlist info",     [], "View tracks in a playlist"),
+    ("playlist load",     [], "Load and play a playlist"),
+]
+
+GIVEAWAY_COMMANDS = [
+    ("giveaway start",          [], "Start a giveaway"),
+    ("giveaway end",            [], "End a giveaway early"),
+    ("giveaway reroll",         [], "Reroll winners for a giveaway"),
+    ("giveaway cancel",         [], "Cancel an active giveaway"),
+    ("giveaway list",           [], "List active giveaways"),
+    ("giveawayconfig dmnotify", [], "Toggle DM notifications for winners"),
+]
+
+SPOTIFY_COMMANDS = [
+    ("spotify search",   [], "Search for a track on Spotify"),
+    ("spotify album",    [], "Get info about a Spotify album"),
+    ("spotify artist",   [], "Get info about a Spotify artist"),
+    ("spotify playlist", [], "Get info about a Spotify playlist"),
+    ("spotify profile",  [], "View your linked Spotify profile"),
+]
+
+LASTFM_COMMANDS = [
+    ("lastfm link",       [],      "Link your Last.fm account"),
+    ("lastfm unlink",     [],      "Unlink your Last.fm account"),
+    ("lastfm profile",    [],      "View a Last.fm profile"),
+    ("lastfm recent",     [],      "View recent scrobbles"),
+    ("lastfm topartists", [],      "View top artists"),
+    ("lastfm toptracks",  [],      "View top tracks"),
+    ("lastfm nowplaying", ["np"],  "Show what you're scrobbling now"),
+]
+
+# emoji, footer, commands
+CATEGORIES: dict[str, tuple] = {
+    "Music":      ("🎵", "Core music playback, search, likes, and library management", MUSIC_COMMANDS),
+    "Queue":      ("📋", "Queue management, skipping, looping, and navigation",        QUEUE_COMMANDS),
+    "Controls":   ("🎛️", "Playback controls, volume, seek, and stop",                  CONTROLS_COMMANDS),
+    "Filters":    ("✨", "Audio filters and equalizer presets",                        FILTERS_COMMANDS),
+    "Utility":    ("🔧", "Server tools, AFK, config, and member info",                 UTILITY_COMMANDS),
+    "Favourites": ("❤️", "Liked songs and personal music library",                     FAVOURITES_COMMANDS),
+    "Playlist":   ("📁", "Create and manage custom playlists",                         PLAYLIST_COMMANDS),
+    "Giveaway":   ("🎉", "Start and manage server giveaways",                          GIVEAWAY_COMMANDS),
+    "Spotify":    ("🎧", "Spotify track, album, artist, and playlist search",          SPOTIFY_COMMANDS),
+    "Last.fm":    ("🎼", "Link your Last.fm account and view listening stats",         LASTFM_COMMANDS),
 }
 
 GENRES = [
@@ -112,10 +171,42 @@ def _cmd_line(name: str, aliases: list[str], desc: str) -> str:
     return f"**/{name}**{alias_str} - {desc}"
 
 
-# ── Layout 3: Tabbed Commands View ─────────────────────────────────────────────
+# ── Layout 3: Commands View with category dropdown ──────────────────────────────
+
+class CategorySelect(discord.ui.Select):
+    """Dropdown listing all bot command categories."""
+
+    def __init__(self, bot: commands.Bot, author_id: int, current: str):
+        self._bot = bot
+        self._author_id = author_id
+        options = [
+            discord.SelectOption(
+                label=name,
+                value=name,
+                emoji=emoji,
+                default=(name == current),
+            )
+            for name, (emoji, _footer, _cmds) in CATEGORIES.items()
+        ]
+        super().__init__(
+            placeholder="Browse a category...",
+            min_values=1,
+            max_values=1,
+            options=options,
+            custom_id="help_category_select",
+        )
+
+    async def callback(self, interaction: discord.Interaction):
+        if interaction.user.id != self._author_id:
+            return await interaction.response.send_message(
+                "This isn't your help menu.", ephemeral=True
+            )
+        view = HelpView(self._bot, self._author_id, self.values[0])
+        await interaction.response.edit_message(view=view)
+
 
 class HelpView(discord.ui.LayoutView):
-    """Layout 3 — Rythm Commands with tab toggles: Music / Queue / Controls / Utility / X."""
+    """Commands browser — category dropdown + command list."""
 
     def __init__(self, bot: commands.Bot, author_id: int, current: str = "Music"):
         super().__init__(timeout=180)
@@ -127,70 +218,42 @@ class HelpView(discord.ui.LayoutView):
     def _build(self):
         self.clear_items()
 
-        # Build tab buttons row
-        tab_buttons: list[discord.ui.Button] = []
-        for cat in CATEGORIES:
-            btn = discord.ui.Button(
-                label=cat,
-                style=discord.ButtonStyle.primary if self.current == cat else discord.ButtonStyle.secondary,
-                custom_id=f"help_tab_{cat}",
-            )
-            btn.callback = self._make_tab_callback(cat)
-            tab_buttons.append(btn)
-
-        # Close button
-        close_btn = discord.ui.Button(
-            label="✕",
-            style=discord.ButtonStyle.secondary,
-            custom_id="help_close",
-        )
-        close_btn.callback = self._close_cb
-        tab_buttons.append(close_btn)
-
-        # Command list for active tab
-        cmds = CATEGORIES.get(self.current, [])
+        emoji, footer_text, cmds = CATEGORIES[self.current]
         cmd_lines = "\n".join(_cmd_line(n, a, d) for n, a, d in cmds)
-        footer_text = CAT_FOOTER.get(self.current, "")
 
         bot_id = self.bot.user.id if self.bot.user else 0
         invite = config.INVITE_URL or (
             f"https://discord.com/api/oauth2/authorize?client_id={bot_id}&permissions=8&scope=bot+applications.commands"
         )
 
-        # Main container: title → tab row → separator → commands → footer → link buttons
         card = discord.ui.Container(accent_color=COLOR)
-        card.add_item(discord.ui.TextDisplay(f"## 🎵 Rythm Commands ({self.current})"))
-        card.add_item(discord.ui.ActionRow(*tab_buttons))
+        card.add_item(discord.ui.TextDisplay(f"## {emoji} Rythm Commands ({self.current})"))
+        card.add_item(discord.ui.ActionRow(CategorySelect(self.bot, self.author_id, self.current)))
         card.add_item(discord.ui.Separator())
         card.add_item(discord.ui.TextDisplay(cmd_lines))
         card.add_item(discord.ui.Separator())
         card.add_item(discord.ui.TextDisplay(f"-# {footer_text}"))
 
-        # Link buttons at the bottom of the card
         link_row: list[discord.ui.Button] = []
         if config.SUPPORT_URL and config.SUPPORT_URL != "https://discord.gg/your-invite-code":
             link_row.append(discord.ui.Button(
-                label="Support Server", emoji="🔧",
+                label="Support", emoji="🔧",
                 url=config.SUPPORT_URL, style=discord.ButtonStyle.link,
             ))
         link_row.append(discord.ui.Button(
-            label="Invite Rythm", emoji="➕",
+            label="Invite", emoji="➕",
             url=invite, style=discord.ButtonStyle.link,
         ))
         card.add_item(discord.ui.ActionRow(*link_row))
-
         self.add_item(card)
 
-    def _make_tab_callback(self, cat: str):
-        async def callback(interaction: discord.Interaction):
-            if interaction.user.id != self.author_id:
-                return await interaction.response.send_message(
-                    "This isn't your help menu.", ephemeral=True
-                )
-            self.current = cat
-            self._build()
-            await interaction.response.edit_message(view=self)
-        return callback
+        close_btn = discord.ui.Button(
+            label="✕ Close",
+            style=discord.ButtonStyle.secondary,
+            custom_id="help_close",
+        )
+        close_btn.callback = self._close_cb
+        self.add_item(discord.ui.ActionRow(close_btn))
 
     async def _close_cb(self, interaction: discord.Interaction):
         if interaction.user.id != self.author_id:
