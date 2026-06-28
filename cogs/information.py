@@ -142,10 +142,9 @@ class HelpView(discord.ui.LayoutView):
 
     def _build(self):
         self.clear_items()
-        self.add_item(_category_container(self.current))
 
-        # Row 1: category buttons (max 5)
-        cat_btns = []
+        # ── category nav buttons (inside the container card) ──────────────────
+        cat_btns: list[discord.ui.Button] = []
         for cat in CATEGORIES:
             btn = discord.ui.Button(
                 label=cat,
@@ -155,27 +154,41 @@ class HelpView(discord.ui.LayoutView):
             )
             btn.callback = self._make_callback(cat)
             cat_btns.append(btn)
-        self.add_item(discord.ui.ActionRow(*cat_btns))
 
-        # Row 2: link buttons + close
-        row2: list = []
+        # ── build container with nav + commands inside ─────────────────────────
+        emoji = CAT_EMOJI.get(self.current, "•")
+        cmds = CATEGORIES.get(self.current, [])
+        cmd_text = "\n".join(_cmd_line(n, a, d) for n, a, d in cmds)
+        footer_text = f"-# {CAT_FOOTER.get(self.current, '')} • {config.PREFIX}help <command> for details"
+
+        card = discord.ui.Container(accent_color=COLOR)
+        card.add_item(discord.ui.TextDisplay(f"## {emoji} ToneVibes Commands ({self.current})"))
+        card.add_item(discord.ui.ActionRow(*cat_btns))          # nav buttons inside card
+        card.add_item(discord.ui.Separator())
+        card.add_item(discord.ui.TextDisplay(cmd_text))
+        card.add_item(discord.ui.Separator())
+        card.add_item(discord.ui.TextDisplay(footer_text))
+        self.add_item(card)
+
+        # ── bottom row: support + invite + close (below the card) ─────────────
         bot_id = self.bot.user.id if self.bot.user else 0
         invite = config.INVITE_URL or (
             f"https://discord.com/api/oauth2/authorize?client_id={bot_id}&permissions=8&scope=bot+applications.commands"
         )
+        bottom: list[discord.ui.Button] = []
         if config.SUPPORT_URL and config.SUPPORT_URL != "https://discord.gg/your-invite-code":
-            row2.append(discord.ui.Button(
+            bottom.append(discord.ui.Button(
                 label="Support Server", emoji="🔧",
                 url=config.SUPPORT_URL, style=discord.ButtonStyle.link,
             ))
-        row2.append(discord.ui.Button(
+        bottom.append(discord.ui.Button(
             label="Invite ToneVibes", emoji="➕",
             url=invite, style=discord.ButtonStyle.link,
         ))
         close_btn = discord.ui.Button(label="✕", style=discord.ButtonStyle.danger, custom_id="help_close")
         close_btn.callback = self._close_cb
-        row2.append(close_btn)
-        self.add_item(discord.ui.ActionRow(*row2))
+        bottom.append(close_btn)
+        self.add_item(discord.ui.ActionRow(*bottom))
 
     def _make_callback(self, cat: str):
         async def callback(interaction: discord.Interaction):
@@ -194,13 +207,7 @@ class HelpView(discord.ui.LayoutView):
         self.stop()
 
     async def on_timeout(self):
-        try:
-            self._build()
-            for item in self.walk_children():
-                if isinstance(item, discord.ui.Button) and not item.url:
-                    item.disabled = True
-        except Exception:
-            pass
+        pass  # message expires naturally; no message ref stored to edit
 
 
 # ── Info card (bot mention) ───────────────────────────────────────────────────
