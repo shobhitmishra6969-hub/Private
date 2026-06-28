@@ -567,7 +567,7 @@ class InformationCog(commands.Cog, name="Information"):
         except discord.HTTPException:
             pass
 
-    @commands.hybrid_command(name="help", description="Show the help & commands menu.")
+    @commands.hybrid_command(name="help", description="Show the bot info card.")
     async def help(self, ctx: commands.Context, command: str = ""):
         if command:
             cmd = self.bot.get_command(command)
@@ -577,13 +577,8 @@ class InformationCog(commands.Cog, name="Information"):
             body = f"{cmd.help or cmd.description or 'No description.'}\n\n**Aliases:** {aliases_str}"
             return await v2.send(ctx, v2.container(body, header=f"❓ {config.PREFIX}{cmd.name}"))
 
-        # Layout 1: Info card
         info_view_obj = InfoLayoutView(self.bot)
         await ctx.reply(view=info_view_obj, mention_author=False)
-
-        # Layout 3: Commands tab view (separate message)
-        help_view = HelpView(self.bot, ctx.author.id)
-        await ctx.send(view=help_view)
 
     @commands.hybrid_command(name="ping", description="Check bot latency.")
     async def ping(self, ctx: commands.Context):
