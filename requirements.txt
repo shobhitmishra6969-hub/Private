@@ -13,3 +13,11 @@ psutil
 ravelink[voice]
 spotipy
 yt-dlp
+aiohttp
+aiosqlite
+discord.py
+Pillow
+psutil
+ravelink[voice]
+spotipy
+yt-dlp
