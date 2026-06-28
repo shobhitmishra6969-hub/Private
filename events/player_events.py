@@ -324,6 +324,35 @@ def build_np_embed(track: ravelink.Playable, player: ravelink.Player) -> discord
     return embed
 
 
+# ── Node reconnect helper ─────────────────────────────────────────────────────
+
+async def _try_reconnect_node(bot, node: ravelink.Node, delay: int = 10, max_retries: int = 5) -> None:
+    """Attempt to reconnect a disconnected/closed Lavalink node with exponential back-off."""
+    for attempt in range(1, max_retries + 1):
+        await asyncio.sleep(delay * attempt)
+        try:
+            connected_ids = {n.identifier for n in ravelink.Pool.nodes.values()
+                             if n.status == ravelink.NodeStatus.CONNECTED}
+            if node.identifier in connected_ids:
+                logger.log(f'[Reconnect] Node "{node.identifier}" already connected — skipping.', "ready")
+                return
+            fresh = ravelink.Node(
+                identifier=node.identifier,
+                uri=node.uri,
+                password=node.password,
+                retries=5,
+                resume_timeout=60,
+                request_timeout=15.0,
+                inactive_player_timeout=300,
+            )
+            await ravelink.Pool.connect(nodes=[fresh], client=bot, cache_capacity=512)
+            logger.log(f'[Reconnect] Node "{node.identifier}" reconnected (attempt {attempt}).', "ready")
+            return
+        except Exception as exc:
+            logger.log(f'[Reconnect] Attempt {attempt}/{max_retries} failed for "{node.identifier}": {exc}', "warn")
+    logger.log(f'[Reconnect] Gave up reconnecting "{node.identifier}" after {max_retries} attempts.', "error")
+
+
 # ── Event registration ────────────────────────────────────────────────────────
 
 def setup_events(bot) -> None:
@@ -335,10 +364,14 @@ def setup_events(bot) -> None:
     @bot.event
     async def on_ravelink_node_disconnected(node: ravelink.Node) -> None:
         logger.log(f'Lavalink "{node.identifier}" disconnected — retrying...', "warn")
+        # Schedule a reconnection attempt if no nodes are left connected
+        asyncio.create_task(_try_reconnect_node(bot, node))
 
     @bot.event
     async def on_ravelink_node_closed(node: ravelink.Node, disconnected: list) -> None:
         logger.log(f'Lavalink "{node.identifier}" closed. Affected players: {len(disconnected)}', "error")
+        # Schedule a reconnection attempt after a brief delay
+        asyncio.create_task(_try_reconnect_node(bot, node))
 
     @bot.event
     async def on_ravelink_track_start(payload: ravelink.TrackStartEventPayload) -> None:

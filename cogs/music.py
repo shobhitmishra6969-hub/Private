@@ -479,6 +479,7 @@ class MusicCog(commands.Cog, name="Music"):
 
         track = results[0]
         track.extras = requester_extras
+        was_playing = player.playing
         pos_in_queue = len(player.queue) + 1
         await player.queue.put_wait(track)
         if not player.playing:
@@ -487,7 +488,10 @@ class MusicCog(commands.Cog, name="Music"):
                 await player.play(next_t)
             except ravelink.QueueEmpty:
                 pass
-        await self._send_queued(ctx, track, pos_in_queue)
+        # Only show "Track Added" if the bot was already playing something —
+        # if it was idle, the track starts immediately and the NP message is enough.
+        if was_playing:
+            await self._send_queued(ctx, track, pos_in_queue)
 
     # ── search ────────────────────────────────────────────────────────────────
 
