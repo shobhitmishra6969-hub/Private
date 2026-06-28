@@ -171,42 +171,10 @@ def _cmd_line(name: str, aliases: list[str], desc: str) -> str:
     return f"**/{name}**{alias_str} - {desc}"
 
 
-# ── Layout 3: Commands View with category dropdown ──────────────────────────────
-
-class CategorySelect(discord.ui.Select):
-    """Dropdown listing all bot command categories."""
-
-    def __init__(self, bot: commands.Bot, author_id: int, current: str):
-        self._bot = bot
-        self._author_id = author_id
-        options = [
-            discord.SelectOption(
-                label=name,
-                value=name,
-                emoji=emoji,
-                default=(name == current),
-            )
-            for name, (emoji, _footer, _cmds) in CATEGORIES.items()
-        ]
-        super().__init__(
-            placeholder="Browse a category...",
-            min_values=1,
-            max_values=1,
-            options=options,
-            custom_id="help_category_select",
-        )
-
-    async def callback(self, interaction: discord.Interaction):
-        if interaction.user.id != self._author_id:
-            return await interaction.response.send_message(
-                "This isn't your help menu.", ephemeral=True
-            )
-        view = HelpView(self._bot, self._author_id, self.values[0])
-        await interaction.response.edit_message(view=view)
-
+# ── Layout 3: Commands View with category buttons ───────────────────────────────
 
 class HelpView(discord.ui.LayoutView):
-    """Commands browser — category dropdown + command list."""
+    """Commands browser — command card + category buttons below."""
 
     def __init__(self, bot: commands.Bot, author_id: int, current: str = "Music"):
         super().__init__(timeout=180)
@@ -226,9 +194,9 @@ class HelpView(discord.ui.LayoutView):
             f"https://discord.com/api/oauth2/authorize?client_id={bot_id}&permissions=8&scope=bot+applications.commands"
         )
 
+        # ── Card (container) ──────────────────────────────────────────────────
         card = discord.ui.Container(accent_color=COLOR)
         card.add_item(discord.ui.TextDisplay(f"## {emoji} Rythm Commands ({self.current})"))
-        card.add_item(discord.ui.ActionRow(CategorySelect(self.bot, self.author_id, self.current)))
         card.add_item(discord.ui.Separator())
         card.add_item(discord.ui.TextDisplay(cmd_lines))
         card.add_item(discord.ui.Separator())
@@ -247,6 +215,23 @@ class HelpView(discord.ui.LayoutView):
         card.add_item(discord.ui.ActionRow(*link_row))
         self.add_item(card)
 
+        # ── Category buttons below the card (2 rows of 5) ────────────────────
+        cats = list(CATEGORIES.items())   # [(name, (emoji, footer, cmds)), ...]
+        for chunk in (cats[:5], cats[5:]):
+            row_btns: list[discord.ui.Button] = []
+            for name, (cat_emoji, _f, _c) in chunk:
+                btn = discord.ui.Button(
+                    label=name,
+                    emoji=cat_emoji,
+                    style=discord.ButtonStyle.primary if name == self.current
+                          else discord.ButtonStyle.secondary,
+                    custom_id=f"help_cat_{name}",
+                )
+                btn.callback = self._make_cat_cb(name)
+                row_btns.append(btn)
+            self.add_item(discord.ui.ActionRow(*row_btns))
+
+        # ── Close button ──────────────────────────────────────────────────────
         close_btn = discord.ui.Button(
             label="✕ Close",
             style=discord.ButtonStyle.secondary,
@@ -254,6 +239,16 @@ class HelpView(discord.ui.LayoutView):
         )
         close_btn.callback = self._close_cb
         self.add_item(discord.ui.ActionRow(close_btn))
+
+    def _make_cat_cb(self, cat: str):
+        async def callback(interaction: discord.Interaction):
+            if interaction.user.id != self.author_id:
+                return await interaction.response.send_message(
+                    "This isn't your help menu.", ephemeral=True
+                )
+            view = HelpView(self.bot, self.author_id, cat)
+            await interaction.response.edit_message(view=view)
+        return callback
 
     async def _close_cb(self, interaction: discord.Interaction):
         if interaction.user.id != self.author_id:
@@ -630,15 +625,49 @@ class InformationCog(commands.Cog, name="Information"):
         except discord.HTTPException:
             pass
 
-    @commands.hybrid_command(name="help", description="Show the commands menu.")
-    async def help(self, ctx: commands.Context, command: str = ""):
+    @commands.hybrid_command(name="help", description="Show the commands menu, or look up a specific command.")
+    async def help(self, ctx: commands.Context, *, command: str = ""):
         if command:
+            # Try direct lookup first, then search subcommands (e.g. "playlist create")
             cmd = self.bot.get_command(command)
             if not cmd:
-                return await v2.send(ctx, v2.err(f"Command `{command}` not found."))
-            aliases_str = ", ".join(f"`{a}`" for a in cmd.aliases) if getattr(cmd, "aliases", None) else "None"
-            body = f"{cmd.help or cmd.description or 'No description.'}\n\n**Aliases:** {aliases_str}"
-            return await v2.send(ctx, v2.container(body, header=f"❓ {config.PREFIX}{cmd.name}"))
+                # Search group subcommands by qualified name or alias
+                query = command.lower()
+                for c in self.bot.walk_commands():
+                    if c.qualified_name.lower() == query or query in [a.lower() for a in getattr(c, "aliases", [])]:
+                        cmd = c
+                        break
+
+            if not cmd:
+                return await v2.send(ctx, v2.err(f"No command named `{command}` found."))
+
+            # Build usage string from parameters
+            params = []
+            for pname, param in cmd.clean_params.items():
+                params.append(f"<{pname}>" if param.default is param.empty else f"[{pname}]")
+            usage = f"`{config.PREFIX}{cmd.qualified_name}" + (f" {' '.join(params)}`" if params else "`")
+
+            aliases = getattr(cmd, "aliases", [])
+            aliases_str = ", ".join(f"`{a}`" for a in aliases) if aliases else "None"
+
+            desc = cmd.help or getattr(cmd, "description", "") or "No description available."
+
+            body = (
+                f"**Description:**\n{desc}\n\n"
+                f"**Usage:** {usage}\n\n"
+                f"**Aliases:** {aliases_str}"
+            )
+            card = v2.container(body, header=f"❓ {cmd.qualified_name}")
+            lv = discord.ui.LayoutView(timeout=None)
+            lv.add_item(card)
+            # Also add a "Back to Help" button
+            back_btn = discord.ui.Button(label="← Back to Help", style=discord.ButtonStyle.secondary)
+            async def _back(interaction: discord.Interaction):
+                view = HelpView(self.bot, ctx.author.id)
+                await interaction.response.edit_message(view=view)
+            back_btn.callback = _back
+            lv.add_item(discord.ui.ActionRow(back_btn))
+            return await ctx.reply(view=lv, mention_author=False)
 
         help_view = HelpView(self.bot, ctx.author.id)
         await ctx.reply(view=help_view, mention_author=False)
