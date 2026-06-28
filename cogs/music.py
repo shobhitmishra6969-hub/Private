@@ -66,6 +66,234 @@ async def do_search(query: str, source: str = "ytmsearch") -> ravelink.Playlist 
     return await ravelink.Playable.search(query, source=src)
 
 
+def _source_emoji(track: ravelink.Playable) -> str:
+    """Pick a platform emoji from the track's URI or source name."""
+    uri = (track.uri or "").lower()
+    src = str(getattr(track, "source", "")).lower()
+    if "spotify" in uri or "spotify" in src:
+        return "<:spotify:1484500689722806453>"
+    if "soundcloud" in uri or "soundcloud" in src:
+        return "🟠"
+    if "youtube" in uri or "youtu.be" in uri or "youtube" in src:
+        return "<:Youtube:1484500601504006234>"
+    return "🎵"
+
+
+def _dur_fmt(ms: int) -> str:
+    """Format milliseconds as 'Xm Ys' (matching the reference image style)."""
+    total_sec = max(0, ms) // 1000
+    h, rem = divmod(total_sec, 3600)
+    m, s = divmod(rem, 60)
+    if h:
+        return f"{h}h {m}m {s}s"
+    return f"{m}m {s}s"
+
+
+# ── Track Added View ──────────────────────────────────────────────────────────
+
+class TrackAddedView(discord.ui.LayoutView):
+    """Green-accented 'Track Added' card with requester-only Play Now / Remove buttons."""
+
+    ACCENT_GREEN = 0x1DB954
+    ACCENT_RED   = 0xFF4444
+
+    def __init__(
+        self,
+        track: ravelink.Playable,
+        position: int,
+        requester: discord.Member,
+        guild: discord.Guild,
+    ):
+        super().__init__(timeout=300)
+        self.track        = track
+        self.position     = position
+        self.requester_id = requester.id
+        self._requester   = requester
+        self.guild        = guild
+        self._build_card()
+
+    # ── build helpers ─────────────────────────────────────────────────────────
+
+    def _requester_name(self) -> str:
+        member = self.guild.get_member(self.requester_id)
+        return member.display_name if member else self._requester.display_name
+
+    def _track_line(self) -> str:
+        src    = _source_emoji(self.track)
+        artist = clean_author(self.track.author)
+        title  = f"[{self.track.title}]({self.track.uri})" if self.track.uri else f"**{self.track.title}**"
+        return f"{src} {title} by {artist} added to queue."
+
+    def _meta_line(self) -> str:
+        dur = _dur_fmt(self.track.length or 0)
+        return f"Position #{self.position} • Duration: {dur} • By: {self._requester_name()}"
+
+    def _build_card(self, *, title: str = "**Track Added**", accent: int = ACCENT_GREEN):
+        self.clear_items()
+        thumb = clean_thumbnail(self.track.artwork_url)
+
+        card = discord.ui.Container(accent_color=accent)
+        card.add_item(discord.ui.TextDisplay(title))
+        card.add_item(discord.ui.Separator())
+
+        body = f"{self._track_line()}\n-# {self._meta_line()}"
+        if thumb:
+            card.add_item(discord.ui.Section(
+                discord.ui.TextDisplay(body),
+                accessory=discord.ui.Thumbnail(media=thumb),
+            ))
+        else:
+            card.add_item(discord.ui.TextDisplay(body))
+
+        self.add_item(card)
+
+        # Action buttons
+        play_btn = discord.ui.Button(
+            label="Play Now",
+            emoji="▶️",
+            style=discord.ButtonStyle.success,
+            custom_id="ta_play_now",
+        )
+        play_btn.callback = self._play_now_cb
+
+        remove_btn = discord.ui.Button(
+            label="Remove",
+            emoji="🗑️",
+            style=discord.ButtonStyle.danger,
+            custom_id="ta_remove",
+        )
+        remove_btn.callback = self._remove_cb
+
+        self.add_item(discord.ui.ActionRow(play_btn, remove_btn))
+
+    # ── internal helpers ──────────────────────────────────────────────────────
+
+    def _get_player(self) -> ravelink.Player | None:
+        vc = self.guild.voice_client
+        return vc if isinstance(vc, ravelink.Player) else None
+
+    def _find_queue_pos(self) -> int | None:
+        """Return 1-based position of this track in the current queue, or None."""
+        player = self._get_player()
+        if not player:
+            return None
+        for i, t in enumerate(player.queue, 1):
+            if self.track.uri and t.uri and t.uri == self.track.uri:
+                return i
+            if t.title == self.track.title:
+                return i
+        return None
+
+    async def _deny(self, interaction: discord.Interaction) -> None:
+        await interaction.response.send_message(
+            "❌ You cannot manage this track because you did not request it!",
+            ephemeral=True,
+        )
+
+    # ── button callbacks ──────────────────────────────────────────────────────
+
+    async def _play_now_cb(self, interaction: discord.Interaction) -> None:
+        if interaction.user.id != self.requester_id:
+            return await self._deny(interaction)
+
+        player = self._get_player()
+        if not player:
+            return await interaction.response.send_message(
+                "❌ The bot is no longer in a voice channel.", ephemeral=True
+            )
+
+        pos = self._find_queue_pos()
+        if pos is None:
+            # Track might already be the currently playing one
+            if player.current and (
+                (self.track.uri and player.current.uri == self.track.uri)
+                or player.current.title == self.track.title
+            ):
+                return await interaction.response.send_message(
+                    "▶️ This track is already playing!", ephemeral=True
+                )
+            return await interaction.response.send_message(
+                "❌ This track is no longer in the queue.", ephemeral=True
+            )
+
+        # Move this track to the front and play it immediately
+        tracks = list(player.queue)
+        target = tracks.pop(pos - 1)
+        player.queue.reset()
+        for t in tracks:
+            await player.queue.put_wait(t)
+        await player.play(target)
+
+        # Update the card to "Now Playing" state (no buttons)
+        thumb = clean_thumbnail(self.track.artwork_url)
+        src   = _source_emoji(self.track)
+        artist = clean_author(self.track.author)
+        title_md = f"[{self.track.title}]({self.track.uri})" if self.track.uri else f"**{self.track.title}**"
+
+        card = discord.ui.Container(accent_color=self.ACCENT_GREEN)
+        card.add_item(discord.ui.TextDisplay("**▶️ Now Playing**"))
+        card.add_item(discord.ui.Separator())
+        body = f"{src} {title_md} by {artist} is now playing."
+        if thumb:
+            card.add_item(discord.ui.Section(
+                discord.ui.TextDisplay(body),
+                accessory=discord.ui.Thumbnail(media=thumb),
+            ))
+        else:
+            card.add_item(discord.ui.TextDisplay(body))
+
+        lv = discord.ui.LayoutView(timeout=None)
+        lv.add_item(card)
+        await interaction.response.edit_message(view=lv)
+        self.stop()
+
+    async def _remove_cb(self, interaction: discord.Interaction) -> None:
+        if interaction.user.id != self.requester_id:
+            return await self._deny(interaction)
+
+        player = self._get_player()
+        if not player:
+            return await interaction.response.send_message(
+                "❌ The bot is no longer in a voice channel.", ephemeral=True
+            )
+
+        pos = self._find_queue_pos()
+        if pos is None:
+            return await interaction.response.send_message(
+                "❌ This track is no longer in the queue (already playing or removed).",
+                ephemeral=True,
+            )
+
+        tracks = list(player.queue)
+        tracks.pop(pos - 1)
+        player.queue.reset()
+        for t in tracks:
+            await player.queue.put_wait(t)
+
+        # Update the card to "removed" state (no buttons)
+        thumb = clean_thumbnail(self.track.artwork_url)
+        src   = _source_emoji(self.track)
+        artist = clean_author(self.track.author)
+        title_md = f"[{self.track.title}]({self.track.uri})" if self.track.uri else f"**{self.track.title}**"
+
+        card = discord.ui.Container(accent_color=self.ACCENT_RED)
+        card.add_item(discord.ui.TextDisplay("**Track Removed**"))
+        card.add_item(discord.ui.Separator())
+        body = f"{src} {title_md} by {artist} was removed from the queue."
+        if thumb:
+            card.add_item(discord.ui.Section(
+                discord.ui.TextDisplay(body),
+                accessory=discord.ui.Thumbnail(media=thumb),
+            ))
+        else:
+            card.add_item(discord.ui.TextDisplay(body))
+
+        lv = discord.ui.LayoutView(timeout=None)
+        lv.add_item(card)
+        await interaction.response.edit_message(view=lv)
+        self.stop()
+
+
 class QueueLayoutView(discord.ui.LayoutView):
     def __init__(self, tracks: list, current_track=None, per_page: int = 10):
         super().__init__(timeout=60)
@@ -133,14 +361,31 @@ class MusicCog(commands.Cog, name="Music"):
 
     # ── helpers ───────────────────────────────────────────────────────────────
 
-    async def _send_queued(self, ctx: commands.Context, track: ravelink.Playable, position: int):
-        dur = ms_to_time(track.length or 0)
-        thumb = clean_thumbnail(track.artwork_url)
-        body = (
-            f"**[{track.title}]({track.uri})**\n"
-            f"👤 {clean_author(track.author)} • ⏱ `{dur}` • 📋 Position **#{position}**"
-        )
-        await v2.send(ctx, v2.container(body, header="🎵 Track Queued", thumbnail_url=thumb or None))
+    async def _send_queued(
+        self,
+        ctx: commands.Context,
+        track: ravelink.Playable,
+        position: int,
+    ):
+        """Send the Track Added card with Play Now / Remove buttons."""
+        if not ctx.guild or not isinstance(ctx.author, discord.Member):
+            # Fallback for DM context (shouldn't normally occur)
+            dur = ms_to_time(track.length or 0)
+            thumb = clean_thumbnail(track.artwork_url)
+            body = (
+                f"**[{track.title}]({track.uri})**\n"
+                f"👤 {clean_author(track.author)} • ⏱ `{dur}` • 📋 Position **#{position}**"
+            )
+            return await v2.send(ctx, v2.container(body, header="🎵 Track Queued", thumbnail_url=thumb or None))
+
+        view = TrackAddedView(track, position, ctx.author, ctx.guild)
+
+        if ctx.interaction and ctx.interaction.response.is_done():
+            await ctx.interaction.followup.send(view=view)
+        elif ctx.interaction:
+            await ctx.interaction.followup.send(view=view)
+        else:
+            await ctx.reply(view=view, mention_author=False)
 
     # ── play ──────────────────────────────────────────────────────────────────
 
@@ -205,7 +450,6 @@ class MusicCog(commands.Cog, name="Music"):
                 await player.play(next_t)
             except ravelink.QueueEmpty:
                 pass
-            return
         await self._send_queued(ctx, track, pos_in_queue)
 
     # ── search ────────────────────────────────────────────────────────────────
