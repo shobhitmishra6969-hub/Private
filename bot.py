@@ -17,6 +17,7 @@ from database.models import get_guild_prefix, increment_commands, get_blacklist
 from events.player_events import setup_events
 from utils import logger
 from cogs.information import info_embed, info_view
+import utils.v2 as v2
 
 COGS = [
     "cogs.music",
@@ -66,17 +67,14 @@ class ToneVibes(commands.Bot):
     # ── startup ───────────────────────────────────────────────────────────────
 
     async def setup_hook(self) -> None:
-        # Init database
         try:
             await get_db()
             logger.log("[DB] SQLite connected", "ready")
         except Exception as e:
             logger.log(f"[DB] Error: {e}", "error")
 
-        # Register player/node events
         setup_events(self)
 
-        # Load cogs
         for cog in COGS:
             try:
                 await self.load_extension(cog)
@@ -84,7 +82,6 @@ class ToneVibes(commands.Bot):
             except Exception:
                 logger.log(f"Failed to load cog {cog}:\n{traceback.format_exc()}", "error")
 
-        # Sync slash commands
         try:
             synced = await self.tree.sync()
             logger.log(f"Synced {len(synced)} slash commands.", "cmd")
@@ -92,10 +89,12 @@ class ToneVibes(commands.Bot):
             logger.log(f"Slash command sync failed: {e}", "error")
 
     async def on_ready(self) -> None:
-        logger.log(f"ToneVibes is now online.", "ready")
-        logger.log(f"Ready on {len(self.guilds)} servers, {sum(g.member_count or 0 for g in self.guilds):,} users", "ready")
+        logger.log("ToneVibes is now online.", "ready")
+        logger.log(
+            f"Ready on {len(self.guilds)} servers, {sum(g.member_count or 0 for g in self.guilds):,} users",
+            "ready",
+        )
 
-        # Connect Lavalink nodes
         nodes = [
             ravelink.Node(
                 identifier=n["identifier"],
@@ -114,11 +113,10 @@ class ToneVibes(commands.Bot):
         await self.change_presence(
             activity=discord.Activity(
                 type=discord.ActivityType.listening,
-                name=f"music on {len(self.guilds)} servers | {config.PREFIX}help"
+                name=f"music on {len(self.guilds)} servers | {config.PREFIX}help",
             )
         )
 
-        # Start giveaway checker
         from cogs.giveaway import GiveawayCog
         cog = self.get_cog("GiveawayCog")
         if cog:
@@ -131,7 +129,7 @@ class ToneVibes(commands.Bot):
         await self.change_presence(
             activity=discord.Activity(
                 type=discord.ActivityType.listening,
-                name=f"music on {len(self.guilds)} servers | {config.PREFIX}help"
+                name=f"music on {len(self.guilds)} servers | {config.PREFIX}help",
             )
         )
 
@@ -142,7 +140,6 @@ class ToneVibes(commands.Bot):
         if message.author.bot:
             return
 
-        # Mention-only reply — when someone pings the bot with nothing else
         if self.user:
             content = message.content.strip()
             is_mention = content in (
@@ -161,26 +158,26 @@ class ToneVibes(commands.Bot):
                 return
 
         try:
-            # Blacklist check
             bl = await get_blacklist(message.author.id)
             if bl:
                 return
 
-            # AFK check
             from database.models import get_afk, clear_afk
             afk = await get_afk(message.author.id)
             if afk:
                 try:
                     await clear_afk(message.author.id)
-                    embed = discord.Embed(
-                        description=f"{E.check} Welcome back {message.author.mention}! Your AFK status has been removed.",
-                        color=COLOR
+                    await message.reply(
+                        components=[v2.container(
+                            f"{E.check} Welcome back {message.author.mention}! Your AFK status has been removed."
+                        )],
+                        flags=v2.FLAGS,
+                        delete_after=8,
+                        mention_author=False,
                     )
-                    await message.reply(embed=embed, delete_after=8, mention_author=False)
                 except Exception:
                     pass
 
-            # Ping AFK users
             if message.mentions:
                 for user in message.mentions:
                     try:
@@ -190,11 +187,16 @@ class ToneVibes(commands.Bot):
                             ts = mentioned_afk["createdAt"]
                             afk_dt = datetime.datetime.fromtimestamp(ts, tz=datetime.timezone.utc)
                             since = discord.utils.format_dt(afk_dt, "R")
-                            embed = discord.Embed(
-                                description=f"💤 **{user.display_name}** is AFK\n**Reason:** {mentioned_afk['reason']}\n**Since:** {since}",
-                                color=COLOR
+                            await message.reply(
+                                components=[v2.container(
+                                    f"💤 **{user.display_name}** is AFK\n"
+                                    f"**Reason:** {mentioned_afk['reason']}\n"
+                                    f"**Since:** {since}"
+                                )],
+                                flags=v2.FLAGS,
+                                delete_after=10,
+                                mention_author=False,
                             )
-                            await message.reply(embed=embed, delete_after=10, mention_author=False)
                             break
                     except Exception:
                         pass
@@ -215,44 +217,31 @@ class ToneVibes(commands.Bot):
         if isinstance(error, commands.CommandNotFound):
             return
         if isinstance(error, commands.NotOwner):
-            embed = discord.Embed(description=f"{E.cross} This command is owner-only.", color=0xFF5555)
-            return await ctx.reply(embed=embed, mention_author=False)
+            return await v2.send(ctx, v2.err("This command is owner-only."))
         if isinstance(error, commands.MissingPermissions):
-            embed = discord.Embed(description=f"{E.cross} You're missing permissions: `{', '.join(error.missing_permissions)}`", color=0xFF5555)
-            return await ctx.reply(embed=embed, mention_author=False)
+            return await v2.send(ctx, v2.err(f"You're missing permissions: `{', '.join(error.missing_permissions)}`"))
         if isinstance(error, commands.CheckFailure):
-            embed = discord.Embed(description=f"{E.cross} {error}", color=0xFF5555)
-            return await ctx.reply(embed=embed, mention_author=False)
+            return await v2.send(ctx, v2.err(str(error)))
         if isinstance(error, commands.MissingRequiredArgument):
-            embed = discord.Embed(description=f"{E.cross} Missing argument: `{error.param.name}`", color=0xFF5555)
-            return await ctx.reply(embed=embed, mention_author=False)
+            return await v2.send(ctx, v2.err(f"Missing argument: `{error.param.name}`"))
         if isinstance(error, commands.CommandOnCooldown):
-            embed = discord.Embed(
-                description=f"⏳ Cooldown! Try again in `{error.retry_after:.1f}s`", color=0xFF5555
-            )
-            return await ctx.reply(embed=embed, mention_author=False, delete_after=5)
+            return await v2.send(ctx, v2.err(f"⏳ Cooldown! Try again in `{error.retry_after:.1f}s`"), delete_after=5)
         if isinstance(error, commands.BadArgument):
-            embed = discord.Embed(description=f"{E.cross} Bad argument: {error}", color=0xFF5555)
-            return await ctx.reply(embed=embed, mention_author=False)
+            return await v2.send(ctx, v2.err(f"Bad argument: {error}"))
 
         logger.log(f"Unhandled error in {ctx.command}: {error}\n{traceback.format_exc()}", "error")
-        embed = discord.Embed(description=f"{E.cross} An error occurred: `{error}`", color=0xFF5555)
         try:
-            await ctx.reply(embed=embed, mention_author=False)
+            await v2.send(ctx, v2.err(f"An error occurred: `{error}`"))
         except Exception:
             pass
 
     # ── helpers ──────────────────────────────────────────────────────────────
 
-    def embed(self, description: str | None = None, title: str | None = None,
-              color: int | None = None) -> discord.Embed:
-        return discord.Embed(title=title, description=description, color=color or self.color)
+    def ok(self, text: str) -> discord.ui.Container:
+        return v2.ok(text)
 
-    def ok(self, text: str) -> discord.Embed:
-        return discord.Embed(description=f"{E.check} {text}", color=self.color)
+    def err(self, text: str) -> discord.ui.Container:
+        return v2.err(text)
 
-    def err(self, text: str) -> discord.Embed:
-        return discord.Embed(description=f"{E.cross} {text}", color=0xFF5555)
-
-    def info_embed(self, text: str) -> discord.Embed:
-        return discord.Embed(description=f"{E.info} {text}", color=self.color)
+    def info_embed(self, text: str) -> discord.ui.Container:
+        return v2.info(text)

@@ -2,15 +2,14 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import random
-import time
 from typing import Optional
 
 import discord
 from discord.ext import commands
 
 import config
+import utils.v2 as v2
 from database import get_db, json_load, json_dump, now_ts
 from database.models import get_active_giveaways, get_all_active_giveaways
 
@@ -25,48 +24,57 @@ async def _pick_winners(entries: list, count: int) -> list:
     return random.sample(entries, count)
 
 
-async def _fetch_giveaway_msg(bot, guild_id: str, channel_id: str, message_id: str):
-    try:
-        channel = bot.get_channel(int(channel_id))
-        if channel:
-            return await channel.fetch_message(int(message_id))
-    except Exception:
-        return None
-
-
-def build_giveaway_embed(prize: str, host_id: str, winner_count: int,
-                          ends_at: int, entries: list, ended: bool = False,
-                          winners: list = None) -> discord.Embed:
-    embed = discord.Embed(color=GA_COLOR)
-    embed.title = f"🎁 {prize}"
+def _build_ga_container(prize: str, host_id: str, winner_count: int,
+                         ends_at: int, entries: list, ended: bool = False,
+                         winners: list = None) -> discord.ui.Container:
     if ended:
         if winners:
             winner_mentions = ", ".join(f"<@{w}>" for w in winners)
-            embed.description = f"**Winners:** {winner_mentions}"
+            body = f"**Winners:** {winner_mentions}\n\n**Participants:** {len(entries)}"
         else:
-            embed.description = "**No valid participants.**"
-        embed.color = 0x888888
-        embed.set_footer(text=f"Giveaway ended • {len(entries)} participants")
+            body = "**No valid participants.**"
+        return v2.container(body, header=f"🎁 {prize}", color=0x888888,
+                            footer="Giveaway ended")
     else:
-        embed.description = (
-            f"React with 🎉 to enter!\n\n"
+        body = (
+            f"React or click **Enter** to participate!\n\n"
             f"**Ends:** <t:{ends_at}:R> (<t:{ends_at}:f>)\n"
             f"**Host:** <@{host_id}>\n"
             f"**Winners:** {winner_count}\n"
             f"**Entries:** {len(entries)}"
         )
-        embed.set_footer(text="Click the button below to enter!")
-    return embed
+        return v2.container(body, header=f"🎁 {prize}", color=GA_COLOR,
+                            footer="Click the button below to enter!")
 
 
-class GiveawayEnterView(discord.ui.View):
-    def __init__(self, giveaway_id: int):
+class GiveawayEnterView(discord.ui.LayoutView):
+    def __init__(self, giveaway_id: int, prize: str, host_id: str,
+                 winner_count: int, ends_at: int, entries: list):
         super().__init__(timeout=None)
         self.giveaway_id = giveaway_id
+        self.prize = prize
+        self.host_id = host_id
+        self.winner_count = winner_count
+        self.ends_at = ends_at
+        self.entries = entries
+        self._build()
 
-    @discord.ui.button(label="🎉 Enter Giveaway", style=discord.ButtonStyle.success,
-                        custom_id="giveaway_enter")
-    async def enter(self, interaction: discord.Interaction, button: discord.ui.Button):
+    def _build(self, ended: bool = False, winners: list = None):
+        self.clear_items()
+        self.add_item(_build_ga_container(
+            self.prize, self.host_id, self.winner_count,
+            self.ends_at, self.entries, ended, winners
+        ))
+        if not ended:
+            enter_btn = discord.ui.Button(
+                label="🎉 Enter Giveaway",
+                style=discord.ButtonStyle.success,
+                custom_id=f"giveaway_enter_{self.giveaway_id}",
+            )
+            enter_btn.callback = self._enter_cb
+            self.add_item(enter_btn)
+
+    async def _enter_cb(self, interaction: discord.Interaction):
         db = await get_db()
         async with db.execute("SELECT * FROM giveaway WHERE id=?", [self.giveaway_id]) as cur:
             row = await cur.fetchone()
@@ -86,7 +94,10 @@ class GiveawayEnterView(discord.ui.View):
                 [json_dump(entries), now_ts(), self.giveaway_id]
             )
             await db.commit()
-            await interaction.response.send_message("✅ You've left the giveaway.", ephemeral=True)
+            self.entries = entries
+            self._build()
+            await interaction.response.edit_message(view=self)
+            await interaction.followup.send("✅ You've left the giveaway.", ephemeral=True)
         else:
             entries.append(user_id)
             await db.execute(
@@ -94,7 +105,10 @@ class GiveawayEnterView(discord.ui.View):
                 [json_dump(entries), now_ts(), self.giveaway_id]
             )
             await db.commit()
-            await interaction.response.send_message("🎉 You've entered the giveaway!", ephemeral=True)
+            self.entries = entries
+            self._build()
+            await interaction.response.edit_message(view=self)
+            await interaction.followup.send("🎉 You've entered the giveaway!", ephemeral=True)
 
 
 class GiveawayCog(commands.Cog, name="GiveawayCog"):
@@ -103,11 +117,8 @@ class GiveawayCog(commands.Cog, name="GiveawayCog"):
         self.bot = bot
         self._active: dict[int, asyncio.Task] = {}
 
-    # ── background loop ───────────────────────────────────────────────────────
-
     async def giveaway_loop(self):
         await self.bot.wait_until_ready()
-        # Resume any active giveaways
         try:
             rows = await get_all_active_giveaways()
             for row in rows:
@@ -117,7 +128,6 @@ class GiveawayCog(commands.Cog, name="GiveawayCog"):
                     self._schedule(ga_id, remaining)
         except Exception:
             pass
-
         while not self.bot.is_closed():
             await asyncio.sleep(30)
 
@@ -157,11 +167,13 @@ class GiveawayCog(commands.Cog, name="GiveawayCog"):
         if channel:
             try:
                 msg = await channel.fetch_message(int(row["messageId"]))
-                embed = build_giveaway_embed(
+                # Rebuild the view as ended (no enter button)
+                ended_view = discord.ui.LayoutView(timeout=None)
+                ended_view.add_item(_build_ga_container(
                     row["prize"], row["hostId"], row["winnerCount"],
                     row["endsAt"], entries, ended=True, winners=winners
-                )
-                await msg.edit(embed=embed, view=None)
+                ))
+                await msg.edit(view=ended_view)
             except Exception:
                 pass
 
@@ -174,25 +186,23 @@ class GiveawayCog(commands.Cog, name="GiveawayCog"):
             else:
                 await channel.send(f"😔 No one entered the giveaway for **{row['prize']}**.")
 
-    # ── commands ──────────────────────────────────────────────────────────────
-
     @commands.hybrid_group(name="giveaway", aliases=["ga"], description="Giveaway management.")
     async def giveaway(self, ctx: commands.Context):
         if ctx.invoked_subcommand is None:
-            await ctx.reply(embed=self.bot.info_embed("Use `giveaway start`, `end`, `reroll`, `cancel`, or `list`."), mention_author=False)
+            await v2.send(ctx, v2.info(
+                "Use `giveaway start`, `end`, `reroll`, `cancel`, or `list`."
+            ))
 
     @giveaway.command(name="start", description="Start a giveaway.")
     @commands.has_permissions(manage_guild=True)
-    async def ga_start(self, ctx: commands.Context,
-                        duration: str, winners: int, *, prize: str):
-        # Parse duration: 1h, 30m, 1d, etc.
+    async def ga_start(self, ctx: commands.Context, duration: str, winners: int, *, prize: str):
         multipliers = {"s": 1, "m": 60, "h": 3600, "d": 86400}
         unit = duration[-1].lower()
         try:
             amount = int(duration[:-1])
             seconds = amount * multipliers.get(unit, 1)
         except ValueError:
-            return await ctx.reply(embed=self.bot.err("Invalid duration. Example: `1h`, `30m`, `1d`"), mention_author=False)
+            return await v2.send(ctx, v2.err("Invalid duration. Example: `1h`, `30m`, `1d`"))
 
         ends_at = now_ts() + seconds
         db = await get_db()
@@ -207,15 +217,16 @@ class GiveawayCog(commands.Cog, name="GiveawayCog"):
         await db.commit()
         ga_id = cur.lastrowid
 
-        embed = build_giveaway_embed(prize, str(ctx.author.id), winners, ends_at, [])
-        view = GiveawayEnterView(ga_id)
-        msg = await ctx.channel.send(embed=embed, view=view)
+        enter_view = GiveawayEnterView(ga_id, prize, str(ctx.author.id), winners, ends_at, [])
+        msg = await ctx.channel.send(view=enter_view)
 
         await db.execute("UPDATE giveaway SET messageId=? WHERE id=?", [str(msg.id), ga_id])
         await db.commit()
 
         self._schedule(ga_id, seconds)
-        await ctx.reply(embed=self.bot.ok(f"Giveaway started! 🎁 **{prize}** — ends <t:{ends_at}:R>"), mention_author=False, delete_after=5)
+        await v2.send(ctx, v2.ok(
+            f"Giveaway started! 🎁 **{prize}** — ends <t:{ends_at}:R>"
+        ), delete_after=5)
 
     @giveaway.command(name="end", description="End a giveaway early.")
     @commands.has_permissions(manage_guild=True)
@@ -223,14 +234,14 @@ class GiveawayCog(commands.Cog, name="GiveawayCog"):
         from database.models import get_giveaway
         row = await get_giveaway(message_id)
         if not row:
-            return await ctx.reply(embed=self.bot.err("Giveaway not found."), mention_author=False)
+            return await v2.send(ctx, v2.err("Giveaway not found."))
         if row["ended"] or row["cancelled"]:
-            return await ctx.reply(embed=self.bot.err("Giveaway already ended."), mention_author=False)
+            return await v2.send(ctx, v2.err("Giveaway already ended."))
         task = self._active.pop(int(row["id"]), None)
         if task:
             task.cancel()
         await self._finalize(int(row["id"]))
-        await ctx.reply(embed=self.bot.ok("Giveaway ended."), mention_author=False)
+        await v2.send(ctx, v2.ok("Giveaway ended."))
 
     @giveaway.command(name="reroll", description="Reroll winners for a giveaway.")
     @commands.has_permissions(manage_guild=True)
@@ -238,7 +249,7 @@ class GiveawayCog(commands.Cog, name="GiveawayCog"):
         from database.models import get_giveaway
         row = await get_giveaway(message_id)
         if not row:
-            return await ctx.reply(embed=self.bot.err("Giveaway not found."), mention_author=False)
+            return await v2.send(ctx, v2.err("Giveaway not found."))
         entries = json_load(row["entries"])
         winners = await _pick_winners(entries, count)
         db = await get_db()
@@ -247,9 +258,9 @@ class GiveawayCog(commands.Cog, name="GiveawayCog"):
         await db.commit()
         if winners:
             mentions = ", ".join(f"<@{w}>" for w in winners)
-            await ctx.send(f"🔄 New winners: {mentions}! Congrats!")
+            await v2.send(ctx, v2.container(f"🔄 New winners: {mentions}! Congratulations!"))
         else:
-            await ctx.reply(embed=self.bot.err("No entries to pick from."), mention_author=False)
+            await v2.send(ctx, v2.err("No entries to pick from."))
 
     @giveaway.command(name="cancel", description="Cancel an active giveaway.")
     @commands.has_permissions(manage_guild=True)
@@ -257,7 +268,7 @@ class GiveawayCog(commands.Cog, name="GiveawayCog"):
         from database.models import get_giveaway
         row = await get_giveaway(message_id)
         if not row:
-            return await ctx.reply(embed=self.bot.err("Giveaway not found."), mention_author=False)
+            return await v2.send(ctx, v2.err("Giveaway not found."))
         db = await get_db()
         await db.execute("UPDATE giveaway SET cancelled=1, updatedAt=? WHERE messageId=?",
                          [now_ts(), message_id])
@@ -269,31 +280,34 @@ class GiveawayCog(commands.Cog, name="GiveawayCog"):
             channel = self.bot.get_channel(int(row["channelId"]))
             if channel:
                 msg = await channel.fetch_message(int(message_id))
-                embed = msg.embeds[0] if msg.embeds else discord.Embed(color=0x888888)
-                embed.color = 0x888888
-                embed.set_footer(text="Giveaway cancelled")
-                await msg.edit(embed=embed, view=None)
+                cancelled_view = discord.ui.LayoutView(timeout=None)
+                cancelled_view.add_item(v2.container(
+                    "This giveaway has been cancelled.",
+                    header=f"🎁 {row['prize']}",
+                    color=0x888888,
+                    footer="Giveaway cancelled",
+                ))
+                await msg.edit(view=cancelled_view)
         except Exception:
             pass
-        await ctx.reply(embed=self.bot.ok("Giveaway cancelled."), mention_author=False)
+        await v2.send(ctx, v2.ok("Giveaway cancelled."))
 
     @giveaway.command(name="list", description="List active giveaways.")
     async def ga_list(self, ctx: commands.Context):
         rows = await get_active_giveaways(ctx.guild.id)
         if not rows:
-            return await ctx.reply(embed=self.bot.info_embed("No active giveaways."), mention_author=False)
+            return await v2.send(ctx, v2.info("No active giveaways."))
         desc = "\n".join(
             f"• **{r['prize']}** — ends <t:{r['endsAt']}:R> — {r['winnerCount']} winner(s)"
             for r in rows
         )
-        embed = discord.Embed(title="🎁 Active Giveaways", description=desc, color=COLOR)
-        await ctx.reply(embed=embed, mention_author=False)
+        await v2.send(ctx, v2.container(desc, header="🎁 Active Giveaways"))
 
     @commands.hybrid_group(name="giveawayconfig", aliases=["gconfig"], description="Giveaway settings.")
     @commands.has_permissions(manage_guild=True)
     async def giveawayconfig(self, ctx: commands.Context):
         if ctx.invoked_subcommand is None:
-            await ctx.reply(embed=self.bot.info_embed("Use `giveawayconfig dmnotify` or `giveawayconfig roles`."), mention_author=False)
+            await v2.send(ctx, v2.info("Use `giveawayconfig dmnotify` or `giveawayconfig roles`."))
 
     @giveawayconfig.command(name="dmnotify", description="Toggle DM notifications for winners.")
     async def gc_dmnotify(self, ctx: commands.Context):
@@ -307,7 +321,7 @@ class GiveawayCog(commands.Cog, name="GiveawayCog"):
             "updatedAt": now_ts(),
         }, pk="guildId")
         state = "enabled" if new_val else "disabled"
-        await ctx.reply(embed=self.bot.ok(f"DM notifications {state}."), mention_author=False)
+        await v2.send(ctx, v2.ok(f"DM notifications {state}."))
 
 
 async def setup(bot):

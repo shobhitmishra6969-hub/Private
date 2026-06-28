@@ -7,7 +7,7 @@ from discord.ext import commands
 
 import config
 from cogs.music import voice_check
-from utils.checks import is_premium
+import utils.v2 as v2
 
 COLOR = config.COLOR
 
@@ -61,42 +61,37 @@ class FilterCog(commands.Cog, name="Filters"):
         preset = preset.lower()
 
         if preset == "list":
-            names = ", ".join(f"`{k}`" for k in FILTER_PRESETS)
-            embed = discord.Embed(title="🎚️ Available Filters", description=names, color=COLOR)
-            return await ctx.reply(embed=embed, mention_author=False)
+            names = "  ".join(f"`{k}`" for k in FILTER_PRESETS)
+            return await v2.send(ctx, v2.container(names, header="🎚️ Available Filters"))
 
         if preset == "clear":
             await player.set_filters(None, seek=True)
-            return await ctx.reply(embed=discord.Embed(description="✅ Filters cleared.", color=COLOR), mention_author=False)
+            return await v2.send(ctx, v2.ok("Filters cleared."))
 
         if preset not in FILTER_PRESETS:
             names = ", ".join(f"`{k}`" for k in FILTER_PRESETS)
-            embed = discord.Embed(description=f"❌ Unknown filter. Available: {names}", color=0xFF5555)
-            return await ctx.reply(embed=embed, mention_author=False)
+            return await v2.send(ctx, v2.err(f"Unknown filter. Available: {names}"))
 
         filters = ravelink.Filters()
         try:
             FILTER_PRESETS[preset](filters)
         except Exception as e:
-            return await ctx.reply(embed=self.bot.err(f"Filter error: {e}"), mention_author=False)
+            return await v2.send(ctx, v2.err(f"Filter error: {e}"))
 
         await player.set_filters(filters, seek=True)
-        await ctx.reply(embed=discord.Embed(description=f"🎚️ Applied filter: **{preset}**", color=COLOR), mention_author=False)
+        await v2.send(ctx, v2.ok(f"Applied filter: **{preset}**"))
 
     @commands.hybrid_command(name="equalizer", aliases=["eq"], description="Set a custom equalizer band.")
     async def equalizer(self, ctx: commands.Context, band: int, gain: float):
         player = await voice_check(ctx)
         if not 0 <= band <= 14:
-            return await ctx.reply(embed=self.bot.err("Band must be 0–14."), mention_author=False)
+            return await v2.send(ctx, v2.err("Band must be 0–14."))
         if not -0.25 <= gain <= 1.0:
-            return await ctx.reply(embed=self.bot.err("Gain must be between -0.25 and 1.0."), mention_author=False)
-
+            return await v2.send(ctx, v2.err("Gain must be between -0.25 and 1.0."))
         filters = player.filters
         filters.equalizer.set(bands=[{"band": band, "gain": gain}])
         await player.set_filters(filters, seek=True)
-        await ctx.reply(embed=discord.Embed(
-            description=f"🎵 EQ band **{band}** set to **{gain:+.2f}**", color=COLOR
-        ), mention_author=False)
+        await v2.send(ctx, v2.ok(f"EQ band **{band}** set to **{gain:+.2f}**"))
 
     @commands.hybrid_command(name="customfilter", description="Apply a custom timescale filter.")
     async def customfilter(self, ctx: commands.Context,
@@ -110,15 +105,11 @@ class FilterCog(commands.Cog, name="Filters"):
             ("rate", rate, 0.1, 3.0),
         ]:
             if not lo <= val <= hi:
-                return await ctx.reply(embed=self.bot.err(f"{name} must be between {lo} and {hi}."), mention_author=False)
-
+                return await v2.send(ctx, v2.err(f"{name} must be between {lo} and {hi}."))
         filters = ravelink.Filters()
         filters.timescale.set(speed=speed, pitch=pitch, rate=rate)
         await player.set_filters(filters, seek=True)
-        await ctx.reply(embed=discord.Embed(
-            description=f"🎛️ Custom filter: speed=**{speed}** pitch=**{pitch}** rate=**{rate}**",
-            color=COLOR
-        ), mention_author=False)
+        await v2.send(ctx, v2.ok(f"Custom filter: speed=**{speed}** pitch=**{pitch}** rate=**{rate}**"))
 
 
 async def setup(bot):

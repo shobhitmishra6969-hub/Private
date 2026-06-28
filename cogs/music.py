@@ -12,9 +12,10 @@ from discord.ext import commands
 import config
 import emojis as E
 from database.models import get_liked, set_liked, get_history, get_prefs, add_history
-from events.player_events import build_np_embed, NowPlayingView
+from events.player_events import NowPlayingView
 from utils.checks import has_dj, is_premium
 from utils.formatters import ms_to_time, clean_author, clean_thumbnail, progress_bar
+import utils.v2 as v2
 
 COLOR = config.COLOR
 URL_RE = re.compile(r"https?://\S+")
@@ -65,46 +66,65 @@ async def do_search(query: str, source: str = "ytmsearch") -> ravelink.Playlist 
     return await ravelink.Playable.search(query, source=src)
 
 
-class QueuePages(discord.ui.View):
-    def __init__(self, tracks: list, title: str = "Queue", per_page: int = 10):
+class QueueLayoutView(discord.ui.LayoutView):
+    def __init__(self, tracks: list, current_track=None, per_page: int = 10):
         super().__init__(timeout=60)
         self.tracks = tracks
-        self.title = title
+        self.current_track = current_track
         self.per_page = per_page
         self.page = 0
         self.max_page = max(0, (len(tracks) - 1) // per_page)
+        self._build()
 
-    def make_embed(self, current_track=None, total_dur=0) -> discord.Embed:
+    def _build(self):
+        self.clear_items()
+        self.add_item(self._make_container())
+        prev_btn = discord.ui.Button(
+            label="◀", style=discord.ButtonStyle.secondary, disabled=self.page == 0
+        )
+        prev_btn.callback = self._prev_cb
+        next_btn = discord.ui.Button(
+            label="▶", style=discord.ButtonStyle.secondary, disabled=self.page >= self.max_page
+        )
+        next_btn.callback = self._next_cb
+        self.add_item(prev_btn)
+        self.add_item(next_btn)
+
+    def _make_container(self) -> discord.ui.Container:
         start = self.page * self.per_page
         slice_ = self.tracks[start: start + self.per_page]
         lines = []
         for i, t in enumerate(slice_, start=start + 1):
             dur = ms_to_time(t.length or 0)
             lines.append(f"`{i}.` **{t.title[:45]}** — {clean_author(t.author)} `[{dur}]`")
-        desc = "\n".join(lines) if lines else "Queue is empty."
+        body = "\n".join(lines) if lines else "Queue is empty."
 
-        embed = discord.Embed(title=self.title, description=desc, color=COLOR)
-        if current_track:
-            ct = current_track
-            embed.add_field(
-                name="🎧 Now Playing",
-                value=f"**{ct.title}** — {clean_author(ct.author)} `[{ms_to_time(ct.length or 0)}]`",
-                inline=False
-            )
-        embed.set_footer(text=f"Page {self.page + 1}/{self.max_page + 1} • {len(self.tracks)} tracks")
-        return embed
+        children: list = [discord.ui.TextDisplay("## 📋 Queue")]
+        children.append(discord.ui.Separator())
+        if self.current_track:
+            ct = self.current_track
+            children.append(discord.ui.TextDisplay(
+                f"🎧 **Now Playing:** {ct.title} — {clean_author(ct.author)} `[{ms_to_time(ct.length or 0)}]`"
+            ))
+            children.append(discord.ui.Separator())
+        children.append(discord.ui.TextDisplay(body))
+        children.append(discord.ui.Separator())
+        children.append(discord.ui.TextDisplay(
+            f"-# Page {self.page + 1}/{self.max_page + 1} • {len(self.tracks)} tracks"
+        ))
+        return discord.ui.Container(*children, accent_color=COLOR)
 
-    @discord.ui.button(label="◀", style=discord.ButtonStyle.secondary)
-    async def prev(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def _prev_cb(self, interaction: discord.Interaction):
         if self.page > 0:
             self.page -= 1
-        await interaction.response.edit_message(embed=self.make_embed(), view=self)
+        self._build()
+        await interaction.response.edit_message(view=self)
 
-    @discord.ui.button(label="▶", style=discord.ButtonStyle.secondary)
-    async def next_(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def _next_cb(self, interaction: discord.Interaction):
         if self.page < self.max_page:
             self.page += 1
-        await interaction.response.edit_message(embed=self.make_embed(), view=self)
+        self._build()
+        await interaction.response.edit_message(view=self)
 
 
 class MusicCog(commands.Cog, name="Music"):
@@ -117,16 +137,11 @@ class MusicCog(commands.Cog, name="Music"):
     async def _send_queued(self, ctx: commands.Context, track: ravelink.Playable, position: int):
         dur = ms_to_time(track.length or 0)
         thumb = clean_thumbnail(track.artwork_url)
-        embed = discord.Embed(color=COLOR)
-        embed.set_author(name="🎵 Track Queued")
-        embed.description = (
+        body = (
             f"**[{track.title}]({track.uri})**\n"
-            f"👤 {clean_author(track.author)} • ⏱ `{dur}`\n"
-            f"📋 Position: **#{position}**"
+            f"👤 {clean_author(track.author)} • ⏱ `{dur}` • 📋 Position **#{position}**"
         )
-        if thumb:
-            embed.set_thumbnail(url=thumb)
-        await ctx.reply(embed=embed, mention_author=False)
+        await v2.send(ctx, v2.container(body, header="🎵 Track Queued", thumbnail_url=thumb or None))
 
     # ── play ──────────────────────────────────────────────────────────────────
 
@@ -134,11 +149,11 @@ class MusicCog(commands.Cog, name="Music"):
     async def play(self, ctx: commands.Context, *, query: str):
         voice = getattr(ctx.author, "voice", None)
         if not voice or not voice.channel:
-            return await ctx.reply(embed=self.bot.err("Join a voice channel first."), mention_author=False)
+            return await v2.send(ctx, v2.err("Join a voice channel first."))
 
         player = get_player(ctx)
         if player and player.channel != voice.channel:
-            return await ctx.reply(embed=self.bot.err("I'm already in a different voice channel."), mention_author=False)
+            return await v2.send(ctx, v2.err("I'm already in a different voice channel."))
 
         if isinstance(ctx.interaction, discord.Interaction):
             await ctx.interaction.response.defer()
@@ -146,7 +161,7 @@ class MusicCog(commands.Cog, name="Music"):
         try:
             player = await ensure_player(ctx)
         except Exception as e:
-            return await ctx.reply(embed=self.bot.err(str(e)), mention_author=False)
+            return await v2.send(ctx, v2.err(str(e)))
 
         player._text_channel_id = ctx.channel.id
 
@@ -159,7 +174,7 @@ class MusicCog(commands.Cog, name="Music"):
             results = None
 
         if not results:
-            return await ctx.reply(embed=self.bot.err("No results found for that query."), mention_author=False)
+            return await v2.send(ctx, v2.err("No results found for that query."))
 
         requester_extras = {
             "requester_id": ctx.author.id,
@@ -170,30 +185,21 @@ class MusicCog(commands.Cog, name="Music"):
             for track in results.tracks:
                 track.extras = requester_extras
                 await player.queue.put_wait(track)
-
             if not player.playing:
                 try:
                     next_t = player.queue.get()
                     await player.play(next_t)
                 except ravelink.QueueEmpty:
                     pass
-
-            embed = discord.Embed(color=COLOR)
-            embed.set_author(name=f"{E.check} Playlist Queued")
-            embed.description = (
-                f"**{results.name}**\n"
-                f"📋 Added **{len(results.tracks)}** tracks to the queue."
-            )
-            return await ctx.reply(embed=embed, mention_author=False)
+            return await v2.send(ctx, v2.container(
+                f"**{results.name}**\n📋 Added **{len(results.tracks)}** tracks to the queue.",
+                header="✅ Playlist Queued",
+            ))
 
         track = results[0]
         track.extras = requester_extras
-
         pos_in_queue = len(player.queue) + 1
-        is_first = not player.playing and pos_in_queue == 1
-
         await player.queue.put_wait(track)
-
         if not player.playing:
             try:
                 next_t = player.queue.get()
@@ -201,7 +207,6 @@ class MusicCog(commands.Cog, name="Music"):
             except ravelink.QueueEmpty:
                 pass
             return
-
         await self._send_queued(ctx, track, pos_in_queue)
 
     # ── search ────────────────────────────────────────────────────────────────
@@ -215,17 +220,18 @@ class MusicCog(commands.Cog, name="Music"):
         source = prefs["musicSource"] if prefs and prefs["musicSource"] else config.NODE_SOURCE
         results = await do_search(query, source)
         if not results or isinstance(results, ravelink.Playlist):
-            return await ctx.reply(embed=self.bot.err("No results found."), mention_author=False)
+            return await v2.send(ctx, v2.err("No results found."))
 
         tracks = results[:10]
-
-        desc = "\n".join(
+        lines = "\n".join(
             f"`{i}.` **{t.title[:50]}** — {clean_author(t.author)} `[{ms_to_time(t.length or 0)}]`"
             for i, t in enumerate(tracks, 1)
         )
-        embed = discord.Embed(title="🔍 Search Results", description=desc, color=COLOR)
-        embed.set_footer(text="Reply with a number 1–10 within 30s, or type 'cancel'.")
-        msg = await ctx.reply(embed=embed, mention_author=False)
+        await v2.send(ctx, v2.container(
+            lines,
+            header="🔍 Search Results",
+            footer="Reply with a number 1–10 within 30s, or type 'cancel'.",
+        ))
 
         def check(m: discord.Message):
             return (
@@ -237,20 +243,17 @@ class MusicCog(commands.Cog, name="Music"):
         try:
             reply = await self.bot.wait_for("message", timeout=30.0, check=check)
         except asyncio.TimeoutError:
-            await msg.delete()
             return
 
         if reply.content.lower() == "cancel":
-            await msg.delete()
             return
 
         idx = int(reply.content) - 1
         if idx < 0 or idx >= len(tracks):
-            return await ctx.reply(embed=self.bot.err("Invalid number."), mention_author=False)
+            return await v2.send(ctx, v2.err("Invalid number."))
 
         track = tracks[idx]
-        ctx2 = ctx
-        await ctx2.invoke(self.play, query=track.uri or track.title)
+        await ctx.invoke(self.play, query=track.uri or track.title)
 
     # ── skip ──────────────────────────────────────────────────────────────────
 
@@ -258,33 +261,32 @@ class MusicCog(commands.Cog, name="Music"):
     async def skip(self, ctx: commands.Context):
         player = await voice_check(ctx)
         if not player.current:
-            return await ctx.reply(embed=self.bot.err("Nothing is playing."), mention_author=False)
+            return await v2.send(ctx, v2.err("Nothing is playing."))
         skipped = player.current.title
         await player.skip()
-        embed = discord.Embed(description=f"⏭️ Skipped **{skipped}**", color=COLOR)
-        await ctx.reply(embed=embed, mention_author=False)
+        await v2.send(ctx, v2.container(f"⏭️ Skipped **{skipped}**"))
 
     @commands.hybrid_command(name="forceskip", aliases=["fs"], description="Force skip (bypasses votes).")
     async def forceskip(self, ctx: commands.Context):
         player = await voice_check(ctx)
         if not player.current:
-            return await ctx.reply(embed=self.bot.err("Nothing is playing."), mention_author=False)
+            return await v2.send(ctx, v2.err("Nothing is playing."))
         title = player.current.title
         await player.skip()
-        await ctx.reply(embed=discord.Embed(description=f"⏭️ Force-skipped **{title}**", color=COLOR), mention_author=False)
+        await v2.send(ctx, v2.container(f"⏭️ Force-skipped **{title}**"))
 
     @commands.hybrid_command(name="skipto", description="Skip to a specific position in the queue.")
     async def skipto(self, ctx: commands.Context, position: int):
         player = await voice_check(ctx)
         q = list(player.queue)
         if position < 1 or position > len(q):
-            return await ctx.reply(embed=self.bot.err(f"Invalid position. Queue has {len(q)} tracks."), mention_author=False)
+            return await v2.send(ctx, v2.err(f"Invalid position. Queue has {len(q)} tracks."))
         player.queue.reset()
         target = q[position - 1]
         for t in q[position:]:
             await player.queue.put_wait(t)
         await player.play(target)
-        await ctx.reply(embed=discord.Embed(description=f"⏭️ Skipped to **{target.title}**", color=COLOR), mention_author=False)
+        await v2.send(ctx, v2.container(f"⏭️ Skipped to **{target.title}**"))
 
     # ── pause / resume ────────────────────────────────────────────────────────
 
@@ -292,17 +294,17 @@ class MusicCog(commands.Cog, name="Music"):
     async def pause(self, ctx: commands.Context):
         player = await voice_check(ctx)
         if player.paused:
-            return await ctx.reply(embed=self.bot.err("Already paused."), mention_author=False)
+            return await v2.send(ctx, v2.err("Already paused."))
         await player.pause(True)
-        await ctx.reply(embed=discord.Embed(description=f"⏸️ Paused.", color=COLOR), mention_author=False)
+        await v2.send(ctx, v2.container("⏸️ Paused."))
 
     @commands.hybrid_command(name="resume", aliases=["r"], description="Resume playback.")
     async def resume(self, ctx: commands.Context):
         player = await voice_check(ctx)
         if not player.paused:
-            return await ctx.reply(embed=self.bot.err("Not paused."), mention_author=False)
+            return await v2.send(ctx, v2.err("Not paused."))
         await player.pause(False)
-        await ctx.reply(embed=discord.Embed(description=f"▶️ Resumed.", color=COLOR), mention_author=False)
+        await v2.send(ctx, v2.container("▶️ Resumed."))
 
     # ── stop ──────────────────────────────────────────────────────────────────
 
@@ -311,7 +313,7 @@ class MusicCog(commands.Cog, name="Music"):
         player = await voice_check(ctx)
         player.queue.reset()
         await player.stop()
-        await ctx.reply(embed=discord.Embed(description="⏹️ Stopped and cleared the queue.", color=COLOR), mention_author=False)
+        await v2.send(ctx, v2.container("⏹️ Stopped and cleared the queue."))
 
     # ── leave / join ──────────────────────────────────────────────────────────
 
@@ -319,25 +321,25 @@ class MusicCog(commands.Cog, name="Music"):
     async def leave(self, ctx: commands.Context):
         player = get_player(ctx)
         if not player:
-            return await ctx.reply(embed=self.bot.err("I'm not in a voice channel."), mention_author=False)
+            return await v2.send(ctx, v2.err("I'm not in a voice channel."))
         player.queue.reset()
         await player.disconnect()
-        await ctx.reply(embed=discord.Embed(description="👋 Disconnected.", color=COLOR), mention_author=False)
+        await v2.send(ctx, v2.container("👋 Disconnected."))
 
     @commands.hybrid_command(name="join", description="Join your voice channel.")
     async def join(self, ctx: commands.Context):
         voice = getattr(ctx.author, "voice", None)
         if not voice or not voice.channel:
-            return await ctx.reply(embed=self.bot.err("Join a voice channel first."), mention_author=False)
+            return await v2.send(ctx, v2.err("Join a voice channel first."))
         player = get_player(ctx)
         if player:
             if player.channel == voice.channel:
-                return await ctx.reply(embed=self.bot.err("Already in your channel."), mention_author=False)
+                return await v2.send(ctx, v2.err("Already in your channel."))
             await player.disconnect()
         p = await voice.channel.connect(cls=ravelink.Player, self_deaf=True, reconnect=True)
         p._text_channel_id = ctx.channel.id
         p._np_message_id = None
-        await ctx.reply(embed=discord.Embed(description=f"🔊 Joined **{voice.channel.name}**", color=COLOR), mention_author=False)
+        await v2.send(ctx, v2.container(f"🔊 Joined **{voice.channel.name}**"))
 
     # ── volume ────────────────────────────────────────────────────────────────
 
@@ -345,11 +347,11 @@ class MusicCog(commands.Cog, name="Music"):
     async def volume(self, ctx: commands.Context, level: Optional[int] = None):
         player = await voice_check(ctx)
         if level is None:
-            return await ctx.reply(embed=discord.Embed(description=f"🔊 Current volume: **{player.volume}%**", color=COLOR), mention_author=False)
+            return await v2.send(ctx, v2.container(f"🔊 Current volume: **{player.volume}%**"))
         if not 0 <= level <= 200:
-            return await ctx.reply(embed=self.bot.err("Volume must be between 0 and 200."), mention_author=False)
+            return await v2.send(ctx, v2.err("Volume must be between 0 and 200."))
         await player.set_volume(level)
-        await ctx.reply(embed=discord.Embed(description=f"🔊 Volume set to **{level}%**", color=COLOR), mention_author=False)
+        await v2.send(ctx, v2.container(f"🔊 Volume set to **{level}%**"))
 
     # ── loop ──────────────────────────────────────────────────────────────────
 
@@ -377,7 +379,7 @@ class MusicCog(commands.Cog, name="Music"):
             else:
                 player.queue.mode = ravelink.QueueMode.normal
                 txt = "▶️ Loop: **Off**"
-        await ctx.reply(embed=discord.Embed(description=txt, color=COLOR), mention_author=False)
+        await v2.send(ctx, v2.container(txt))
 
     # ── shuffle ───────────────────────────────────────────────────────────────
 
@@ -385,9 +387,9 @@ class MusicCog(commands.Cog, name="Music"):
     async def shuffle(self, ctx: commands.Context):
         player = await voice_check(ctx)
         if len(player.queue) < 2:
-            return await ctx.reply(embed=self.bot.err("Need at least 2 songs in queue to shuffle."), mention_author=False)
+            return await v2.send(ctx, v2.err("Need at least 2 songs in queue to shuffle."))
         player.queue.shuffle()
-        await ctx.reply(embed=discord.Embed(description="🔀 Queue shuffled!", color=COLOR), mention_author=False)
+        await v2.send(ctx, v2.container("🔀 Queue shuffled!"))
 
     # ── seek ──────────────────────────────────────────────────────────────────
 
@@ -397,21 +399,21 @@ class MusicCog(commands.Cog, name="Music"):
         from utils.formatters import time_to_ms
         ms = time_to_ms(position)
         await player.seek(ms)
-        await ctx.reply(embed=discord.Embed(description=f"⏩ Seeked to `{position}`", color=COLOR), mention_author=False)
+        await v2.send(ctx, v2.container(f"⏩ Seeked to `{position}`"))
 
     @commands.hybrid_command(name="forward", description="Forward by N seconds.")
     async def forward(self, ctx: commands.Context, seconds: int = 10):
         player = await voice_check(ctx)
         new_pos = min((player.position or 0) + seconds * 1000, (player.current.length or 0) - 1000)
         await player.seek(int(new_pos))
-        await ctx.reply(embed=discord.Embed(description=f"⏩ Forwarded **{seconds}s**", color=COLOR), mention_author=False)
+        await v2.send(ctx, v2.container(f"⏩ Forwarded **{seconds}s**"))
 
     @commands.hybrid_command(name="rewind", description="Rewind by N seconds.")
     async def rewind(self, ctx: commands.Context, seconds: int = 10):
         player = await voice_check(ctx)
         new_pos = max((player.position or 0) - seconds * 1000, 0)
         await player.seek(int(new_pos))
-        await ctx.reply(embed=discord.Embed(description=f"⏪ Rewound **{seconds}s**", color=COLOR), mention_author=False)
+        await v2.send(ctx, v2.container(f"⏪ Rewound **{seconds}s**"))
 
     # ── queue ─────────────────────────────────────────────────────────────────
 
@@ -419,12 +421,10 @@ class MusicCog(commands.Cog, name="Music"):
     async def queue(self, ctx: commands.Context):
         player = get_player(ctx)
         if not player:
-            return await ctx.reply(embed=self.bot.err("Nothing is playing."), mention_author=False)
-
+            return await v2.send(ctx, v2.err("Nothing is playing."))
         tracks = list(player.queue)
-        view = QueuePages(tracks)
-        embed = view.make_embed(current_track=player.current)
-        await ctx.reply(embed=embed, view=view, mention_author=False)
+        view = QueueLayoutView(tracks, current_track=player.current)
+        await ctx.reply(view=view, mention_author=False)
 
     # ── nowplaying ────────────────────────────────────────────────────────────
 
@@ -432,10 +432,9 @@ class MusicCog(commands.Cog, name="Music"):
     async def nowplaying(self, ctx: commands.Context):
         player = get_player(ctx)
         if not player or not player.current:
-            return await ctx.reply(embed=self.bot.err("Nothing is playing right now."), mention_author=False)
-        embed = build_np_embed(player.current, player)
-        view = NowPlayingView(player)
-        await ctx.reply(embed=embed, view=view, mention_author=False)
+            return await v2.send(ctx, v2.err("Nothing is playing right now."))
+        np_view = NowPlayingView(player)
+        await ctx.reply(view=np_view, mention_author=False)
 
     # ── move ──────────────────────────────────────────────────────────────────
 
@@ -444,13 +443,13 @@ class MusicCog(commands.Cog, name="Music"):
         player = await voice_check(ctx)
         tracks = list(player.queue)
         if from_pos < 1 or from_pos > len(tracks) or to_pos < 1 or to_pos > len(tracks):
-            return await ctx.reply(embed=self.bot.err(f"Position out of range. Queue has {len(tracks)} tracks."), mention_author=False)
+            return await v2.send(ctx, v2.err(f"Position out of range. Queue has {len(tracks)} tracks."))
         track = tracks.pop(from_pos - 1)
         tracks.insert(to_pos - 1, track)
         player.queue.reset()
         for t in tracks:
             await player.queue.put_wait(t)
-        await ctx.reply(embed=discord.Embed(description=f"↕️ Moved **{track.title}** to position **{to_pos}**.", color=COLOR), mention_author=False)
+        await v2.send(ctx, v2.container(f"↕️ Moved **{track.title}** to position **{to_pos}**."))
 
     # ── remove ────────────────────────────────────────────────────────────────
 
@@ -459,12 +458,12 @@ class MusicCog(commands.Cog, name="Music"):
         player = await voice_check(ctx)
         tracks = list(player.queue)
         if position < 1 or position > len(tracks):
-            return await ctx.reply(embed=self.bot.err(f"Invalid position."), mention_author=False)
+            return await v2.send(ctx, v2.err("Invalid position."))
         removed = tracks.pop(position - 1)
         player.queue.reset()
         for t in tracks:
             await player.queue.put_wait(t)
-        await ctx.reply(embed=discord.Embed(description=f"🗑️ Removed **{removed.title}**", color=COLOR), mention_author=False)
+        await v2.send(ctx, v2.container(f"🗑️ Removed **{removed.title}**"))
 
     # ── clear ─────────────────────────────────────────────────────────────────
 
@@ -472,202 +471,108 @@ class MusicCog(commands.Cog, name="Music"):
     async def clear(self, ctx: commands.Context):
         player = await voice_check(ctx)
         player.queue.reset()
-        await ctx.reply(embed=discord.Embed(description="🧹 Queue cleared.", color=COLOR), mention_author=False)
+        await v2.send(ctx, v2.container("🧹 Queue cleared."))
 
     # ── replay ────────────────────────────────────────────────────────────────
 
-    @commands.hybrid_command(name="replay", description="Replay the current track.")
+    @commands.hybrid_command(name="replay", description="Replay the current track from the start.")
     async def replay(self, ctx: commands.Context):
         player = await voice_check(ctx)
         if not player.current:
-            return await ctx.reply(embed=self.bot.err("Nothing is playing."), mention_author=False)
+            return await v2.send(ctx, v2.err("Nothing is playing."))
         await player.seek(0)
-        await ctx.reply(embed=discord.Embed(description="🔄 Replaying current track.", color=COLOR), mention_author=False)
+        await v2.send(ctx, v2.container("🔄 Replaying from the start."))
 
     # ── previous ──────────────────────────────────────────────────────────────
 
     @commands.hybrid_command(name="previous", aliases=["prev"], description="Play the previous track.")
     async def previous(self, ctx: commands.Context):
         player = await voice_check(ctx)
-        hist = getattr(player, "_history", [])
-        if not hist:
-            return await ctx.reply(embed=self.bot.err("No previous track in history."), mention_author=False)
-        prev_track = hist[-1]
-        if player.current:
-            player.queue._queue.insert(0, player.current) if hasattr(player.queue, "_queue") else None
-        await player.play(prev_track)
-        await ctx.reply(embed=discord.Embed(description=f"⏮️ Playing previous: **{prev_track.title}**", color=COLOR), mention_author=False)
+        history = await get_history(ctx.author.id)
+        if len(history) < 2:
+            return await v2.send(ctx, v2.err("No previous track in history."))
+        prev = history[-2]
+        uri = prev.get("uri")
+        if not uri:
+            return await v2.send(ctx, v2.err("Could not find the previous track."))
+        results = await ravelink.Playable.search(uri)
+        if not results:
+            return await v2.send(ctx, v2.err("Could not load the previous track."))
+        track = results[0] if not isinstance(results, ravelink.Playlist) else results.tracks[0]
+        track.extras = {"requester_id": ctx.author.id, "requester_name": ctx.author.display_name}
+        player.queue.reset()
+        await player.queue.put_wait(track)
+        await player.skip()
+        await v2.send(ctx, v2.container(f"⏮️ Playing previous: **{track.title}**"))
 
-    # ── grab ──────────────────────────────────────────────────────────────────
+    # ── history ───────────────────────────────────────────────────────────────
 
-    @commands.hybrid_command(name="grab", description="DM yourself the current song info.")
+    @commands.hybrid_command(name="history", aliases=["hist", "recent"], description="View your recently played tracks.")
+    async def history(self, ctx: commands.Context):
+        history = await get_history(ctx.author.id)
+        if not history:
+            return await v2.send(ctx, v2.info("No listening history yet."))
+        recent = list(reversed(history[-10:]))
+        lines = "\n".join(
+            f"`{i}.` **{t['title'][:45]}** — {t.get('author', 'Unknown')[:25]}"
+            for i, t in enumerate(recent, 1)
+        )
+        await v2.send(ctx, v2.container(lines, header="🕐 Listening History", footer=f"Last {len(recent)} tracks"))
+
+    # ── autoplay ──────────────────────────────────────────────────────────────
+
+    @commands.hybrid_command(name="autoplay", aliases=["ap"], description="Toggle autoplay for related tracks.")
+    async def autoplay(self, ctx: commands.Context):
+        player = await voice_check(ctx)
+        if player.autoplay == ravelink.AutoPlayMode.enabled:
+            player.autoplay = ravelink.AutoPlayMode.disabled
+            await v2.send(ctx, v2.container("🎵 Autoplay **disabled**."))
+        else:
+            player.autoplay = ravelink.AutoPlayMode.enabled
+            await v2.send(ctx, v2.container("🎵 Autoplay **enabled**."))
+
+    # ── grab / save ───────────────────────────────────────────────────────────
+
+    @commands.hybrid_command(name="grab", aliases=["save"], description="Save the current track to your DMs.")
     async def grab(self, ctx: commands.Context):
         player = get_player(ctx)
         if not player or not player.current:
-            return await ctx.reply(embed=self.bot.err("Nothing is playing."), mention_author=False)
+            return await v2.send(ctx, v2.err("Nothing is playing."))
         t = player.current
         embed = discord.Embed(
-            title="🎵 Grabbed Track",
-            description=f"**[{t.title}]({t.uri})**\nby {clean_author(t.author)}\n⏱ `{ms_to_time(t.length or 0)}`",
-            color=COLOR
+            title=f"🎵 {t.title}",
+            description=f"👤 {clean_author(t.author)}\n⏱ `{ms_to_time(t.length or 0)}`\n🔗 [Listen]({t.uri})",
+            color=COLOR,
         )
         thumb = clean_thumbnail(t.artwork_url)
         if thumb:
             embed.set_thumbnail(url=thumb)
         try:
             await ctx.author.send(embed=embed)
-            await ctx.reply(embed=self.bot.ok("📌 Sent song info to your DMs!"), mention_author=False)
+            await v2.send(ctx, v2.ok("Track saved to your DMs!"))
         except discord.Forbidden:
-            await ctx.reply(embed=self.bot.err("I can't DM you. Enable DMs from server members."), mention_author=False)
-
-    # ── history ───────────────────────────────────────────────────────────────
-
-    @commands.hybrid_command(name="history", description="View your listening history.")
-    async def history(self, ctx: commands.Context):
-        rows = await get_history(ctx.author.id, 15)
-        if not rows:
-            return await ctx.reply(embed=self.bot.info_embed("No listening history yet."), mention_author=False)
-        desc = "\n".join(
-            f"`{i}.` **{r['title'][:40]}** — {r['author'][:25]} `[{ms_to_time(r['duration'] or 0)}]`"
-            for i, r in enumerate(rows, 1)
-        )
-        embed = discord.Embed(title="📜 Listening History", description=desc, color=COLOR)
-        embed.set_footer(text=f"Showing last {len(rows)} tracks")
-        await ctx.reply(embed=embed, mention_author=False)
-
-    # ── autoplay ──────────────────────────────────────────────────────────────
-
-    @commands.hybrid_command(name="autoplay", description="Toggle autoplay mode.")
-    async def autoplay(self, ctx: commands.Context, mode: str = ""):
-        player = await voice_check(ctx)
-        mode = mode.lower()
-        if mode in ("on", "enable", "enabled"):
-            player.autoplay = ravelink.AutoPlayMode.enabled
-            txt = "🤖 Autoplay: **Enabled**"
-        elif mode in ("off", "disable", "disabled"):
-            player.autoplay = ravelink.AutoPlayMode.disabled
-            txt = "🤖 Autoplay: **Disabled**"
-        else:
-            if player.autoplay == ravelink.AutoPlayMode.disabled:
-                player.autoplay = ravelink.AutoPlayMode.enabled
-                txt = "🤖 Autoplay: **Enabled**"
-            else:
-                player.autoplay = ravelink.AutoPlayMode.disabled
-                txt = "🤖 Autoplay: **Disabled**"
-        await ctx.reply(embed=discord.Embed(description=txt, color=COLOR), mention_author=False)
-
-    # ── speed ─────────────────────────────────────────────────────────────────
-
-    @commands.hybrid_command(name="speed", description="Set playback speed (0.25–3.0).")
-    async def speed(self, ctx: commands.Context, speed: float):
-        player = await voice_check(ctx)
-        if not 0.25 <= speed <= 3.0:
-            return await ctx.reply(embed=self.bot.err("Speed must be between 0.25 and 3.0."), mention_author=False)
-        filters = player.filters
-        filters.timescale.set(speed=speed)
-        await player.set_filters(filters, seek=True)
-        await ctx.reply(embed=discord.Embed(description=f"⚡ Speed set to **{speed}x**", color=COLOR), mention_author=False)
+            await v2.send(ctx, v2.err("I couldn't DM you. Check your privacy settings."))
 
     # ── sleep ─────────────────────────────────────────────────────────────────
 
-    @commands.hybrid_command(name="sleep", description="Stop the bot after N minutes.")
-    async def sleep(self, ctx: commands.Context, minutes: int):
-        if minutes < 1 or minutes > 360:
-            return await ctx.reply(embed=self.bot.err("Minutes must be between 1 and 360."), mention_author=False)
-        player = await voice_check(ctx)
-        await ctx.reply(embed=discord.Embed(description=f"💤 Will stop playback in **{minutes} minute(s)**.", color=COLOR), mention_author=False)
-
-        async def _sleep_task():
-            await asyncio.sleep(minutes * 60)
-            if player and player.connected:
-                player.queue.reset()
-                await player.stop()
-                await player.disconnect()
-                ch = self.bot.get_channel(ctx.channel.id)
-                if ch:
-                    await ch.send(embed=discord.Embed(description="💤 Sleep timer expired. Disconnected.", color=COLOR), delete_after=15)
-
-        asyncio.create_task(_sleep_task())
-
-    # ── leavecleanup ──────────────────────────────────────────────────────────
-
-    @commands.hybrid_command(name="leavecleanup", description="Remove songs from users no longer in VC.")
-    async def leavecleanup(self, ctx: commands.Context):
-        player = await voice_check(ctx)
-        vc_members = set(m.id for m in player.channel.members if not m.bot)
-        tracks = list(player.queue)
-        kept = []
-        removed = 0
-        for t in tracks:
-            req_id = (getattr(t, "extras", {}) or {}).get("requester_id")
-            if req_id and req_id not in vc_members:
-                removed += 1
-            else:
-                kept.append(t)
-        player.queue.reset()
-        for t in kept:
-            await player.queue.put_wait(t)
-        await ctx.reply(embed=discord.Embed(description=f"🧹 Removed **{removed}** tracks from users not in VC.", color=COLOR), mention_author=False)
-
-    # ── forcefix ──────────────────────────────────────────────────────────────
-
-    @commands.hybrid_command(name="forcefix", description="Fix a stuck player.")
-    async def forcefix(self, ctx: commands.Context):
-        player = get_player(ctx)
-        if not player:
-            return await ctx.reply(embed=self.bot.err("No active player."), mention_author=False)
-        current = player.current
-        await player.stop()
-        if current:
-            await asyncio.sleep(0.5)
-            try:
-                results = await ravelink.Playable.search(current.uri or current.title)
-                if results:
-                    t = results[0] if not isinstance(results, ravelink.Playlist) else results.tracks[0]
-                    t.extras = getattr(current, "extras", {})
-                    await player.play(t)
-                    return await ctx.reply(embed=self.bot.ok(f"🔧 Fixed — replaying **{t.title}**"), mention_author=False)
-            except Exception:
-                pass
-        await ctx.reply(embed=self.bot.ok("🔧 Player reset."), mention_author=False)
-
-    # ── similar ───────────────────────────────────────────────────────────────
-
-    @commands.hybrid_command(name="similar", description="Queue songs similar to the current track.")
-    async def similar(self, ctx: commands.Context):
-        player = await voice_check(ctx)
-        if not player.current:
-            return await ctx.reply(embed=self.bot.err("Nothing is playing."), mention_author=False)
-        t = player.current
-        query = f"{t.title} {clean_author(t.author)} similar"
+    @commands.hybrid_command(name="sleep", description="Set a timer to stop playback (e.g. 30m, 1h).")
+    async def sleep(self, ctx: commands.Context, duration: str):
+        multipliers = {"s": 1, "m": 60, "h": 3600}
+        unit = duration[-1].lower()
         try:
-            results = await ravelink.Playable.search(query, source=ravelink.TrackSource.YouTubeMusic)
-        except Exception:
-            return await ctx.reply(embed=self.bot.err("Could not find similar tracks."), mention_author=False)
-        if not results:
-            return await ctx.reply(embed=self.bot.err("No similar tracks found."), mention_author=False)
+            amount = int(duration[:-1])
+            seconds = amount * multipliers.get(unit, 60)
+        except ValueError:
+            return await v2.send(ctx, v2.err("Invalid duration. Example: `30m`, `1h`"))
 
-        added = 0
-        for track in (results[:5] if not isinstance(results, ravelink.Playlist) else results.tracks[:5]):
-            if track.uri != (player.current.uri if player.current else None):
-                track.extras = {"requester_id": ctx.author.id, "requester_name": ctx.author.display_name}
-                await player.queue.put_wait(track)
-                added += 1
+        player = await voice_check(ctx)
+        await v2.send(ctx, v2.ok(f"⏰ Stopping playback in **{duration}**."))
 
-        if not player.playing:
-            try:
-                next_t = player.queue.get()
-                await player.play(next_t)
-            except ravelink.QueueEmpty:
-                pass
-
-        await ctx.reply(embed=discord.Embed(description=f"💡 Added **{added}** similar tracks to the queue.", color=COLOR), mention_author=False)
-
-    # ── pmusic (play from Spotify/search with picker) ─────────────────────────
-
-    @commands.hybrid_command(name="pmusic", description="Play with multi-source search.")
-    async def pmusic(self, ctx: commands.Context, *, query: str):
-        await ctx.invoke(self.play, query=query)
+        await asyncio.sleep(seconds)
+        if player and player.is_connected():
+            player.queue.reset()
+            await player.stop()
+            await player.disconnect()
 
 
 async def setup(bot):

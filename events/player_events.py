@@ -11,39 +11,106 @@ import emojis as E
 from database.models import add_history, increment_commands
 from utils.formatters import ms_to_time, clean_author, clean_thumbnail, progress_bar
 from utils import logger
-
+import utils.v2 as v2
 
 COLOR = 0x7B2FBE
 
 
-# ── NP message view ──────────────────────────────────────────────────────────
+# ── NowPlaying LayoutView ─────────────────────────────────────────────────────
 
-class NowPlayingView(discord.ui.View):
+class NowPlayingView(discord.ui.LayoutView):
     def __init__(self, player: ravelink.Player):
         super().__init__(timeout=None)
         self.player = player
+        self._build()
 
-    @discord.ui.button(emoji="⏸️", style=discord.ButtonStyle.secondary, custom_id="np_pause")
-    async def pause_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+    def _build(self):
+        self.clear_items()
+        self.add_item(self._make_container())
+        # Control buttons
+        is_paused = self.player.paused
+        pause_btn = discord.ui.Button(
+            emoji="▶️" if is_paused else "⏸️",
+            style=discord.ButtonStyle.success if is_paused else discord.ButtonStyle.secondary,
+            custom_id="np_pause",
+        )
+        pause_btn.callback = self._pause_cb
+        skip_btn = discord.ui.Button(emoji="⏭️", style=discord.ButtonStyle.secondary, custom_id="np_skip")
+        skip_btn.callback = self._skip_cb
+        like_btn = discord.ui.Button(emoji="❤️", style=discord.ButtonStyle.danger, custom_id="np_like")
+        like_btn.callback = self._like_cb
+        shuffle_btn = discord.ui.Button(emoji="🔀", style=discord.ButtonStyle.secondary, custom_id="np_shuffle")
+        shuffle_btn.callback = self._shuffle_cb
+        loop_mode = self.player.queue.mode
+        if loop_mode == ravelink.QueueMode.loop:
+            loop_style = discord.ButtonStyle.success
+        elif loop_mode == ravelink.QueueMode.loop_all:
+            loop_style = discord.ButtonStyle.primary
+        else:
+            loop_style = discord.ButtonStyle.secondary
+        loop_btn = discord.ui.Button(emoji="🔁", style=loop_style, custom_id="np_loop")
+        loop_btn.callback = self._loop_cb
+        stop_btn = discord.ui.Button(emoji="⏹️", style=discord.ButtonStyle.danger, custom_id="np_stop")
+        stop_btn.callback = self._stop_cb
+        for btn in [pause_btn, skip_btn, like_btn, shuffle_btn, loop_btn, stop_btn]:
+            self.add_item(btn)
+
+    def _make_container(self) -> discord.ui.Container:
+        track = self.player.current
+        if not track:
+            return discord.ui.Container(
+                discord.ui.TextDisplay("Nothing is playing."),
+                accent_color=COLOR,
+            )
+        artist = clean_author(track.author)
+        pos = self.player.position or 0
+        dur = track.length or 0
+        bar = progress_bar(pos, dur)
+        thumb = clean_thumbnail(track.artwork_url)
+        extras = getattr(track, "extras", {}) or {}
+        req_name = extras.get("requester_name", "")
+        queue_size = len(self.player.queue)
+        vol = getattr(self.player, "volume", 100)
+        loop_map = {
+            ravelink.QueueMode.normal:   "Off",
+            ravelink.QueueMode.loop:     "Track 🔂",
+            ravelink.QueueMode.loop_all: "Queue 🔁",
+        }
+        loop_str = loop_map.get(self.player.queue.mode, "Off")
+        body = (
+            f"**[{track.title}]({track.uri})**\n"
+            f"👤 {artist}\n\n"
+            f"`{ms_to_time(pos)}` {bar} `{ms_to_time(dur)}`\n\n"
+            f"🔊 Vol: **{vol}%** • 🔁 Loop: **{loop_str}**"
+            + (f"\n➕ Requested by **{req_name}**" if req_name else "")
+            + (f"\n📋 **{queue_size}** song(s) in queue" if queue_size else "")
+        )
+        children: list = [discord.ui.TextDisplay("## 🎧 Now Playing")]
+        children.append(discord.ui.Separator())
+        if thumb:
+            children.append(discord.ui.Section(
+                discord.ui.TextDisplay(body),
+                accessory=discord.ui.Thumbnail(media=thumb),
+            ))
+        else:
+            children.append(discord.ui.TextDisplay(body))
+        return discord.ui.Container(*children, accent_color=COLOR)
+
+    async def _pause_cb(self, interaction: discord.Interaction):
         await interaction.response.defer()
         if not self.player.paused:
             await self.player.pause(True)
-            button.emoji = discord.PartialEmoji.from_str("▶️")
-            button.style = discord.ButtonStyle.success
         else:
             await self.player.pause(False)
-            button.emoji = discord.PartialEmoji.from_str("⏸️")
-            button.style = discord.ButtonStyle.secondary
+        self._build()
         await interaction.edit_original_response(view=self)
 
-    @discord.ui.button(emoji="⏭️", style=discord.ButtonStyle.secondary, custom_id="np_skip")
-    async def skip_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def _skip_cb(self, interaction: discord.Interaction):
         await interaction.response.defer()
         await self.player.skip()
         await interaction.followup.send("⏭️ Skipped!", ephemeral=True, delete_after=3)
 
-    @discord.ui.button(emoji="❤️", style=discord.ButtonStyle.danger, custom_id="np_like")
-    async def like_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def _like_cb(self, interaction: discord.Interaction):
         from database.models import get_liked, set_liked
         await interaction.response.defer(ephemeral=True)
         track = self.player.current
@@ -67,33 +134,27 @@ class NowPlayingView(discord.ui.View):
             await set_liked(interaction.user.id, songs)
             await interaction.followup.send(f"❤️ Added **{track.title}** to liked songs!", ephemeral=True, delete_after=5)
 
-    @discord.ui.button(emoji="🔀", style=discord.ButtonStyle.secondary, custom_id="np_shuffle")
-    async def shuffle_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def _shuffle_cb(self, interaction: discord.Interaction):
         await interaction.response.defer()
         self.player.queue.shuffle()
         await interaction.followup.send("🔀 Queue shuffled!", ephemeral=True, delete_after=3)
 
-    @discord.ui.button(emoji="🔁", style=discord.ButtonStyle.secondary, custom_id="np_loop")
-    async def loop_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def _loop_cb(self, interaction: discord.Interaction):
         await interaction.response.defer()
         if self.player.queue.mode == ravelink.QueueMode.normal:
             self.player.queue.mode = ravelink.QueueMode.loop
-            button.style = discord.ButtonStyle.success
-            msg = "🔂 Loop track on."
+            msg = "🔂 Loop: Track"
         elif self.player.queue.mode == ravelink.QueueMode.loop:
             self.player.queue.mode = ravelink.QueueMode.loop_all
-            button.emoji = discord.PartialEmoji.from_str("🔁")
-            button.style = discord.ButtonStyle.primary
-            msg = "🔁 Loop queue on."
+            msg = "🔁 Loop: Queue"
         else:
             self.player.queue.mode = ravelink.QueueMode.normal
-            button.style = discord.ButtonStyle.secondary
-            msg = "▶️ Loop off."
+            msg = "▶️ Loop: Off"
+        self._build()
         await interaction.edit_original_response(view=self)
         await interaction.followup.send(msg, ephemeral=True, delete_after=3)
 
-    @discord.ui.button(emoji="⏹️", style=discord.ButtonStyle.danger, custom_id="np_stop")
-    async def stop_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def _stop_cb(self, interaction: discord.Interaction):
         await interaction.response.defer()
         self.player.queue.reset()
         await self.player.stop()
@@ -102,25 +163,23 @@ class NowPlayingView(discord.ui.View):
 
 
 def build_np_embed(track: ravelink.Playable, player: ravelink.Player) -> discord.Embed:
+    """Legacy helper kept for any callers that still need an Embed (unused internally)."""
+    from utils.formatters import ms_to_time, clean_author, clean_thumbnail, progress_bar
     artist = clean_author(track.author)
     pos = player.position or 0
     dur = track.length or 0
     bar = progress_bar(pos, dur)
     thumb = clean_thumbnail(track.artwork_url)
-
-    requester = getattr(track, "extras", {}) or {}
-    req_name = requester.get("requester_name", "")
-
+    extras = getattr(track, "extras", {}) or {}
+    req_name = extras.get("requester_name", "")
     queue_size = len(player.queue)
     vol = getattr(player, "volume", 100)
-
     loop_map = {
         ravelink.QueueMode.normal:   "Off",
         ravelink.QueueMode.loop:     "Track 🔂",
         ravelink.QueueMode.loop_all: "Queue 🔁",
     }
     loop_str = loop_map.get(player.queue.mode, "Off")
-
     desc = (
         f"**{track.title}**\n"
         f"👤 **Artist:** {artist}\n\n"
@@ -129,7 +188,6 @@ def build_np_embed(track: ravelink.Playable, player: ravelink.Player) -> discord
         + (f"\n➕ Requested by **{req_name}**" if req_name else "")
         + (f"\n📋 **{queue_size}** song(s) in queue" if queue_size else "")
     )
-
     embed = discord.Embed(description=desc, color=COLOR)
     embed.set_author(name="🎧 Now Playing")
     if thumb:
@@ -160,7 +218,6 @@ def setup_events(bot) -> None:
             return
         track = payload.track
 
-        # Record history for requester
         extras = getattr(track, "extras", {}) or {}
         req_id = extras.get("requester_id")
         if req_id:
@@ -178,12 +235,10 @@ def setup_events(bot) -> None:
         text_channel_id = getattr(player, "_text_channel_id", None)
         if not text_channel_id:
             return
-
         channel = bot.get_channel(text_channel_id)
         if not channel:
             return
 
-        # Delete old NP message
         old_msg_id = getattr(player, "_np_message_id", None)
         if old_msg_id:
             try:
@@ -193,10 +248,9 @@ def setup_events(bot) -> None:
                 pass
             player._np_message_id = None
 
-        embed = build_np_embed(track, player)
-        view = NowPlayingView(player)
+        np_view = NowPlayingView(player)
         try:
-            msg = await channel.send(embed=embed, view=view)
+            msg = await channel.send(view=np_view)
             player._np_message_id = msg.id
         except Exception as e:
             logger.log(f"[NP] Failed to send NP message: {e}", "warn")
@@ -207,7 +261,6 @@ def setup_events(bot) -> None:
         if not player:
             return
 
-        # Delete old NP message
         text_channel_id = getattr(player, "_text_channel_id", None)
         old_msg_id = getattr(player, "_np_message_id", None)
         if old_msg_id and text_channel_id:
@@ -223,24 +276,22 @@ def setup_events(bot) -> None:
         if payload.reason in ("replaced", "stopped"):
             return
 
-        # Play next track from queue
         try:
             next_track = player.queue.get()
             await player.play(next_track)
         except ravelink.QueueEmpty:
-            # Autoplay
             if player.autoplay == ravelink.AutoPlayMode.enabled:
-                pass  # ravelink handles autoplay internally
+                pass
             else:
                 if text_channel_id:
                     ch = bot.get_channel(text_channel_id)
                     if ch:
-                        embed = discord.Embed(
-                            description="✅ Queue finished! Use `play` to add more songs.",
-                            color=COLOR
-                        )
                         try:
-                            await ch.send(embed=embed, delete_after=15)
+                            await ch.send(
+                                components=[v2.container("✅ Queue finished! Use `/play` to add more songs.")],
+                                flags=v2.FLAGS,
+                                delete_after=15,
+                            )
                         except Exception:
                             pass
 
@@ -254,12 +305,12 @@ def setup_events(bot) -> None:
             ch = bot.get_channel(text_channel_id)
             if ch:
                 track_name = payload.track.title if payload.track else "Unknown track"
-                embed = discord.Embed(
-                    description=f"⚠️ Could not play **{track_name}**. Skipping...",
-                    color=0xFF5555
-                )
                 try:
-                    await ch.send(embed=embed, delete_after=10)
+                    await ch.send(
+                        components=[v2.container(f"⚠️ Could not play **{track_name}**. Skipping...", color=0xFF5555)],
+                        flags=v2.FLAGS,
+                        delete_after=10,
+                    )
                 except Exception:
                     pass
 
@@ -288,12 +339,12 @@ def setup_events(bot) -> None:
         if text_channel_id:
             ch = bot.get_channel(text_channel_id)
             if ch:
-                embed = discord.Embed(
-                    description="💤 Left voice channel due to inactivity.",
-                    color=COLOR
-                )
                 try:
-                    await ch.send(embed=embed, delete_after=15)
+                    await ch.send(
+                        components=[v2.container("💤 Left voice channel due to inactivity.")],
+                        flags=v2.FLAGS,
+                        delete_after=15,
+                    )
                 except Exception:
                     pass
         await player.disconnect()

@@ -1,3 +1,3 @@
-- [CV2 aesthetic system](cv2-aesthetic.md) — all commands use dark purple CV2 style with setAccentColor(0x7B2FBE); keep EmbedBuilder only for giveaway, nowplaying card, dm embeds, embed builder tool
+- [Discord v2 components migration](v2-components.md) — ALL responses use v2 containers via utils/v2.py; correct flag is `components_v2=True` not `is_components_v2`
 - [Autoplay intelligence system](autoplay-intelligence.md) — user history engine, language detection, 2×2 mood grid, taste-profile injection into Related mode
 - [Taste engine architecture](taste-engine.md) — tasteEngine.js + autoplayManager.js; JSON at data/user_tastes.json; wired via loadPlayers.js init, np_like in interactionCreate.js, pickBest in playerUtils.js
