@@ -16,7 +16,7 @@ from database import get_db
 from database.models import get_guild_prefix, increment_commands, get_blacklist
 from events.player_events import setup_events
 from utils import logger
-from cogs.information import info_embed, info_view
+from cogs.information import InfoLayoutView
 import utils.v2 as v2
 
 COGS = [
@@ -148,11 +148,7 @@ class ToneVibes(commands.Bot):
             )
             if is_mention:
                 try:
-                    await message.reply(
-                        embed=info_embed(self),
-                        view=info_view(self),
-                        mention_author=False,
-                    )
+                    await message.reply(view=InfoLayoutView(self), mention_author=False)
                 except Exception:
                     pass
                 return
