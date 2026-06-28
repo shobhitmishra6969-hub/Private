@@ -5,3 +5,10 @@ aiohttp>=3.9.0
 spotipy>=2.24.0
 Pillow>=10.0.0
 psutil>=5.9.0
+aiohttp
+aiosqlite
+discord.py
+Pillow
+psutil
+ravelink[voice]
+spotipy
