@@ -34,8 +34,7 @@ class LikedLayoutView(discord.ui.LayoutView):
             label="▶", style=discord.ButtonStyle.secondary, disabled=self.page >= self.max_page
         )
         next_btn.callback = self._next_cb
-        self.add_item(prev_btn)
-        self.add_item(next_btn)
+        self.add_item(discord.ui.ActionRow(prev_btn, next_btn))
 
     def _make_container(self) -> discord.ui.Container:
         start = self.page * self.per_page

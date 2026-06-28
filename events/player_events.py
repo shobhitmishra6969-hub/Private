@@ -52,8 +52,8 @@ class NowPlayingView(discord.ui.LayoutView):
         loop_btn.callback = self._loop_cb
         stop_btn = discord.ui.Button(emoji="⏹️", style=discord.ButtonStyle.danger, custom_id="np_stop")
         stop_btn.callback = self._stop_cb
-        for btn in [pause_btn, skip_btn, like_btn, shuffle_btn, loop_btn, stop_btn]:
-            self.add_item(btn)
+        self.add_item(discord.ui.ActionRow(pause_btn, skip_btn, like_btn))
+        self.add_item(discord.ui.ActionRow(shuffle_btn, loop_btn, stop_btn))
 
     def _make_container(self) -> discord.ui.Container:
         track = self.player.current
@@ -287,9 +287,9 @@ def setup_events(bot) -> None:
                     ch = bot.get_channel(text_channel_id)
                     if ch:
                         try:
-                            await ch.send(
-                                components=[v2.container("✅ Queue finished! Use `/play` to add more songs.")],
-                                flags=v2.FLAGS,
+                            await v2.channel_send(
+                                ch,
+                                v2.container("✅ Queue finished! Use `/play` to add more songs."),
                                 delete_after=15,
                             )
                         except Exception:
@@ -306,9 +306,9 @@ def setup_events(bot) -> None:
             if ch:
                 track_name = payload.track.title if payload.track else "Unknown track"
                 try:
-                    await ch.send(
-                        components=[v2.container(f"⚠️ Could not play **{track_name}**. Skipping...", color=0xFF5555)],
-                        flags=v2.FLAGS,
+                    await v2.channel_send(
+                        ch,
+                        v2.container(f"⚠️ Could not play **{track_name}**. Skipping...", color=0xFF5555),
                         delete_after=10,
                     )
                 except Exception:
@@ -340,9 +340,9 @@ def setup_events(bot) -> None:
             ch = bot.get_channel(text_channel_id)
             if ch:
                 try:
-                    await ch.send(
-                        components=[v2.container("💤 Left voice channel due to inactivity.")],
-                        flags=v2.FLAGS,
+                    await v2.channel_send(
+                        ch,
+                        v2.container("💤 Left voice channel due to inactivity."),
                         delete_after=15,
                     )
                 except Exception:

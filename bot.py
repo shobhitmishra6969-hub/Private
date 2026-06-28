@@ -167,11 +167,12 @@ class ToneVibes(commands.Bot):
             if afk:
                 try:
                     await clear_afk(message.author.id)
+                    lv = discord.ui.LayoutView(timeout=None)
+                    lv.add_item(v2.container(
+                        f"{E.check} Welcome back {message.author.mention}! Your AFK status has been removed."
+                    ))
                     await message.reply(
-                        components=[v2.container(
-                            f"{E.check} Welcome back {message.author.mention}! Your AFK status has been removed."
-                        )],
-                        flags=v2.FLAGS,
+                        view=lv,
                         delete_after=8,
                         mention_author=False,
                     )
@@ -187,13 +188,14 @@ class ToneVibes(commands.Bot):
                             ts = mentioned_afk["createdAt"]
                             afk_dt = datetime.datetime.fromtimestamp(ts, tz=datetime.timezone.utc)
                             since = discord.utils.format_dt(afk_dt, "R")
+                            lv2 = discord.ui.LayoutView(timeout=None)
+                            lv2.add_item(v2.container(
+                                f"💤 **{user.display_name}** is AFK\n"
+                                f"**Reason:** {mentioned_afk['reason']}\n"
+                                f"**Since:** {since}"
+                            ))
                             await message.reply(
-                                components=[v2.container(
-                                    f"💤 **{user.display_name}** is AFK\n"
-                                    f"**Reason:** {mentioned_afk['reason']}\n"
-                                    f"**Since:** {since}"
-                                )],
-                                flags=v2.FLAGS,
+                                view=lv2,
                                 delete_after=10,
                                 mention_author=False,
                             )

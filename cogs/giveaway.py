@@ -72,7 +72,7 @@ class GiveawayEnterView(discord.ui.LayoutView):
                 custom_id=f"giveaway_enter_{self.giveaway_id}",
             )
             enter_btn.callback = self._enter_cb
-            self.add_item(enter_btn)
+            self.add_item(discord.ui.ActionRow(enter_btn))
 
     async def _enter_cb(self, interaction: discord.Interaction):
         db = await get_db()

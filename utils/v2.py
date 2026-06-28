@@ -5,7 +5,6 @@ import discord
 import config
 
 COLOR = config.COLOR
-FLAGS = discord.MessageFlags(components_v2=True)
 
 
 def container(
@@ -46,24 +45,36 @@ def info(text: str) -> discord.ui.Container:
     return container(f"ℹ️  {text}")
 
 
+def _wrap(*containers: discord.ui.Container) -> discord.ui.LayoutView:
+    """Wrap container(s) in a minimal non-interactive LayoutView."""
+    lv = discord.ui.LayoutView(timeout=None)
+    for c in containers:
+        lv.add_item(c)
+    return lv
+
+
 async def send(
     ctx,
     *containers: discord.ui.Container,
     ephemeral: bool = False,
     delete_after: Optional[float] = None,
 ) -> None:
-    """Universal v2 send helper — works for both prefix and slash commands."""
-    comps = list(containers)
+    """Universal v2 send — works for both prefix and slash commands."""
+    view = _wrap(*containers)
     if hasattr(ctx, "interaction") and ctx.interaction:
         if ctx.interaction.response.is_done():
-            await ctx.interaction.followup.send(
-                components=comps, flags=FLAGS, ephemeral=ephemeral
-            )
+            await ctx.interaction.followup.send(view=view, ephemeral=ephemeral)
         else:
-            await ctx.interaction.response.send_message(
-                components=comps, flags=FLAGS, ephemeral=ephemeral
-            )
+            await ctx.interaction.response.send_message(view=view, ephemeral=ephemeral)
     else:
-        await ctx.reply(
-            components=comps, flags=FLAGS, mention_author=False, delete_after=delete_after
-        )
+        await ctx.reply(view=view, mention_author=False, delete_after=delete_after)
+
+
+async def channel_send(
+    channel,
+    *containers: discord.ui.Container,
+    delete_after: Optional[float] = None,
+) -> None:
+    """Send v2 containers directly to a channel object (not ctx)."""
+    view = _wrap(*containers)
+    await channel.send(view=view, delete_after=delete_after)

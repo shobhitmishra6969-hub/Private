@@ -146,7 +146,8 @@ class HelpView(discord.ui.LayoutView):
             self.add_item(_home_container(self.bot))
         else:
             self.add_item(_category_container(self.current))
-        # Category buttons
+        # Row 1: category buttons (max 5)
+        cat_btns = []
         for cat in CATEGORIES:
             btn = discord.ui.Button(
                 label=cat,
@@ -155,10 +156,12 @@ class HelpView(discord.ui.LayoutView):
                 custom_id=f"help_{cat}",
             )
             btn.callback = self._make_callback(cat)
-            self.add_item(btn)
-        # Link buttons
+            cat_btns.append(btn)
+        self.add_item(discord.ui.ActionRow(*cat_btns))
+        # Row 2: link buttons + close
+        row2 = []
         if config.SUPPORT_URL and config.SUPPORT_URL != "https://discord.gg/your-invite-code":
-            self.add_item(discord.ui.Button(
+            row2.append(discord.ui.Button(
                 label="Support Server",
                 emoji="🔧",
                 url=config.SUPPORT_URL,
@@ -166,7 +169,7 @@ class HelpView(discord.ui.LayoutView):
             ))
         bot_id = self.bot.user.id if self.bot.user else 0
         invite = config.INVITE_URL or f"https://discord.com/api/oauth2/authorize?client_id={bot_id}&permissions=8&scope=bot+applications.commands"
-        self.add_item(discord.ui.Button(
+        row2.append(discord.ui.Button(
             label="Invite ToneVibes",
             emoji="➕",
             url=invite,
@@ -174,7 +177,8 @@ class HelpView(discord.ui.LayoutView):
         ))
         close_btn = discord.ui.Button(label="✕", style=discord.ButtonStyle.danger, custom_id="help_close")
         close_btn.callback = self._close_cb
-        self.add_item(close_btn)
+        row2.append(close_btn)
+        self.add_item(discord.ui.ActionRow(*row2))
 
     def _make_callback(self, cat: str):
         async def callback(interaction: discord.Interaction):
@@ -278,10 +282,8 @@ class InformationCog(commands.Cog, name="Information"):
             f"**Lavalink Nodes:**\n{node_lines}"
         )
         if ctx.interaction and ctx.interaction.response.is_done():
-            await ctx.interaction.edit_original_response(
-                components=[v2.container(body, header="🏓 Pong!")],
-                flags=v2.FLAGS,
-            )
+            lv = v2._wrap(v2.container(body, header="🏓 Pong!"))
+            await ctx.interaction.edit_original_response(view=lv)
         else:
             await v2.send(ctx, v2.container(body, header="🏓 Pong!"))
 
