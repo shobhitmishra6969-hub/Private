@@ -19,85 +19,84 @@ COLOR = config.COLOR
 # ── Command data ───────────────────────────────────────────────────────────────
 
 MUSIC_COMMANDS = [
-    ("play",        ["p"],                  "Plays a track (supports search or links)"),
-    ("playskip",    ["ps", "pskip", "playnow", "pn"], "Skips the current song and plays the song you requested"),
-    ("playtop",     ["pt", "ptop"],         "Adds a song with the given name/url on the top of the queue"),
-    ("pause",       [],                     "Pauses the current song"),
-    ("resume",      [],                     "Resumes the current song"),
-    ("join",        ["summon", "start"],    "Joins the voice channel you are in"),
-    ("disconnect",  ["dc", "leave", "stop"], "Disconnects from voice channel"),
-    ("search",      [],                     "Search for tracks"),
-    ("like",        ["heart", "love", "grab"], "Like/unlike the current track (toggles)"),
-    ("liked",       ["likes", "favorites", "favourites"], "View your liked tracks"),
-    ("history",     ["hist", "recent"],     "View your or the server's listening history"),
-]
-
-QUEUE_COMMANDS = [
-    ("queue",       ["q"],                  "View the current queue"),
-    ("skip",        ["s"],                  "Skip the current track"),
-    ("forceskip",   ["fs", "fskip"],        "Force skip without a vote (DJ only)"),
-    ("skipto",      ["st"],                 "Skip to a specific position in the queue"),
-    ("previous",    ["prev"],               "Play the previous track"),
-    ("replay",      [],                     "Replay the current track from the start"),
-    ("loop",        ["repeat"],             "Loop the current track or queue"),
-    ("shuffle",     [],                     "Shuffle the queue randomly"),
-    ("move",        [],                     "Move a track to a different queue position"),
-    ("remove",      ["rm"],                 "Remove a track from the queue"),
-    ("clear",       [],                     "Clear all tracks from the queue"),
-    ("forward",     [],                     "Skip forward by a number of seconds"),
-    ("rewind",      [],                     "Rewind by a number of seconds"),
-]
-
-CONTROLS_COMMANDS = [
-    ("pause",       [],                     "Pause the current track"),
-    ("resume",      [],                     "Resume a paused track"),
-    ("stop",        [],                     "Stop playback and clear the queue"),
-    ("seek",        [],                     "Jump to a specific timestamp in the track"),
-    ("volume",      ["vol"],                "Adjust the playback volume (0–200)"),
-    ("filter",      [],                     "Apply an audio filter preset"),
-    ("equalizer",   ["eq"],                 "Apply a custom equalizer preset"),
-    ("nightcore",   [],                     "Toggle Nightcore audio filter"),
-    ("bassboost",   [],                     "Toggle Bass Boost audio filter"),
-    ("8d",          [],                     "Toggle 8D audio filter"),
-    ("customfilter",["cf"],                 "Set custom speed, pitch, and rate values"),
-]
-
-UTILITY_COMMANDS = [
-    ("afk",         [],                     "Set your AFK status with an optional reason"),
-    ("avatar",      ["av"],                 "View a user's avatar"),
-    ("banner",      [],                     "View a user's banner"),
-    ("servericon",  [],                     "View the server icon"),
-    ("serverbanner",[],                     "View the server banner"),
-    ("membercount", [],                     "Show the server member count"),
-    ("setprefix",   [],                     "Change the bot prefix for this server"),
-    ("source",      [],                     "Set the default music search source"),
-    ("ignore",      [],                     "Ignore or unignore a channel for commands"),
-    ("247",         [],                     "Toggle 24/7 mode to stay in voice"),
-    ("djrole",      [],                     "Set the DJ role for the server"),
-    ("giveaway",    ["ga"],                 "Start and manage server giveaways"),
-    ("spotify",     [],                     "Search Spotify tracks, albums, and artists"),
-    ("lastfm",      [],                     "Link your Last.fm account and view stats"),
+    ("play",       ["p"],               "Play a song, playlist, or URL"),
+    ("search",     [],                  "Search and pick a track interactively"),
+    ("nowplaying", ["np"],              "Show the currently playing track"),
+    ("queue",      ["q"],               "View the current queue"),
+    ("skip",       ["s"],               "Vote to skip the current track"),
+    ("forceskip",  ["fs"],              "Force-skip without a vote (DJ only)"),
+    ("skipto",     [],                  "Skip to a specific position in the queue"),
+    ("previous",   ["prev"],            "Play the previous track"),
+    ("replay",     [],                  "Replay the current track from the start"),
+    ("pause",      [],                  "Pause playback"),
+    ("resume",     ["r"],               "Resume playback"),
+    ("stop",       [],                  "Stop playback and clear the queue"),
+    ("join",       [],                  "Join your voice channel"),
+    ("leave",      ["dc", "disconnect"],"Leave the voice channel"),
+    ("volume",     ["vol"],             "Set or view playback volume (0–200)"),
+    ("loop",       [],                  "Set loop mode: off / track / queue"),
+    ("shuffle",    [],                  "Shuffle the queue"),
+    ("seek",       [],                  "Seek to a timestamp (e.g. 1:30)"),
+    ("forward",    [],                  "Fast-forward by N seconds"),
+    ("rewind",     [],                  "Rewind by N seconds"),
+    ("move",       [],                  "Move a track to a different position"),
+    ("remove",     [],                  "Remove a track from the queue"),
+    ("clear",      [],                  "Clear all tracks from the queue"),
+    ("history",    ["hist", "recent"],  "View your recently played tracks"),
+    ("autoplay",   ["ap"],              "Toggle autoplay for related tracks"),
+    ("grab",       ["save"],            "Save the current track to your DMs"),
+    ("sleep",      [],                  "Set a timer to stop playback (e.g. 30m)"),
 ]
 
 FILTERS_COMMANDS = [
-    ("filter",       [],          "Apply an audio filter preset (nightcore, bassboost, 8d, etc.)"),
-    ("equalizer",    ["eq"],      "Set a custom equalizer band"),
-    ("customfilter", [],          "Apply a custom timescale filter (speed, pitch, rate)"),
-    ("nightcore",    [],          "Toggle Nightcore audio filter"),
-    ("bassboost",    [],          "Toggle Bass Boost audio filter"),
-    ("8d",           [],          "Toggle 8D spatial audio filter"),
-    ("tremolo",      [],          "Toggle Tremolo audio filter"),
-    ("vibrato",      [],          "Toggle Vibrato audio filter"),
-    ("karaoke",      [],          "Toggle Karaoke audio filter"),
-    ("vaporwave",    [],          "Toggle Vaporwave audio filter"),
+    ("filter",       [],       "Apply an audio filter preset"),
+    ("equalizer",    ["eq"],   "Set a custom equalizer band"),
+    ("customfilter", [],       "Custom timescale filter (speed, pitch, rate)"),
+    ("nightcore",    [],       "Toggle Nightcore filter"),
+    ("bassboost",    [],       "Toggle Bass Boost filter"),
+    ("8d",           [],       "Toggle 8D spatial audio filter"),
+    ("tremolo",      [],       "Toggle Tremolo filter"),
+    ("vibrato",      [],       "Toggle Vibrato filter"),
+    ("karaoke",      [],       "Toggle Karaoke filter"),
+    ("vaporwave",    [],       "Toggle Vaporwave filter"),
 ]
 
 FAVOURITES_COMMANDS = [
-    ("like",      [],         "Like the current track"),
-    ("unlike",    [],         "Unlike the current track"),
-    ("likeall",   [],         "Like all songs in the current queue"),
-    ("showliked", ["liked"],  "Show your liked songs"),
-    ("playliked", [],         "Play all your liked songs"),
+    ("like",      [],        "Like the current track"),
+    ("unlike",    [],        "Unlike the current track"),
+    ("likeall",   [],        "Like all songs in the current queue"),
+    ("showliked", ["liked"], "Show your liked songs"),
+    ("playliked", [],        "Play all your liked songs"),
+]
+
+CONFIG_COMMANDS = [
+    ("setprefix", [], "Set the server command prefix"),
+    ("source",    [], "Set default music search source"),
+    ("ignore",    [], "Ignore or unignore a channel for commands"),
+    ("247",       [], "Toggle 24/7 mode (always stay in VC)"),
+    ("djrole",    [], "Set or clear the DJ role"),
+    ("bioset",    [], "Set your profile bio"),
+    ("toggle",    [], "Toggle bot features on/off"),
+]
+
+UTILITY_COMMANDS = [
+    ("afk",         [],        "Set your AFK status with an optional reason"),
+    ("avatar",      ["av"],    "View a user's avatar"),
+    ("banner",      [],        "View a user's banner"),
+    ("servericon",  [],        "View the server icon"),
+    ("serverbanner",[],        "View the server banner"),
+    ("membercount", [],        "Show the server member count"),
+    ("dm",          [],        "Send a DM to a user (admin only)"),
+    ("calculator",  [],        "Simple calculator"),
+]
+
+GIVEAWAY_COMMANDS = [
+    ("giveaway start",          [], "Start a giveaway"),
+    ("giveaway end",            [], "End a giveaway early"),
+    ("giveaway reroll",         [], "Reroll winners"),
+    ("giveaway cancel",         [], "Cancel an active giveaway"),
+    ("giveaway list",           [], "List active giveaways"),
+    ("giveawayconfig dmnotify", [], "Toggle DM notifications for winners"),
 ]
 
 PLAYLIST_COMMANDS = [
@@ -105,19 +104,10 @@ PLAYLIST_COMMANDS = [
     ("playlist delete",   [], "Delete a playlist"),
     ("playlist add",      [], "Add the current track to a playlist"),
     ("playlist addqueue", [], "Add all queued tracks to a playlist"),
-    ("playlist remove",   [], "Remove a track from a playlist by position"),
+    ("playlist remove",   [], "Remove a track from a playlist"),
     ("playlist list",     [], "List your playlists"),
     ("playlist info",     [], "View tracks in a playlist"),
     ("playlist load",     [], "Load and play a playlist"),
-]
-
-GIVEAWAY_COMMANDS = [
-    ("giveaway start",          [], "Start a giveaway"),
-    ("giveaway end",            [], "End a giveaway early"),
-    ("giveaway reroll",         [], "Reroll winners for a giveaway"),
-    ("giveaway cancel",         [], "Cancel an active giveaway"),
-    ("giveaway list",           [], "List active giveaways"),
-    ("giveawayconfig dmnotify", [], "Toggle DM notifications for winners"),
 ]
 
 SPOTIFY_COMMANDS = [
@@ -128,29 +118,48 @@ SPOTIFY_COMMANDS = [
     ("spotify profile",  [], "View your linked Spotify profile"),
 ]
 
-LASTFM_COMMANDS = [
-    ("lastfm link",       [],      "Link your Last.fm account"),
-    ("lastfm unlink",     [],      "Unlink your Last.fm account"),
-    ("lastfm profile",    [],      "View a Last.fm profile"),
-    ("lastfm recent",     [],      "View recent scrobbles"),
-    ("lastfm topartists", [],      "View top artists"),
-    ("lastfm toptracks",  [],      "View top tracks"),
-    ("lastfm nowplaying", ["np"],  "Show what you're scrobbling now"),
+INFO_COMMANDS = [
+    ("help",    [], "Show the commands menu or look up a command"),
+    ("ping",    [], "Check bot latency"),
+    ("stats",   [], "Show bot statistics"),
+    ("invite",  [], "Get the bot invite link"),
+    ("support", [], "Get the support server link"),
+    ("about",   [], "About ToneVibes"),
+    ("premium", [], "View premium features"),
 ]
 
-# emoji, footer, commands
+LASTFM_COMMANDS = [
+    ("lastfm link",       [],     "Link your Last.fm account"),
+    ("lastfm unlink",     [],     "Unlink your Last.fm account"),
+    ("lastfm profile",    [],     "View a Last.fm profile"),
+    ("lastfm recent",     [],     "View recent scrobbles"),
+    ("lastfm topartists", [],     "View top artists"),
+    ("lastfm toptracks",  [],     "View top tracks"),
+    ("lastfm nowplaying", ["np"], "Show what you're scrobbling now"),
+]
+
+# (emoji, footer description, command list)
 CATEGORIES: dict[str, tuple] = {
-    "Music":      ("🎵", "Core music playback, search, likes, and library management", MUSIC_COMMANDS),
-    "Queue":      ("📋", "Queue management, skipping, looping, and navigation",        QUEUE_COMMANDS),
-    "Controls":   ("🎛️", "Playback controls, volume, seek, and stop",                  CONTROLS_COMMANDS),
-    "Filters":    ("✨", "Audio filters and equalizer presets",                        FILTERS_COMMANDS),
-    "Utility":    ("🔧", "Server tools, AFK, config, and member info",                 UTILITY_COMMANDS),
-    "Favourites": ("❤️", "Liked songs and personal music library",                     FAVOURITES_COMMANDS),
-    "Playlist":   ("📁", "Create and manage custom playlists",                         PLAYLIST_COMMANDS),
-    "Giveaway":   ("🎉", "Start and manage server giveaways",                          GIVEAWAY_COMMANDS),
-    "Spotify":    ("🎧", "Spotify track, album, artist, and playlist search",          SPOTIFY_COMMANDS),
-    "Last.fm":    ("🎼", "Link your Last.fm account and view listening stats",         LASTFM_COMMANDS),
+    "Music":       ("🎵", "Playback, queue, search, and all music controls",       MUSIC_COMMANDS),
+    "Filters":     ("✨", "Audio filters and equalizer presets",                   FILTERS_COMMANDS),
+    "Favourite":   ("❤️", "Liked songs and personal music library",                FAVOURITES_COMMANDS),
+    "Config":      ("⚙️", "Server configuration and bot settings",                 CONFIG_COMMANDS),
+    "Utility":     ("🔧", "Server tools, AFK, and member utilities",               UTILITY_COMMANDS),
+    "Giveaway":    ("🎉", "Start and manage server giveaways",                     GIVEAWAY_COMMANDS),
+    "Playlist":    ("📁", "Create and manage custom playlists",                    PLAYLIST_COMMANDS),
+    "Spotify":     ("🎧", "Spotify track, album, artist, and playlist search",     SPOTIFY_COMMANDS),
+    "Information": ("ℹ️", "Bot info, statistics, and help commands",               INFO_COMMANDS),
+    "Lastfm":      ("🎼", "Link your Last.fm account and view listening stats",    LASTFM_COMMANDS),
 }
+
+# Button grid rows (matches screenshot layout: 3-2-3-2)
+CAT_ROWS: list[list[str]] = [
+    ["Music",    "Filters",  "Favourite"],
+    ["Config",   "Utility"],
+    ["Giveaway", "Playlist", "Spotify"],
+    ["Information", "Lastfm"],
+]
+CAT_ORDER: list[str] = [cat for row in CAT_ROWS for cat in row]
 
 GENRES = [
     ("pop",       "🎤 Pop"),
@@ -171,74 +180,88 @@ def _cmd_line(name: str, aliases: list[str], desc: str) -> str:
     return f"**/{name}**{alias_str} - {desc}"
 
 
-# ── Layout 3: Commands View with category buttons ───────────────────────────────
+# ── Layout 3: Commands browser ─────────────────────────────────────────────────
 
 class HelpView(discord.ui.LayoutView):
-    """Commands browser — command card + category buttons below."""
+    """
+    Single-card design matching the screenshot:
+    • Category buttons (3-2-3-2 grid) inside the card
+    • ◄  ►  ✕  nav row inside the card
+    • Bot info section when nothing is selected (current=None)
+    • Command list for the selected category
+    """
 
-    def __init__(self, bot: commands.Bot, author_id: int, current: str = "Music"):
+    def __init__(self, bot: commands.Bot, author_id: int, current: Optional[str] = None):
         super().__init__(timeout=180)
         self.bot = bot
         self.author_id = author_id
-        self.current = current
+        self.current = current          # None → show bot info; str → show that category
         self._build()
+
+    # ── build ─────────────────────────────────────────────────────────────────
 
     def _build(self):
         self.clear_items()
 
-        emoji, footer_text, cmds = CATEGORIES[self.current]
-        cmd_lines = "\n".join(_cmd_line(n, a, d) for n, a, d in cmds)
+        avatar_url = self.bot.user.display_avatar.url if self.bot.user else None
 
-        bot_id = self.bot.user.id if self.bot.user else 0
-        invite = config.INVITE_URL or (
-            f"https://discord.com/api/oauth2/authorize?client_id={bot_id}&permissions=8&scope=bot+applications.commands"
-        )
-
-        # ── Card (container) ──────────────────────────────────────────────────
         card = discord.ui.Container(accent_color=COLOR)
-        card.add_item(discord.ui.TextDisplay(f"## {emoji} Rythm Commands ({self.current})"))
-        card.add_item(discord.ui.Separator())
-        card.add_item(discord.ui.TextDisplay(cmd_lines))
-        card.add_item(discord.ui.Separator())
-        card.add_item(discord.ui.TextDisplay(f"-# {footer_text}"))
 
-        link_row: list[discord.ui.Button] = []
-        if config.SUPPORT_URL and config.SUPPORT_URL != "https://discord.gg/your-invite-code":
-            link_row.append(discord.ui.Button(
-                label="Support", emoji="🔧",
-                url=config.SUPPORT_URL, style=discord.ButtonStyle.link,
-            ))
-        link_row.append(discord.ui.Button(
-            label="Invite", emoji="➕",
-            url=invite, style=discord.ButtonStyle.link,
-        ))
-        card.add_item(discord.ui.ActionRow(*link_row))
+        # ── Category button grid (3-2-3-2) ───────────────────────────────────
+        for row_cats in CAT_ROWS:
+            row_btns: list[discord.ui.Button] = []
+            for cat_name in row_cats:
+                btn = discord.ui.Button(
+                    label=cat_name,
+                    style=discord.ButtonStyle.primary if cat_name == self.current
+                          else discord.ButtonStyle.secondary,
+                    custom_id=f"hcat_{cat_name}",
+                )
+                btn.callback = self._make_cat_cb(cat_name)
+                row_btns.append(btn)
+            card.add_item(discord.ui.ActionRow(*row_btns))
+
+        # ── Navigation row  ◄  ►  ✕ ─────────────────────────────────────────
+        prev_btn = discord.ui.Button(label="◄", style=discord.ButtonStyle.secondary, custom_id="h_prev")
+        next_btn = discord.ui.Button(label="►", style=discord.ButtonStyle.secondary, custom_id="h_next")
+        close_btn = discord.ui.Button(label="✕", style=discord.ButtonStyle.danger,     custom_id="h_close")
+        prev_btn.callback  = self._prev_cb
+        next_btn.callback  = self._next_cb
+        close_btn.callback = self._close_cb
+        card.add_item(discord.ui.ActionRow(prev_btn, next_btn, close_btn))
+
+        # ── Content area ─────────────────────────────────────────────────────
+        card.add_item(discord.ui.Separator())
+
+        if self.current is None:
+            # Default: bot info
+            info_text = (
+                "## 🎤 Tone Vibes\n"
+                "Tone Vibes is the ultimate music companion designed to bring "
+                "people together through sound.\n\n"
+                "**Lag-Free Streaming:** 24/7 high-quality audio.\n"
+                "**Smart Filters:** Instantly adjust the bass, treble, or vibe of any track.\n"
+                "**Easy Control:** Intuitive commands that anyone in the server can master."
+            )
+            if avatar_url:
+                card.add_item(discord.ui.Section(
+                    discord.ui.TextDisplay(info_text),
+                    accessory=discord.ui.Thumbnail(media=avatar_url),
+                ))
+            else:
+                card.add_item(discord.ui.TextDisplay(info_text))
+            card.add_item(discord.ui.Separator())
+            card.add_item(discord.ui.TextDisplay("-# Click a category above to browse commands."))
+        else:
+            emoji, footer_text, cmds = CATEGORIES[self.current]
+            cmd_lines = "\n".join(_cmd_line(n, a, d) for n, a, d in cmds)
+            card.add_item(discord.ui.TextDisplay(f"## {emoji} {self.current} Commands\n{cmd_lines}"))
+            card.add_item(discord.ui.Separator())
+            card.add_item(discord.ui.TextDisplay(f"-# {footer_text}"))
+
         self.add_item(card)
 
-        # ── Category buttons below the card (2 rows of 5) ────────────────────
-        cats = list(CATEGORIES.items())   # [(name, (emoji, footer, cmds)), ...]
-        for chunk in (cats[:5], cats[5:]):
-            row_btns: list[discord.ui.Button] = []
-            for name, (cat_emoji, _f, _c) in chunk:
-                btn = discord.ui.Button(
-                    label=name,
-                    emoji=cat_emoji,
-                    style=discord.ButtonStyle.primary if name == self.current
-                          else discord.ButtonStyle.secondary,
-                    custom_id=f"help_cat_{name}",
-                )
-                btn.callback = self._make_cat_cb(name)
-                row_btns.append(btn)
-            self.add_item(discord.ui.ActionRow(*row_btns))
-
-        # ── Close button ──────────────────────────────────────────────────────
-        close_btn = discord.ui.Button(
-            label="✕ Close",
-            style=discord.ButtonStyle.secondary,
-            custom_id="help_close",
-        )
-        close_btn.callback = self._close_cb
-        self.add_item(discord.ui.ActionRow(close_btn))
+    # ── callbacks ─────────────────────────────────────────────────────────────
 
     def _make_cat_cb(self, cat: str):
         async def callback(interaction: discord.Interaction):
@@ -246,15 +269,36 @@ class HelpView(discord.ui.LayoutView):
                 return await interaction.response.send_message(
                     "This isn't your help menu.", ephemeral=True
                 )
-            view = HelpView(self.bot, self.author_id, cat)
-            await interaction.response.edit_message(view=view)
+            self.current = cat
+            self._build()
+            await interaction.response.edit_message(view=self)
         return callback
+
+    async def _prev_cb(self, interaction: discord.Interaction):
+        if interaction.user.id != self.author_id:
+            return await interaction.response.send_message("This isn't your help menu.", ephemeral=True)
+        if self.current is None:
+            self.current = CAT_ORDER[-1]
+        else:
+            idx = CAT_ORDER.index(self.current)
+            self.current = CAT_ORDER[(idx - 1) % len(CAT_ORDER)]
+        self._build()
+        await interaction.response.edit_message(view=self)
+
+    async def _next_cb(self, interaction: discord.Interaction):
+        if interaction.user.id != self.author_id:
+            return await interaction.response.send_message("This isn't your help menu.", ephemeral=True)
+        if self.current is None:
+            self.current = CAT_ORDER[0]
+        else:
+            idx = CAT_ORDER.index(self.current)
+            self.current = CAT_ORDER[(idx + 1) % len(CAT_ORDER)]
+        self._build()
+        await interaction.response.edit_message(view=self)
 
     async def _close_cb(self, interaction: discord.Interaction):
         if interaction.user.id != self.author_id:
-            return await interaction.response.send_message(
-                "This isn't your help menu.", ephemeral=True
-            )
+            return await interaction.response.send_message("This isn't your help menu.", ephemeral=True)
         await interaction.response.defer()
         await interaction.delete_original_response()
         self.stop()
