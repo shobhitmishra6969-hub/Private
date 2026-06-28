@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import platform
 import time
+from typing import Optional
 
 import discord
 import ravelink
@@ -18,121 +19,104 @@ COLOR = config.COLOR
 # ── Command data ───────────────────────────────────────────────────────────────
 
 MUSIC_COMMANDS = [
-    ("play",       ["p"],                  "Play a track or playlist from a URL or search query."),
-    ("search",     ["find"],               "Search for tracks and pick from a list."),
-    ("nowplaying", ["np", "current"],      "Show the currently playing track."),
-    ("autoplay",   ["ap"],                 "Toggle autoplay for related tracks."),
-    ("grab",       ["save"],               "Save the current track to your DMs."),
-    ("history",    ["hist", "recent"],     "View your recently played tracks."),
-    ("sleep",      [],                     "Set a sleep timer to stop playback."),
+    ("play",        ["p"],                  "Plays a track (supports search or links)"),
+    ("playskip",    ["ps", "pskip", "playnow", "pn"], "Skips the current song and plays the song you requested"),
+    ("playtop",     ["pt", "ptop"],         "Adds a song with the given name/url on the top of the queue"),
+    ("pause",       [],                     "Pauses the current song"),
+    ("resume",      [],                     "Resumes the current song"),
+    ("join",        ["summon", "start"],    "Joins the voice channel you are in"),
+    ("disconnect",  ["dc", "leave", "stop"], "Disconnects from voice channel"),
+    ("search",      [],                     "Search for tracks"),
+    ("like",        ["heart", "love", "grab"], "Like/unlike the current track (toggles)"),
+    ("liked",       ["likes", "favorites", "favourites"], "View your liked tracks"),
+    ("history",     ["hist", "recent"],     "View your or the server's listening history"),
 ]
 
 QUEUE_COMMANDS = [
-    ("queue",      ["q"],                  "View the current queue."),
-    ("skip",       ["s"],                  "Skip the current track."),
-    ("forceskip",  ["fs", "fskip"],        "Force skip without a vote (DJ only)."),
-    ("skipto",     ["st"],                 "Skip to a specific position in the queue."),
-    ("previous",   ["prev"],               "Play the previous track."),
-    ("replay",     [],                     "Replay the current track from the start."),
-    ("loop",       ["repeat"],             "Loop the current track or the whole queue."),
-    ("shuffle",    [],                     "Shuffle the queue randomly."),
-    ("move",       [],                     "Move a track to a different queue position."),
-    ("remove",     ["rm"],                 "Remove a track from the queue."),
-    ("clear",      [],                     "Clear all tracks from the queue."),
-    ("forward",    [],                     "Skip forward by a number of seconds."),
-    ("rewind",     [],                     "Rewind by a number of seconds."),
+    ("queue",       ["q"],                  "View the current queue"),
+    ("skip",        ["s"],                  "Skip the current track"),
+    ("forceskip",   ["fs", "fskip"],        "Force skip without a vote (DJ only)"),
+    ("skipto",      ["st"],                 "Skip to a specific position in the queue"),
+    ("previous",    ["prev"],               "Play the previous track"),
+    ("replay",      [],                     "Replay the current track from the start"),
+    ("loop",        ["repeat"],             "Loop the current track or queue"),
+    ("shuffle",     [],                     "Shuffle the queue randomly"),
+    ("move",        [],                     "Move a track to a different queue position"),
+    ("remove",      ["rm"],                 "Remove a track from the queue"),
+    ("clear",       [],                     "Clear all tracks from the queue"),
+    ("forward",     [],                     "Skip forward by a number of seconds"),
+    ("rewind",      [],                     "Rewind by a number of seconds"),
 ]
 
 CONTROLS_COMMANDS = [
-    ("pause",      [],                     "Pause the current track."),
-    ("resume",     [],                     "Resume a paused track."),
-    ("stop",       [],                     "Stop playback and clear the queue."),
-    ("join",       ["summon"],             "Invite the bot to your voice channel."),
-    ("leave",      ["dc", "disconnect"],   "Disconnect from the voice channel."),
-    ("seek",       [],                     "Jump to a specific timestamp in the track."),
-    ("volume",     ["vol"],                "Adjust the playback volume (0–200)."),
-    ("filter",     [],                     "Apply an audio filter preset."),
-    ("equalizer",  ["eq"],                 "Apply a custom equalizer preset."),
-    ("customfilter",["cf"],                "Set custom speed, pitch, and rate values."),
-]
-
-FAVOURITE_COMMANDS = [
-    ("like",       ["heart", "love"],      "Like the current track and save it to your liked songs."),
-    ("unlike",     [],                     "Remove the current track from liked songs."),
-    ("likeall",    [],                     "Like all tracks currently in the queue."),
-    ("showliked",  ["liked", "favorites"], "View your liked songs list."),
-    ("playliked",  [],                     "Play your entire liked songs list."),
-    ("playlist",   ["pl"],                 "Create and manage your custom playlists."),
+    ("pause",       [],                     "Pause the current track"),
+    ("resume",      [],                     "Resume a paused track"),
+    ("stop",        [],                     "Stop playback and clear the queue"),
+    ("seek",        [],                     "Jump to a specific timestamp in the track"),
+    ("volume",      ["vol"],                "Adjust the playback volume (0–200)"),
+    ("filter",      [],                     "Apply an audio filter preset"),
+    ("equalizer",   ["eq"],                 "Apply a custom equalizer preset"),
+    ("nightcore",   [],                     "Toggle Nightcore audio filter"),
+    ("bassboost",   [],                     "Toggle Bass Boost audio filter"),
+    ("8d",          [],                     "Toggle 8D audio filter"),
+    ("customfilter",["cf"],                 "Set custom speed, pitch, and rate values"),
 ]
 
 UTILITY_COMMANDS = [
-    ("afk",        [],                     "Set your AFK status with an optional reason."),
-    ("avatar",     ["av"],                 "View a user's avatar."),
-    ("banner",     [],                     "View a user's banner."),
-    ("servericon", [],                     "View the server icon."),
-    ("serverbanner",[],                    "View the server banner."),
-    ("membercount",[],                     "Show the server member count."),
-    ("dm",         [],                     "Send a DM to a user (admin only)."),
-    ("profile",    [],                     "View your ToneVibes profile."),
-    ("setprefix",  [],                     "Change the bot prefix for this server."),
-    ("source",     [],                     "Set the default music search source."),
-    ("ignore",     [],                     "Ignore or unignore a channel for commands."),
-    ("247",        [],                     "Toggle 24/7 mode to stay in voice."),
-    ("djrole",     [],                     "Set the DJ role for the server."),
-    ("giveaway",   ["ga"],                 "Start and manage server giveaways."),
-    ("spotify",    [],                     "Search Spotify tracks, albums, and artists."),
-    ("lastfm",     [],                     "Link your Last.fm account and view stats."),
+    ("afk",         [],                     "Set your AFK status with an optional reason"),
+    ("avatar",      ["av"],                 "View a user's avatar"),
+    ("banner",      [],                     "View a user's banner"),
+    ("servericon",  [],                     "View the server icon"),
+    ("serverbanner",[],                     "View the server banner"),
+    ("membercount", [],                     "Show the server member count"),
+    ("setprefix",   [],                     "Change the bot prefix for this server"),
+    ("source",      [],                     "Set the default music search source"),
+    ("ignore",      [],                     "Ignore or unignore a channel for commands"),
+    ("247",         [],                     "Toggle 24/7 mode to stay in voice"),
+    ("djrole",      [],                     "Set the DJ role for the server"),
+    ("giveaway",    ["ga"],                 "Start and manage server giveaways"),
+    ("spotify",     [],                     "Search Spotify tracks, albums, and artists"),
+    ("lastfm",      [],                     "Link your Last.fm account and view stats"),
 ]
 
 CATEGORIES: dict[str, list] = {
-    "Music":     MUSIC_COMMANDS,
-    "Queue":     QUEUE_COMMANDS,
-    "Controls":  CONTROLS_COMMANDS,
-    "Favourite": FAVOURITE_COMMANDS,
-    "Utility":   UTILITY_COMMANDS,
-}
-
-CAT_EMOJI: dict[str, str] = {
-    "Music":     "🎵",
-    "Queue":     "📋",
-    "Controls":  "🎛️",
-    "Favourite": "❤️",
-    "Utility":   "🔧",
+    "Music":    MUSIC_COMMANDS,
+    "Queue":    QUEUE_COMMANDS,
+    "Controls": CONTROLS_COMMANDS,
+    "Utility":  UTILITY_COMMANDS,
 }
 
 CAT_FOOTER: dict[str, str] = {
-    "Music":     "Core music playback, search, and library management",
-    "Queue":     "Queue management, skipping, looping, and navigation",
-    "Controls":  "Playback controls, volume, filters, and equalizer",
-    "Favourite": "Liked songs, playlists, and personal library",
-    "Utility":   "Server tools, AFK, Spotify, Last.fm, and config",
+    "Music":    "Core music playback, search, likes, and library management",
+    "Queue":    "Queue management, skipping, looping, and navigation",
+    "Controls": "Playback controls, volume, filters, and equalizer",
+    "Utility":  "Server tools, AFK, Spotify, Last.fm, and config",
 }
+
+GENRES = [
+    ("pop",       "🎤 Pop"),
+    ("hiphop",    "🎧 Hip-Hop"),
+    ("rock",      "🎸 Rock"),
+    ("rnb",       "🎶 R&B / Soul"),
+    ("electronic","⚡ Electronic / EDM"),
+    ("jazz",      "🎷 Jazz"),
+    ("classical", "🎻 Classical"),
+    ("lofi",      "🌙 Lo-Fi / Chill"),
+    ("metal",     "🤘 Metal"),
+    ("kpop",      "🌸 K-Pop"),
+]
 
 
 def _cmd_line(name: str, aliases: list[str], desc: str) -> str:
     alias_str = f" ({', '.join(aliases)})" if aliases else ""
-    return f"**/{name}**{alias_str} — {desc}"
+    return f"**/{name}**{alias_str} - {desc}"
 
 
-def _category_container(cat: str) -> discord.ui.Container:
-    cmds = CATEGORIES.get(cat, [])
-    emoji = CAT_EMOJI.get(cat, "•")
-    footer = CAT_FOOTER.get(cat, "")
-    lines = [_cmd_line(n, a, d) for n, a, d in cmds]
-    body = "\n".join(lines)
-    children: list = [
-        discord.ui.TextDisplay(f"## {emoji} ToneVibes Commands ({cat})"),
-        discord.ui.Separator(),
-        discord.ui.TextDisplay(body),
-        discord.ui.Separator(),
-        discord.ui.TextDisplay(f"-# {footer} • {config.PREFIX}help <command> for details"),
-    ]
-    return discord.ui.Container(*children, accent_color=COLOR)
-
-
-# ── Help LayoutView ───────────────────────────────────────────────────────────
+# ── Layout 3: Tabbed Commands View ─────────────────────────────────────────────
 
 class HelpView(discord.ui.LayoutView):
+    """Layout 3 — Rythm Commands with tab toggles: Music / Queue / Controls / Utility / X."""
+
     def __init__(self, bot: commands.Bot, author_id: int, current: str = "Music"):
         super().__init__(timeout=180)
         self.bot = bot
@@ -143,57 +127,66 @@ class HelpView(discord.ui.LayoutView):
     def _build(self):
         self.clear_items()
 
-        # ── category nav buttons (inside the container card) ──────────────────
-        cat_btns: list[discord.ui.Button] = []
+        # Build tab buttons row
+        tab_buttons: list[discord.ui.Button] = []
         for cat in CATEGORIES:
             btn = discord.ui.Button(
                 label=cat,
-                emoji=CAT_EMOJI.get(cat),
                 style=discord.ButtonStyle.primary if self.current == cat else discord.ButtonStyle.secondary,
-                custom_id=f"help_{cat}",
+                custom_id=f"help_tab_{cat}",
             )
-            btn.callback = self._make_callback(cat)
-            cat_btns.append(btn)
+            btn.callback = self._make_tab_callback(cat)
+            tab_buttons.append(btn)
 
-        # ── build container with nav + commands inside ─────────────────────────
-        emoji = CAT_EMOJI.get(self.current, "•")
+        # Close button
+        close_btn = discord.ui.Button(
+            label="✕",
+            style=discord.ButtonStyle.secondary,
+            custom_id="help_close",
+        )
+        close_btn.callback = self._close_cb
+        tab_buttons.append(close_btn)
+
+        # Command list for active tab
         cmds = CATEGORIES.get(self.current, [])
-        cmd_text = "\n".join(_cmd_line(n, a, d) for n, a, d in cmds)
-        footer_text = f"-# {CAT_FOOTER.get(self.current, '')} • {config.PREFIX}help <command> for details"
+        cmd_lines = "\n".join(_cmd_line(n, a, d) for n, a, d in cmds)
+        footer_text = CAT_FOOTER.get(self.current, "")
 
-        card = discord.ui.Container(accent_color=COLOR)
-        card.add_item(discord.ui.TextDisplay(f"## {emoji} ToneVibes Commands ({self.current})"))
-        card.add_item(discord.ui.ActionRow(*cat_btns))          # nav buttons inside card
-        card.add_item(discord.ui.Separator())
-        card.add_item(discord.ui.TextDisplay(cmd_text))
-        card.add_item(discord.ui.Separator())
-        card.add_item(discord.ui.TextDisplay(footer_text))
-        self.add_item(card)
-
-        # ── bottom row: support + invite + close (below the card) ─────────────
         bot_id = self.bot.user.id if self.bot.user else 0
         invite = config.INVITE_URL or (
             f"https://discord.com/api/oauth2/authorize?client_id={bot_id}&permissions=8&scope=bot+applications.commands"
         )
-        bottom: list[discord.ui.Button] = []
+
+        # Main container: title → tab row → separator → commands → footer → link buttons
+        card = discord.ui.Container(accent_color=COLOR)
+        card.add_item(discord.ui.TextDisplay(f"## 🎵 Rythm Commands ({self.current})"))
+        card.add_item(discord.ui.ActionRow(*tab_buttons))
+        card.add_item(discord.ui.Separator())
+        card.add_item(discord.ui.TextDisplay(cmd_lines))
+        card.add_item(discord.ui.Separator())
+        card.add_item(discord.ui.TextDisplay(f"-# {footer_text}"))
+
+        # Link buttons at the bottom of the card
+        link_row: list[discord.ui.Button] = []
         if config.SUPPORT_URL and config.SUPPORT_URL != "https://discord.gg/your-invite-code":
-            bottom.append(discord.ui.Button(
+            link_row.append(discord.ui.Button(
                 label="Support Server", emoji="🔧",
                 url=config.SUPPORT_URL, style=discord.ButtonStyle.link,
             ))
-        bottom.append(discord.ui.Button(
-            label="Invite ToneVibes", emoji="➕",
+        link_row.append(discord.ui.Button(
+            label="Invite Rythm", emoji="➕",
             url=invite, style=discord.ButtonStyle.link,
         ))
-        close_btn = discord.ui.Button(label="✕", style=discord.ButtonStyle.danger, custom_id="help_close")
-        close_btn.callback = self._close_cb
-        bottom.append(close_btn)
-        self.add_item(discord.ui.ActionRow(*bottom))
+        card.add_item(discord.ui.ActionRow(*link_row))
 
-    def _make_callback(self, cat: str):
+        self.add_item(card)
+
+    def _make_tab_callback(self, cat: str):
         async def callback(interaction: discord.Interaction):
             if interaction.user.id != self.author_id:
-                return await interaction.response.send_message("This isn't your help menu.", ephemeral=True)
+                return await interaction.response.send_message(
+                    "This isn't your help menu.", ephemeral=True
+                )
             self.current = cat
             self._build()
             await interaction.response.edit_message(view=self)
@@ -201,22 +194,142 @@ class HelpView(discord.ui.LayoutView):
 
     async def _close_cb(self, interaction: discord.Interaction):
         if interaction.user.id != self.author_id:
-            return await interaction.response.send_message("This isn't your help menu.", ephemeral=True)
+            return await interaction.response.send_message(
+                "This isn't your help menu.", ephemeral=True
+            )
         await interaction.response.defer()
         await interaction.delete_original_response()
         self.stop()
 
     async def on_timeout(self):
-        pass  # message expires naturally; no message ref stored to edit
+        pass
 
 
-# ── Info card (bot mention) ───────────────────────────────────────────────────
+# ── Layout 2: Voice Channel Welcome ───────────────────────────────────────────
+
+class GenreSelect(discord.ui.Select):
+    """Dropdown populated with music genres."""
+
+    def __init__(self):
+        options = [
+            discord.SelectOption(label=label, value=value, emoji=label.split()[0])
+            for value, label in GENRES
+        ]
+        super().__init__(
+            placeholder="Select a genre...",
+            min_values=1,
+            max_values=1,
+            options=options,
+            custom_id="genre_select",
+        )
+
+    async def callback(self, interaction: discord.Interaction):
+        chosen = self.values[0]
+        label = next((lbl for val, lbl in GENRES if val == chosen), chosen)
+        query = f"{chosen} music playlist"
+
+        # Acknowledge and update the message
+        container = discord.ui.Container(accent_color=COLOR)
+        container.add_item(discord.ui.TextDisplay("## 🎵 Welcome to Rythm"))
+        container.add_item(discord.ui.Separator())
+        container.add_item(discord.ui.TextDisplay(
+            f"**Selected genre:** {label}\n"
+            f"Use **/play {query}** to start playing, or search for a specific song below."
+        ))
+        container.add_item(discord.ui.Separator())
+        container.add_item(discord.ui.TextDisplay("-# Or use **/play** to search for specific songs"))
+
+        lv = discord.ui.LayoutView(timeout=None)
+        lv.add_item(container)
+        await interaction.response.edit_message(view=lv)
+
+
+class SearchInsteadButton(discord.ui.Button):
+    def __init__(self):
+        super().__init__(
+            label="Search for Music Instead",
+            emoji="🔍",
+            style=discord.ButtonStyle.secondary,
+            custom_id="search_instead",
+        )
+
+    async def callback(self, interaction: discord.Interaction):
+        container = discord.ui.Container(accent_color=COLOR)
+        container.add_item(discord.ui.TextDisplay("## 🔍 Search for Music"))
+        container.add_item(discord.ui.Separator())
+        container.add_item(discord.ui.TextDisplay(
+            "Use **/play** followed by a song name or URL to search and play music.\n\n"
+            "**Examples:**\n"
+            "• `/play Bohemian Rhapsody`\n"
+            "• `/play https://open.spotify.com/track/...`\n"
+            "• `/search Never Gonna Give You Up`"
+        ))
+
+        lv = discord.ui.LayoutView(timeout=None)
+        lv.add_item(container)
+        await interaction.response.edit_message(view=lv)
+
+
+class WelcomeView(discord.ui.LayoutView):
+    """Layout 2 — Welcome to Rythm: voice channel info + genre select + search button."""
+
+    def __init__(self, member: discord.Member, voice_channel: Optional[discord.VoiceChannel] = None):
+        super().__init__(timeout=300)
+
+        if voice_channel:
+            # User is in a voice channel — show connected state
+            body = (
+                f"**Connected to:** 🔊 {voice_channel.name}  •  started by @{member.display_name}\n\n"
+                "**Choose your vibe**\n"
+                "Select a genre to start playing music:"
+            )
+            footer = "Or use **/play** to search for specific songs"
+        else:
+            # User is not in a voice channel — prompt them to join
+            guild = member.guild
+            channels = [
+                f"• 🔊 {ch.name}"
+                for ch in guild.voice_channels
+                if ch.permissions_for(guild.me).connect
+            ][:5]
+            ch_list = "\n".join(channels) if channels else "• No voice channels available"
+            body = (
+                "The best way to listen to music on Discord, let's get started\n\n"
+                "**Join a Voice Channel**\n"
+                "To get started, join a voice channel:\n"
+                f"{ch_list}\n\n"
+                "Once you join, this message will automatically update"
+            )
+            footer = "Or use **/play** to search for specific songs"
+
+        # Build container
+        card = discord.ui.Container(accent_color=COLOR)
+        card.add_item(discord.ui.TextDisplay("## Welcome to Rythm"))
+        card.add_item(discord.ui.Separator())
+        card.add_item(discord.ui.TextDisplay(body))
+        if not voice_channel:
+            card.add_item(discord.ui.Separator())
+            card.add_item(discord.ui.TextDisplay(f"-# {footer}"))
+        self.add_item(card)
+
+        if voice_channel:
+            # Genre select menu
+            select_container = discord.ui.Container(accent_color=0x2B2D31)
+            select_container.add_item(discord.ui.ActionRow(GenreSelect()))
+            select_container.add_item(discord.ui.ActionRow(SearchInsteadButton()))
+            select_container.add_item(discord.ui.Separator())
+            select_container.add_item(discord.ui.TextDisplay(f"-# {footer}"))
+            self.add_item(select_container)
+
+
+# ── Layout 1: Rythm Info Card ─────────────────────────────────────────────────
 
 class InfoLayoutView(discord.ui.LayoutView):
-    """Rythm-style info card sent when someone @mentions the bot."""
+    """Layout 1 — Rythm Info card: info embed + Get Started (blurple) + Add To Server + Support + Website."""
 
     def __init__(self, bot: commands.Bot):
         super().__init__(timeout=None)
+        self.bot = bot
         prefix = config.PREFIX
         bot_id = bot.user.id if bot.user else 0
         invite = config.INVITE_URL or (
@@ -225,70 +338,118 @@ class InfoLayoutView(discord.ui.LayoutView):
         avatar_url = bot.user.display_avatar.url if bot.user else None
 
         desc = (
-            f"ToneVibes is the easiest way to listen to music with your friends on Discord. "
-            f"Use **{prefix}play** to add tracks to the queue & **{prefix}help** to see the list of all commands.\n\n"
+            f"Rythm is the easiest way to listen to music with your friends on Discord. "
+            f"Use **/play** to add tracks to the queue & **/help** to see the list of all commands.\n\n"
             "**Features:**\n"
             "🎵 High-quality music streaming\n"
             "⚡ Easy-to-use commands\n"
-            "❤️ Liked songs & custom playlists\n"
-            "🎛️ Audio filters & equalizer\n"
-            "🎁 Built-in giveaway system\n"
-            "💤 AFK system & user profiles\n\n"
-            f"-# Use {prefix}help to see all commands"
+            "🎛️ Optional no-command button system\n"
+            "🕐 24/7 uptime"
         )
 
-        # Build container children
-        container_children: list = [
-            discord.ui.TextDisplay("## 🎵 ToneVibes Info"),
+        # Info container with thumbnail
+        card_children: list = [
+            discord.ui.TextDisplay("## 🎵 Rythm Info"),
             discord.ui.Separator(),
         ]
         if avatar_url:
-            container_children.append(discord.ui.Section(
+            card_children.append(discord.ui.Section(
                 discord.ui.TextDisplay(desc),
                 accessory=discord.ui.Thumbnail(media=avatar_url),
             ))
         else:
-            container_children.append(discord.ui.TextDisplay(desc))
+            card_children.append(discord.ui.TextDisplay(desc))
 
-        # Banner image at the bottom of the container
         if avatar_url:
-            container_children.append(discord.ui.MediaGallery(
+            card_children.append(discord.ui.MediaGallery(
                 discord.MediaGalleryItem(avatar_url)
             ))
 
-        self.add_item(discord.ui.Container(*container_children, accent_color=COLOR))
+        self.add_item(discord.ui.Container(*card_children, accent_color=COLOR))
 
-        # Row 1: primary action buttons
-        row1 = [
-            discord.ui.Button(label="Get Started", emoji="🎵", url=invite, style=discord.ButtonStyle.link),
-            discord.ui.Button(label="Add To Server", emoji="➕", url=invite, style=discord.ButtonStyle.link),
-        ]
-        self.add_item(discord.ui.ActionRow(*row1))
+        # Row 0: "Get Started" (blurple, interactive) + "Add To Server" (gray link)
+        get_started = discord.ui.Button(
+            label="Get Started",
+            emoji="🎵",
+            style=discord.ButtonStyle.primary,
+            custom_id="info_get_started",
+        )
+        get_started.callback = self._get_started_cb
 
-        # Row 2: support + website (only if configured)
-        row2: list = []
-        if config.SUPPORT_URL and config.SUPPORT_URL != "https://discord.gg/your-invite-code":
-            row2.append(discord.ui.Button(
-                label="Support", emoji="💬",
-                url=config.SUPPORT_URL, style=discord.ButtonStyle.link,
+        row0 = discord.ui.ActionRow(
+            get_started,
+            discord.ui.Button(
+                label="Add To Server",
+                emoji="↗️",
+                url=invite,
+                style=discord.ButtonStyle.link,
+            ),
+        )
+        self.add_item(row0)
+
+        # Row 1: Support + Website (gray link buttons)
+        row1_btns: list[discord.ui.Button] = []
+        support_url = config.SUPPORT_URL
+        if support_url and support_url != "https://discord.gg/your-invite-code":
+            row1_btns.append(discord.ui.Button(
+                label="Support",
+                emoji="↗️",
+                url=support_url,
+                style=discord.ButtonStyle.link,
             ))
-        if config.SOURCE_CODE_URL and config.SOURCE_CODE_URL != "https://github.com/":
-            row2.append(discord.ui.Button(
-                label="Website", emoji="🌐",
-                url=config.SOURCE_CODE_URL, style=discord.ButtonStyle.link,
+        website_url = config.SOURCE_CODE_URL
+        if website_url and website_url != "https://github.com/":
+            row1_btns.append(discord.ui.Button(
+                label="Website",
+                emoji="↗️",
+                url=website_url,
+                style=discord.ButtonStyle.link,
             ))
-        if row2:
-            self.add_item(discord.ui.ActionRow(*row2))
+
+        # Always show both buttons (use invite as fallback if URLs not configured)
+        if not row1_btns:
+            row1_btns = [
+                discord.ui.Button(
+                    label="Support",
+                    emoji="↗️",
+                    url=invite,
+                    style=discord.ButtonStyle.link,
+                ),
+                discord.ui.Button(
+                    label="Website",
+                    emoji="↗️",
+                    url=invite,
+                    style=discord.ButtonStyle.link,
+                ),
+            ]
+        elif len(row1_btns) == 1:
+            row1_btns.append(discord.ui.Button(
+                label="Website",
+                emoji="↗️",
+                url=invite,
+                style=discord.ButtonStyle.link,
+            ))
+
+        self.add_item(discord.ui.ActionRow(*row1_btns))
+
+    async def _get_started_cb(self, interaction: discord.Interaction):
+        member = interaction.user
+        voice = getattr(member, "voice", None)
+        voice_channel = voice.channel if voice else None
+
+        welcome = WelcomeView(member, voice_channel)
+        await interaction.response.send_message(view=welcome, ephemeral=True)
 
 
-# Keep old names as shims so bot.py import doesn't break during transition
+# ── Shim for bot.py ────────────────────────────────────────────────────────────
+
 def info_embed(bot: commands.Bot) -> discord.Embed:
     prefix = config.PREFIX
     embed = discord.Embed(
-        title="🎵 ToneVibes Info",
+        title="🎵 Rythm Info",
         description=(
-            f"ToneVibes is the easiest way to listen to music. "
-            f"Use **{prefix}play** to add tracks & **{prefix}help** for all commands."
+            f"Rythm is the easiest way to listen to music. "
+            f"Use **/play** to add tracks & **/help** for all commands."
         ),
         color=COLOR,
     )
@@ -308,7 +469,7 @@ class InformationCog(commands.Cog, name="Information"):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    @commands.hybrid_command(name="help", description="Show the help menu.")
+    @commands.hybrid_command(name="help", description="Show the help & commands menu.")
     async def help(self, ctx: commands.Context, command: str = ""):
         if command:
             cmd = self.bot.get_command(command)
@@ -318,8 +479,13 @@ class InformationCog(commands.Cog, name="Information"):
             body = f"{cmd.help or cmd.description or 'No description.'}\n\n**Aliases:** {aliases_str}"
             return await v2.send(ctx, v2.container(body, header=f"❓ {config.PREFIX}{cmd.name}"))
 
-        view = HelpView(self.bot, ctx.author.id)
-        await ctx.reply(view=view, mention_author=False)
+        # Layout 1: Info card
+        info_view_obj = InfoLayoutView(self.bot)
+        await ctx.reply(view=info_view_obj, mention_author=False)
+
+        # Layout 3: Commands tab view (separate message)
+        help_view = HelpView(self.bot, ctx.author.id)
+        await ctx.send(view=help_view)
 
     @commands.hybrid_command(name="ping", description="Check bot latency.")
     async def ping(self, ctx: commands.Context):
