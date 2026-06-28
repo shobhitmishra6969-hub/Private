@@ -556,9 +556,10 @@ class InfoLayoutView(discord.ui.LayoutView):
         else:
             card_children.append(discord.ui.TextDisplay(desc))
 
-        if avatar_url:
+        banner_url = config.BG_URL or avatar_url
+        if banner_url:
             card_children.append(discord.ui.MediaGallery(
-                discord.MediaGalleryItem(avatar_url)
+                discord.MediaGalleryItem(banner_url)
             ))
 
         self.add_item(discord.ui.Container(*card_children, accent_color=COLOR))

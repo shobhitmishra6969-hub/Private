@@ -26,6 +26,7 @@ INVITE_URL: str = os.getenv("INVITE_URL", "")
 SOURCE_CODE_URL: str = os.getenv("SOURCE_CODE_URL", "https://github.com/")
 GUILD_ID: str = os.getenv("GUILD_ID", "")
 VANITY_URL: str = os.getenv("VANITY_URL", "")
+BG_URL: str = os.getenv("BG_URL", "")
 
 WEBHOOKS: dict = {
     "blacklist":      os.getenv("WEBHOOK_BLACK", ""),
