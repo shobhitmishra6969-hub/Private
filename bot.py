@@ -31,6 +31,7 @@ COGS = [
     "cogs.spotify",
     "cogs.playlist",
     "cogs.lastfm",
+    "cogs.lyrics",
 ]
 
 COLOR = config.COLOR

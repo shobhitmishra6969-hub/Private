@@ -46,6 +46,7 @@ MUSIC_COMMANDS = [
     ("autoplay",   ["ap"],              "Toggle autoplay for related tracks"),
     ("grab",       ["save"],            "Save the current track to your DMs"),
     ("sleep",      [],                  "Set a timer to stop playback (e.g. 30m)"),
+    ("lyrics",     ["ly"],              "Show lyrics for the current or any song"),
 ]
 
 FILTERS_COMMANDS = [
