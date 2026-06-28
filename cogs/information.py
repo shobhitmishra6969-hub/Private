@@ -521,117 +521,96 @@ class WelcomeView(discord.ui.LayoutView):
 # ── Layout 1: Rythm Info Card ─────────────────────────────────────────────────
 
 class InfoLayoutView(discord.ui.LayoutView):
-    """Layout 1 — Rythm Info card: info embed + Get Started (blurple) + Add To Server + Support + Website."""
+    """
+    Redesigned info card — single cohesive layout (no floating/duplicate buttons):
+      1. Top banner (MediaGallery)
+      2. Action buttons inside a dark container (Get Started · Add To Server · Support · Website)
+      3. Info card (title + description + avatar thumbnail)
+    """
 
     def __init__(self, bot: commands.Bot):
         super().__init__(timeout=None)
         self.bot = bot
-        prefix = config.PREFIX
-        bot_id = bot.user.id if bot.user else 0
-        invite = config.INVITE_URL or (
+
+        bot_id    = bot.user.id if bot.user else 0
+        invite    = config.INVITE_URL or (
             f"https://discord.com/api/oauth2/authorize?client_id={bot_id}&permissions=8&scope=bot+applications.commands"
         )
-        avatar_url = bot.user.display_avatar.url if bot.user else None
+        avatar_url  = bot.user.display_avatar.url if bot.user else None
+        banner_url  = config.BG_URL or avatar_url
+        support_url = config.SUPPORT_URL
+        website_url = config.SOURCE_CODE_URL
 
         desc = (
-            f"Rythm is the easiest way to listen to music with your friends on Discord. "
-            f"Use **/play** to add tracks to the queue & **/help** to see the list of all commands.\n\n"
-            "**Features:**\n"
-            "🎵 High-quality music streaming\n"
-            "⚡ Easy-to-use commands\n"
-            "🎛️ Optional no-command button system\n"
-            "🕐 24/7 uptime"
+            "Tone Vibes is the ultimate music companion designed to bring "
+            "people together through sound.\n\n"
+            "**Lag-Free Streaming:** 24/7 high-quality audio.\n"
+            "**Smart Filters:** Instantly adjust the bass, treble, or vibe of any track.\n"
+            "**Easy Control:** Intuitive commands that anyone in the server can master."
         )
 
-        # Info container with thumbnail
-        card_children: list = [
-            discord.ui.TextDisplay("## 🎵 Rythm Info"),
-            discord.ui.Separator(),
-        ]
-        if avatar_url:
-            card_children.append(discord.ui.Section(
-                discord.ui.TextDisplay(desc),
-                accessory=discord.ui.Thumbnail(media=avatar_url),
-            ))
-        else:
-            card_children.append(discord.ui.TextDisplay(desc))
-
-        banner_url = config.BG_URL or avatar_url
+        # ── 1. Top banner ─────────────────────────────────────────────────────
         if banner_url:
-            card_children.append(discord.ui.MediaGallery(
+            banner_card = discord.ui.Container(accent_color=0x111213)
+            banner_card.add_item(discord.ui.MediaGallery(
                 discord.MediaGalleryItem(banner_url)
             ))
+            self.add_item(banner_card)
 
-        self.add_item(discord.ui.Container(*card_children, accent_color=COLOR))
-
-        # Row 0: "Get Started" (blurple, interactive) + "Add To Server" (gray link)
-        get_started = discord.ui.Button(
+        # ── 2. Action buttons — all inside one dark container (no floating rows)
+        get_started_btn = discord.ui.Button(
             label="Get Started",
             emoji="🎵",
             style=discord.ButtonStyle.primary,
             custom_id="info_get_started",
         )
-        get_started.callback = self._get_started_cb
+        get_started_btn.callback = self._get_started_cb
 
-        row0 = discord.ui.ActionRow(
-            get_started,
-            discord.ui.Button(
-                label="Add To Server",
-                emoji="↗️",
-                url=invite,
-                style=discord.ButtonStyle.link,
-            ),
+        add_server_btn = discord.ui.Button(
+            label="Add To Server",
+            emoji="↗️",
+            url=invite,
+            style=discord.ButtonStyle.link,
         )
-        self.add_item(row0)
 
-        # Row 1: Support + Website (gray link buttons)
-        row1_btns: list[discord.ui.Button] = []
-        support_url = config.SUPPORT_URL
-        if support_url and support_url != "https://discord.gg/your-invite-code":
-            row1_btns.append(discord.ui.Button(
-                label="Support",
-                emoji="↗️",
-                url=support_url,
-                style=discord.ButtonStyle.link,
-            ))
-        website_url = config.SOURCE_CODE_URL
-        if website_url and website_url != "https://github.com/":
-            row1_btns.append(discord.ui.Button(
-                label="Website",
-                emoji="↗️",
-                url=website_url,
-                style=discord.ButtonStyle.link,
-            ))
+        support_btn = discord.ui.Button(
+            label="Support",
+            emoji="↗️",
+            url=(support_url if support_url and support_url != "https://discord.gg/your-invite-code" else invite),
+            style=discord.ButtonStyle.link,
+        )
+        website_btn = discord.ui.Button(
+            label="Website",
+            emoji="↗️",
+            url=(website_url if website_url and website_url != "https://github.com/" else invite),
+            style=discord.ButtonStyle.link,
+        )
 
-        # Always show both buttons (use invite as fallback if URLs not configured)
-        if not row1_btns:
-            row1_btns = [
-                discord.ui.Button(
-                    label="Support",
-                    emoji="↗️",
-                    url=invite,
-                    style=discord.ButtonStyle.link,
-                ),
-                discord.ui.Button(
-                    label="Website",
-                    emoji="↗️",
-                    url=invite,
-                    style=discord.ButtonStyle.link,
-                ),
-            ]
-        elif len(row1_btns) == 1:
-            row1_btns.append(discord.ui.Button(
-                label="Website",
-                emoji="↗️",
-                url=invite,
-                style=discord.ButtonStyle.link,
-            ))
+        btn_container = discord.ui.Container(accent_color=0x2B2D31)
+        btn_container.add_item(discord.ui.ActionRow(get_started_btn, add_server_btn))
+        btn_container.add_item(discord.ui.ActionRow(support_btn, website_btn))
+        self.add_item(btn_container)
 
-        self.add_item(discord.ui.ActionRow(*row1_btns))
+        # ── 3. Info card ──────────────────────────────────────────────────────
+        info_card = discord.ui.Container(accent_color=COLOR)
+        info_card.add_item(discord.ui.TextDisplay("## 🎎 Tone Vibes"))
+        info_card.add_item(discord.ui.Separator())
+        if avatar_url:
+            info_card.add_item(discord.ui.Section(
+                discord.ui.TextDisplay(desc),
+                accessory=discord.ui.Thumbnail(media=avatar_url),
+            ))
+        else:
+            info_card.add_item(discord.ui.TextDisplay(desc))
+        info_card.add_item(discord.ui.Separator())
+        info_card.add_item(discord.ui.TextDisplay(
+            f"-# Click a category in **/help** to browse all commands."
+        ))
+        self.add_item(info_card)
 
     async def _get_started_cb(self, interaction: discord.Interaction):
         member = interaction.user
-        voice = getattr(member, "voice", None)
+        voice  = getattr(member, "voice", None)
         voice_channel = voice.channel if voice else None
 
         welcome = WelcomeView(member, voice_channel, bot=self.bot)
