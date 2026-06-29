@@ -87,9 +87,20 @@ async def _ytm_first(query: str) -> ravelink.Playable | None:
     return None
 
 
-async def _resolve_spotify_url(url: str) -> list[ravelink.Playable] | None:
+class SpotifyPlaylistResult:
+    """Wrapper returned by _resolve_spotify_url for playlist/album URLs.
+    Lets the play command distinguish 'add all these tracks' from a normal
+    search result list (which should only ever use results[0])."""
+    def __init__(self, tracks: list, name: str = "Spotify"):
+        self.tracks = tracks
+        self.name   = name
+
+
+async def _resolve_spotify_url(url: str):
     """
     Resolve a Spotify URL (track / playlist / album) to playable tracks.
+    - track → single-element list (play command takes [0])
+    - playlist/album → SpotifyPlaylistResult (play command adds all tracks)
     Uses spotipy to get metadata, then searches YouTube Music for each track.
     """
     try:
@@ -108,11 +119,13 @@ async def _resolve_spotify_url(url: str) -> list[ravelink.Playable] | None:
         if type_ in ("playlist", "album"):
             if type_ == "playlist":
                 data = sp.playlist(sp_id)
+                pl_name = data.get("name", "Spotify Playlist")
                 raw = [item.get("track") for item in data["tracks"]["items"] if item and item.get("track")]
             else:
                 data = sp.album(sp_id)
+                pl_name = data.get("name", "Spotify Album")
                 raw = data["tracks"]["items"]
-            raw = [t for t in raw if t][:30]   # cap at 30 tracks
+            raw = [t for t in raw if t][:30]
             sem = asyncio.Semaphore(4)
 
             async def _one(t):
@@ -120,9 +133,9 @@ async def _resolve_spotify_url(url: str) -> list[ravelink.Playable] | None:
                     q = f"{t['name']} {', '.join(a['name'] for a in t['artists'])}"
                     return await _ytm_first(q)
 
-            results = await asyncio.gather(*[_one(t) for t in raw])
-            tracks = [r for r in results if r]
-            return tracks if tracks else None
+            fetched = await asyncio.gather(*[_one(t) for t in raw])
+            tracks  = [r for r in fetched if r]
+            return SpotifyPlaylistResult(tracks, pl_name) if tracks else None
 
     except Exception:
         pass
@@ -131,10 +144,10 @@ async def _resolve_spotify_url(url: str) -> list[ravelink.Playable] | None:
 
 async def _spotify_query_to_ytm(query: str) -> list[ravelink.Playable] | None:
     """
-    When the user's source is set to Spotify:
-    1. Use spotipy to find the best matching track.
-    2. Search YouTube Music by 'title artist' to get the playable stream.
+    When source = Spotify (spsearch): use spotipy to find the best matching
+    track, then search YouTube Music by 'title artist' for the audio stream.
     Falls back to direct ytmsearch if spotipy is unavailable.
+    Always returns a normal single-track search list.
     """
     try:
         from cogs.spotify import get_sp
@@ -148,7 +161,7 @@ async def _spotify_query_to_ytm(query: str) -> list[ravelink.Playable] | None:
                 return await _search_single(q, "ytmsearch")
     except Exception:
         pass
-    # Fallback: search ytmsearch directly with the user's original query
+    # Fallback: search ytmsearch directly
     return await _search_single(query, "ytmsearch")
 
 
@@ -577,6 +590,7 @@ class MusicCog(commands.Cog, name="Music"):
             "requester_name": ctx.author.display_name,
         }
 
+        # ravelink Playlist (e.g. YouTube playlist URL)
         if isinstance(results, ravelink.Playlist):
             for track in results.tracks:
                 track.extras = requester_extras
@@ -592,9 +606,9 @@ class MusicCog(commands.Cog, name="Music"):
                 header="✅ Playlist Queued",
             ))
 
-        # Multi-track list (e.g. Spotify playlist/album resolved to YTM tracks)
-        if isinstance(results, list) and len(results) > 1:
-            for track in results:
+        # Spotify playlist / album resolved to multiple YTM tracks
+        if isinstance(results, SpotifyPlaylistResult):
+            for track in results.tracks:
                 track.extras = requester_extras
                 await player.queue.put_wait(track)
             if not player.playing:
@@ -604,10 +618,11 @@ class MusicCog(commands.Cog, name="Music"):
                 except ravelink.QueueEmpty:
                     pass
             return await v2.send(ctx, v2.container(
-                f"📋 Added **{len(results)}** tracks to the queue.",
+                f"**{results.name}**\n📋 Added **{len(results.tracks)}** tracks to the queue.",
                 header="✅ Playlist Queued",
             ))
 
+        # Normal search result — always take the first track only
         track = results[0]
         track.extras = requester_extras
         was_playing = player.playing
