@@ -341,46 +341,94 @@ class SpotifyPlaylistResult:
 async def _resolve_spotify_url(url: str):
     """
     Resolve a Spotify URL (track / playlist / album) to playable tracks.
-    - track → single-element list (play command takes [0])
-    - playlist/album → SpotifyPlaylistResult (play command adds all tracks)
-    Uses spotipy to get metadata, then searches YouTube Music for each track.
+    Three-tier strategy — no Spotify credentials required for Tier 1 & 3:
+
+    Tier 1 — Pass URL directly to Lavalink (works if node has Spotify plugin).
+    Tier 2 — Use Spotify Web API via aiohttp client-credentials (if keys set).
+    Tier 3 — Use Spotify oEmbed (no auth) to get title → search YouTube Music.
     """
+    import aiohttp
+    from cogs.spotify import extract_spotify_id
+
+    type_, sp_id = extract_spotify_id(url)
+
+    # ── Tier 1: Let Lavalink try the URL directly ─────────────────────────────
     try:
-        from cogs.spotify import get_sp, extract_spotify_id
-        sp = get_sp()
-        if not sp:
-            return None
-        type_, sp_id = extract_spotify_id(url)
-
-        if type_ == "track":
-            t = sp.track(sp_id)
-            q = f"{t['name']} {', '.join(a['name'] for a in t['artists'])}"
-            track = await _ytm_first(q)
-            return [track] if track else None
-
-        if type_ in ("playlist", "album"):
-            if type_ == "playlist":
-                data = sp.playlist(sp_id)
-                pl_name = data.get("name", "Spotify Playlist")
-                raw = [item.get("track") for item in data["tracks"]["items"] if item and item.get("track")]
-            else:
-                data = sp.album(sp_id)
-                pl_name = data.get("name", "Spotify Album")
-                raw = data["tracks"]["items"]
-            raw = [t for t in raw if t][:30]
-            sem = asyncio.Semaphore(4)
-
-            async def _one(t):
-                async with sem:
-                    q = f"{t['name']} {', '.join(a['name'] for a in t['artists'])}"
-                    return await _ytm_first(q)
-
-            fetched = await asyncio.gather(*[_one(t) for t in raw])
-            tracks  = [r for r in fetched if r]
-            return SpotifyPlaylistResult(tracks, pl_name) if tracks else None
-
+        result = await ravelink.Playable.search(url)
+        if isinstance(result, ravelink.Playlist) and result.tracks:
+            return SpotifyPlaylistResult(list(result.tracks), result.name or "Spotify")
+        if isinstance(result, list) and result:
+            return result
     except Exception:
         pass
+
+    # ── Tier 2: Spotify API via client credentials ────────────────────────────
+    try:
+        from cogs.spotify import _get_spotify_token
+        token, _ = await _get_spotify_token()
+        if token:
+            headers = {"Authorization": f"Bearer {token}"}
+            base    = "https://api.spotify.com/v1"
+            timeout = aiohttp.ClientTimeout(total=8)
+
+            if type_ == "track" and sp_id:
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(f"{base}/tracks/{sp_id}", headers=headers, timeout=timeout) as resp:
+                        if resp.status == 200:
+                            t = await resp.json()
+                            q = f"{t['name']} {', '.join(a['name'] for a in t['artists'])}"
+                            track = await _ytm_first(q)
+                            return [track] if track else None
+
+            elif type_ in ("playlist", "album") and sp_id:
+                name_url   = f"{base}/playlists/{sp_id}" if type_ == "playlist" else f"{base}/albums/{sp_id}"
+                tracks_url = f"{base}/playlists/{sp_id}/tracks" if type_ == "playlist" else f"{base}/albums/{sp_id}/tracks"
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(name_url, headers=headers, timeout=timeout) as r:
+                        meta     = await r.json() if r.status == 200 else {}
+                        pl_name  = meta.get("name", "Spotify")
+                    async with session.get(tracks_url, headers=headers, params={"limit": 30}, timeout=timeout) as r:
+                        pdata    = await r.json() if r.status == 200 else {}
+
+                if type_ == "playlist":
+                    raw = [item.get("track") for item in pdata.get("items", []) if item and item.get("track")]
+                else:
+                    raw = pdata.get("items", [])
+                raw = [t for t in raw if t][:30]
+
+                sem = asyncio.Semaphore(4)
+                async def _one_t2(t):
+                    async with sem:
+                        q = f"{t['name']} {', '.join(a['name'] for a in t['artists'])}"
+                        return await _ytm_first(q)
+                fetched = await asyncio.gather(*[_one_t2(t) for t in raw])
+                tracks  = [r for r in fetched if r]
+                return SpotifyPlaylistResult(tracks, pl_name) if tracks else None
+    except Exception:
+        pass
+
+    # ── Tier 3: Spotify oEmbed — zero credentials needed ─────────────────────
+    # Works for individual tracks. Returns title like "Song Name" which we
+    # search on YouTube Music. oEmbed doesn't support playlists/albums.
+    if type_ == "track" and sp_id:
+        try:
+            clean_url = f"https://open.spotify.com/track/{sp_id}"
+            async with aiohttp.ClientSession() as session:
+                async with session.get(
+                    "https://open.spotify.com/oembed",
+                    params={"url": clean_url},
+                    timeout=aiohttp.ClientTimeout(total=6),
+                    headers={"User-Agent": "Mozilla/5.0"},
+                ) as resp:
+                    if resp.status == 200:
+                        data  = await resp.json(content_type=None)
+                        title = data.get("title", "").strip()
+                        if title:
+                            track = await _ytm_first(title)
+                            return [track] if track else None
+        except Exception:
+            pass
+
     return None
 
 
