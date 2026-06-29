@@ -26,7 +26,14 @@ SOURCE_MAP = {
     "spsearch":   ravelink.TrackSource.Spotify,
     "scsearch":   ravelink.TrackSource.SoundCloud,
     "dzsearch":   ravelink.TrackSource.Deezer,
+    # JioSaavn — raw prefix (no TrackSource enum entry in ravelink)
+    "jiosaavn":   None,
 }
+
+# Fallback order for "default" multi-source mode
+DEFAULT_FALLBACK_SOURCES = [
+    "ytmsearch", "ytsearch", "spsearch", "scsearch", "jiosaavn", "dzsearch",
+]
 
 
 def get_player(ctx: commands.Context) -> ravelink.Player | None:
@@ -58,12 +65,32 @@ async def voice_check(ctx: commands.Context) -> ravelink.Player:
     return player
 
 
+async def _search_single(query: str, source: str) -> ravelink.Playlist | list[ravelink.Playable] | None:
+    """Search one source. Uses raw prefix string for sources not in ravelink's enum."""
+    rl_source = SOURCE_MAP.get(source)
+    if rl_source is not None:
+        return await ravelink.Playable.search(query, source=rl_source)
+    # Raw-prefix sources (e.g. jiosaavn:query)
+    return await ravelink.Playable.search(f"{source}:{query}")
+
+
 async def do_search(query: str, source: str = "ytmsearch") -> ravelink.Playlist | list[ravelink.Playable] | None:
     is_url = bool(URL_RE.match(query))
     if is_url:
         return await ravelink.Playable.search(query)
-    src = SOURCE_MAP.get(source, ravelink.TrackSource.YouTubeMusic)
-    return await ravelink.Playable.search(query, source=src)
+
+    # "default" = smart multi-source fallback: try each source, return first result
+    if source == "default":
+        for src in DEFAULT_FALLBACK_SOURCES:
+            try:
+                result = await _search_single(query, src)
+                if result:
+                    return result
+            except Exception:
+                continue
+        return None
+
+    return await _search_single(query, source)
 
 
 def _source_emoji(track: ravelink.Playable) -> str:

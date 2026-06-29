@@ -25,15 +25,23 @@ SOURCES = {
     "sc":         "scsearch",
     "deezer":     "dzsearch",
     "dz":         "dzsearch",
+    "jiosaavn":   "jiosaavn",
+    "jio":        "jiosaavn",
+    "default":    "default",
+    "auto":       "default",
 }
 
-# Canonical source buttons shown in the panel (one per unique search prefix)
+# Canonical source buttons shown in the panel
+# (label, search_key, emoji, base_style)
 SOURCE_BUTTONS = [
-    ("YouTube",       "ytsearch",  E.youtube,  discord.ButtonStyle.danger),
-    ("YouTube Music", "ytmsearch", E.ytmusic,  discord.ButtonStyle.primary),
-    ("Spotify",       "spsearch",  E.spotify,  discord.ButtonStyle.success),
-    ("SoundCloud",    "scsearch",  "🔊",        discord.ButtonStyle.secondary),
-    ("Deezer",        "dzsearch",  E.deezer,   discord.ButtonStyle.secondary),
+    ("YouTube",       "ytsearch",  E.youtube,   discord.ButtonStyle.danger),
+    ("YouTube Music", "ytmsearch", E.ytmusic,   discord.ButtonStyle.primary),
+    ("Spotify",       "spsearch",  E.spotify,   discord.ButtonStyle.success),
+    ("SoundCloud",    "scsearch",  "🔊",         discord.ButtonStyle.secondary),
+    ("Deezer",        "dzsearch",  E.deezer,    discord.ButtonStyle.secondary),
+    ("JioSaavn",      "jiosaavn",  E.jiosaavn,  discord.ButtonStyle.secondary),
+    # Default — tries all sources in sequence, plays first match
+    ("Default",       "default",   "⭐",         discord.ButtonStyle.primary),
 ]
 
 
@@ -59,22 +67,25 @@ class SourceView(discord.ui.LayoutView):
         # ── Description lines ──────────────────────────────────────────────
         lines = []
         for label, key, _, _ in SOURCE_BUTTONS:
-            tick = "✅ " if key == self.current else "  "
+            tick = "✅ " if key == self.current else "   "
             lines.append(f"{tick}`{key}` — {label}")
+
+        # Extra explanation for default mode
+        desc_footer = (
+            f"-# Your current source: **{self.current}**"
+            f"{'  ·  ⭐ Auto mode: tries all sources in order until a result is found.' if self.current == 'default' else '  ·  Click a button below to switch.'}"
+        )
 
         card = discord.ui.Container(accent_color=COLOR)
         card.add_item(discord.ui.TextDisplay(f"## {E.Music} Music Sources"))
         card.add_item(discord.ui.Separator())
         card.add_item(discord.ui.TextDisplay("\n".join(lines)))
         card.add_item(discord.ui.Separator())
-        card.add_item(discord.ui.TextDisplay(
-            f"-# Your current source: **{self.current}** · Click a button below to switch."
-        ))
+        card.add_item(discord.ui.TextDisplay(desc_footer))
         card.add_item(discord.ui.Separator())
 
-        # ── Source buttons (row 1: first 3, row 2: last 2) ─────────────────
-        row1_btns = []
-        row2_btns = []
+        # ── Source buttons — 3 rows: [3] [3] [1] ──────────────────────────
+        rows: list[list] = [[], [], []]
         for i, (label, key, emoji, style) in enumerate(SOURCE_BUTTONS):
             is_active = (key == self.current)
             btn = discord.ui.Button(
@@ -84,16 +95,17 @@ class SourceView(discord.ui.LayoutView):
                 custom_id=f"src_{key}",
                 disabled=is_active,
             )
-            # Bind a closure for each key
             btn.callback = self._make_cb(key)
             if i < 3:
-                row1_btns.append(btn)
+                rows[0].append(btn)
+            elif i < 6:
+                rows[1].append(btn)
             else:
-                row2_btns.append(btn)
+                rows[2].append(btn)
 
-        card.add_item(discord.ui.ActionRow(*row1_btns))
-        if row2_btns:
-            card.add_item(discord.ui.ActionRow(*row2_btns))
+        for row in rows:
+            if row:
+                card.add_item(discord.ui.ActionRow(*row))
 
         self.add_item(card)
 
