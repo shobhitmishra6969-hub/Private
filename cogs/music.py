@@ -573,7 +573,11 @@ class MusicCog(commands.Cog, name="Music"):
         if not player.current:
             return await v2.send(ctx, v2.err("Nothing is playing."))
         skipped = player.current.title
-        await player.skip()
+        try:
+            next_track = player.queue.get()
+            await player.play(next_track)
+        except ravelink.QueueEmpty:
+            await player.stop()
         await v2.send(ctx, v2.container(f"⏭️ Skipped **{skipped}**"))
 
     @commands.hybrid_command(name="forceskip", aliases=["fs"], description="Force skip (bypasses votes).")
@@ -582,7 +586,11 @@ class MusicCog(commands.Cog, name="Music"):
         if not player.current:
             return await v2.send(ctx, v2.err("Nothing is playing."))
         title = player.current.title
-        await player.skip()
+        try:
+            next_track = player.queue.get()
+            await player.play(next_track)
+        except ravelink.QueueEmpty:
+            await player.stop()
         await v2.send(ctx, v2.container(f"⏭️ Force-skipped **{title}**"))
 
     @commands.hybrid_command(name="skipto", description="Skip to a specific position in the queue.")

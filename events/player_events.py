@@ -118,58 +118,46 @@ class NowPlayingView(discord.ui.LayoutView):
             self.add_item(card)
             return
 
-        artist   = clean_author(track.author)
-        dur      = track.length or 0
-        extras   = getattr(track, "extras", None)
-        req_name = getattr(extras, "requester_name", "") if extras else ""
-        thumb    = clean_thumbnail(track.artwork_url)
-        uri      = track.uri or ""
+        artist    = clean_author(track.author)
+        dur       = track.length or 0
+        extras    = getattr(track, "extras", None)
+        req_name  = getattr(extras, "requester_name", "") if extras else ""
+        thumb     = clean_thumbnail(track.artwork_url)
+        uri       = track.uri or ""
+        queue_len = len(self.player.queue)
+        vol       = getattr(self.player, "volume", 100)
+
         src_icon = "🔴" if ("youtube" in uri or "youtu.be" in uri) else "🎵"
 
-        body = (
-            f"{src_icon} **{track.title}** — {artist}\n"
-            f"Duration: {ms_to_time(dur)}"
-        )
+        title_line = f"{src_icon} **{track.title}** — {artist}"
         if req_name:
-            body += f"\nRequested by (@{req_name})"
+            title_line += f"\nRequested by @{req_name}"
 
-        # Header
-        card.add_item(discord.ui.TextDisplay("**Now Playing** `HQ`"))
+        meta_line = (
+            f"Duration: {ms_to_time(dur)} • "
+            f"{queue_len} song{'s' if queue_len != 1 else ''} in queue • "
+            f"Volume: {vol}%"
+        )
+
+        # ── Header ────────────────────────────────────────────────────────────
+        card.add_item(discord.ui.TextDisplay(f"🎵 Playing `HQ`"))
         card.add_item(discord.ui.Separator())
 
-        # Track info + album art thumbnail
+        # ── Track info + thumbnail ────────────────────────────────────────────
         if thumb:
             card.add_item(discord.ui.Section(
-                discord.ui.TextDisplay(body),
+                discord.ui.TextDisplay(title_line),
                 accessory=discord.ui.Thumbnail(media=thumb),
             ))
         else:
-            card.add_item(discord.ui.TextDisplay(body))
+            card.add_item(discord.ui.TextDisplay(title_line))
 
         card.add_item(discord.ui.Separator())
+        card.add_item(discord.ui.TextDisplay(f"-# {meta_line}"))
+        card.add_item(discord.ui.Separator())
 
-        # ── Row 1: ⏮  ⏸/▶  ⏭  ❤️ ────────────────────────────────────────
-        is_paused = self.player.paused
-        prev_btn  = discord.ui.Button(emoji="⏮️", style=discord.ButtonStyle.secondary, custom_id="np_prev")
-        pause_btn = discord.ui.Button(
-            emoji="▶️" if is_paused else "⏸️",
-            style=discord.ButtonStyle.secondary,
-            custom_id="np_pause",
-        )
-        skip_btn  = discord.ui.Button(emoji="⏭️", style=discord.ButtonStyle.secondary, custom_id="np_skip")
-        like_btn  = discord.ui.Button(emoji="❤️", style=discord.ButtonStyle.success,   custom_id="np_like")
-        prev_btn.callback  = self._prev_cb
-        pause_btn.callback = self._pause_cb
-        skip_btn.callback  = self._skip_cb
-        like_btn.callback  = self._like_cb
-        card.add_item(discord.ui.ActionRow(prev_btn, pause_btn, skip_btn, like_btn))
-
-        # ── Row 2: ⏹ stop (danger, standalone) ──────────────────────────────
-        stop_btn = discord.ui.Button(emoji="⏹️", style=discord.ButtonStyle.danger, custom_id="np_stop")
-        stop_btn.callback = self._stop_cb
-        card.add_item(discord.ui.ActionRow(stop_btn))
-
-        # ── Row 3: ♾ Loop  🔀 Shuffle ────────────────────────────────────────
+        # ── Row 1: ⏸/▶  ⏭  🔄Loop  ⏹Stop ───────────────────────────────────
+        is_paused  = self.player.paused
         loop_mode  = self.player.queue.mode
         loop_label = {
             ravelink.QueueMode.normal:   "Loop",
@@ -178,35 +166,79 @@ class NowPlayingView(discord.ui.LayoutView):
         }.get(loop_mode, "Loop")
         loop_style = (discord.ButtonStyle.success if loop_mode != ravelink.QueueMode.normal
                       else discord.ButtonStyle.secondary)
-        loop_btn    = discord.ui.Button(label=loop_label, emoji="♾️",  style=loop_style,                        custom_id="np_loop")
-        shuffle_btn = discord.ui.Button(label="Shuffle",  emoji="🔀", style=discord.ButtonStyle.secondary, custom_id="np_shuffle")
-        loop_btn.callback    = self._loop_cb
-        shuffle_btn.callback = self._shuffle_cb
-        card.add_item(discord.ui.ActionRow(loop_btn, shuffle_btn))
 
-        # ── Row 4: 🔄 Autoplay ───────────────────────────────────────────────
+        pause_btn = discord.ui.Button(
+            emoji="▶️" if is_paused else "⏸️",
+            style=discord.ButtonStyle.secondary, custom_id="np_pause",
+        )
+        skip_btn = discord.ui.Button(
+            emoji="⏭️", style=discord.ButtonStyle.secondary, custom_id="np_skip",
+        )
+        loop_btn = discord.ui.Button(
+            label=loop_label, emoji="🔁",
+            style=loop_style, custom_id="np_loop",
+        )
+        stop_btn = discord.ui.Button(
+            label="Stop", emoji="⏹️",
+            style=discord.ButtonStyle.danger, custom_id="np_stop",
+        )
+        pause_btn.callback = self._pause_cb
+        skip_btn.callback  = self._skip_cb
+        loop_btn.callback  = self._loop_cb
+        stop_btn.callback  = self._stop_cb
+        card.add_item(discord.ui.ActionRow(pause_btn, skip_btn, loop_btn, stop_btn))
+
+        # ── Row 2: vol-  vol+  ❤️  Lyrics ────────────────────────────────────
+        vol_down_btn = discord.ui.Button(
+            label="-", style=discord.ButtonStyle.secondary, custom_id="np_vol_down",
+        )
+        vol_up_btn = discord.ui.Button(
+            label="+", style=discord.ButtonStyle.secondary, custom_id="np_vol_up",
+        )
+        like_btn = discord.ui.Button(
+            emoji="❤️", style=discord.ButtonStyle.success, custom_id="np_like",
+        )
+        lyrics_btn = discord.ui.Button(
+            label="Lyrics", style=discord.ButtonStyle.secondary, custom_id="np_lyrics",
+        )
+        vol_down_btn.callback = self._vol_down_cb
+        vol_up_btn.callback   = self._vol_up_cb
+        like_btn.callback     = self._like_cb
+        lyrics_btn.callback   = self._lyrics_cb
+        card.add_item(discord.ui.ActionRow(vol_down_btn, vol_up_btn, like_btn, lyrics_btn))
+
+        # ── Row 3: Shuffle  Autoplay  Playlist ───────────────────────────────
         ap_on = getattr(self.player, "autoplay", ravelink.AutoPlayMode.disabled) == ravelink.AutoPlayMode.enabled
+        shuffle_btn = discord.ui.Button(
+            label="Shuffle", emoji="🔀",
+            style=discord.ButtonStyle.secondary, custom_id="np_shuffle",
+        )
         autoplay_btn = discord.ui.Button(
             label="Autoplay", emoji="🔄",
             style=discord.ButtonStyle.success if ap_on else discord.ButtonStyle.secondary,
             custom_id="np_autoplay",
         )
+        playlist_btn = discord.ui.Button(
+            label="Playlist", emoji="📋",
+            style=discord.ButtonStyle.primary, custom_id="np_playlist",
+        )
+        shuffle_btn.callback  = self._shuffle_cb
         autoplay_btn.callback = self._autoplay_cb
-        card.add_item(discord.ui.ActionRow(autoplay_btn))
+        playlist_btn.callback = self._playlist_cb
+        card.add_item(discord.ui.ActionRow(shuffle_btn, autoplay_btn, playlist_btn))
 
-        # ── Row 5: ✨ Filter ─────────────────────────────────────────────────
-        filter_btn = discord.ui.Button(label="Filter", emoji="✨", style=discord.ButtonStyle.secondary, custom_id="np_filter")
+        # ── Audio Filters expander ────────────────────────────────────────────
+        card.add_item(discord.ui.Separator())
+        card.add_item(discord.ui.TextDisplay("Audio Filters"))
+        filter_btn = discord.ui.Button(
+            label="›", style=discord.ButtonStyle.secondary, custom_id="np_filter",
+        )
         filter_btn.callback = self._filter_cb
         card.add_item(discord.ui.ActionRow(filter_btn))
 
         self.add_item(card)
 
     # ── callbacks ─────────────────────────────────────────────────────────────
-
-    async def _prev_cb(self, interaction: discord.Interaction):
-        await interaction.response.defer()
-        await self.player.seek(0)
-        await interaction.followup.send("⏮️ Replayed from start!", ephemeral=True, delete_after=3)
 
     async def _pause_cb(self, interaction: discord.Interaction):
         await interaction.response.defer()
@@ -215,33 +247,14 @@ class NowPlayingView(discord.ui.LayoutView):
         await interaction.edit_original_response(view=self)
 
     async def _skip_cb(self, interaction: discord.Interaction):
+        """Directly pull next track from queue and play — bypasses player.skip() event ambiguity."""
         await interaction.response.defer()
-        await self.player.skip()
+        try:
+            next_track = self.player.queue.get()
+            await self.player.play(next_track)
+        except ravelink.QueueEmpty:
+            await self.player.stop()
         await interaction.followup.send("⏭️ Skipped!", ephemeral=True, delete_after=3)
-
-    async def _like_cb(self, interaction: discord.Interaction):
-        from database.models import get_liked, set_liked
-        await interaction.response.defer(ephemeral=True)
-        track = self.player.current
-        if not track:
-            return await interaction.followup.send("Nothing playing.", ephemeral=True, delete_after=3)
-        songs    = await get_liked(interaction.user.id)
-        song_data = {
-            "title":     track.title,
-            "uri":       track.uri or "",
-            "author":    track.author or "Unknown",
-            "duration":  track.length or 0,
-            "thumbnail": clean_thumbnail(track.artwork_url) or "",
-        }
-        uris = [s.get("uri") for s in songs]
-        if track.uri in uris:
-            songs = [s for s in songs if s.get("uri") != track.uri]
-            await set_liked(interaction.user.id, songs)
-            await interaction.followup.send(f"💔 Removed **{track.title}** from liked songs.", ephemeral=True, delete_after=5)
-        else:
-            songs.append(song_data)
-            await set_liked(interaction.user.id, songs)
-            await interaction.followup.send(f"❤️ Added **{track.title}** to liked songs!", ephemeral=True, delete_after=5)
 
     async def _stop_cb(self, interaction: discord.Interaction):
         await interaction.response.defer()
@@ -265,6 +278,65 @@ class NowPlayingView(discord.ui.LayoutView):
         await interaction.edit_original_response(view=self)
         await interaction.followup.send(msg, ephemeral=True, delete_after=3)
 
+    async def _vol_down_cb(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+        new_vol = max(0, (getattr(self.player, "volume", 100) or 100) - 10)
+        await self.player.set_volume(new_vol)
+        self._build()
+        await interaction.edit_original_response(view=self)
+        await interaction.followup.send(f"🔉 Volume: **{new_vol}%**", ephemeral=True, delete_after=3)
+
+    async def _vol_up_cb(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+        new_vol = min(200, (getattr(self.player, "volume", 100) or 100) + 10)
+        await self.player.set_volume(new_vol)
+        self._build()
+        await interaction.edit_original_response(view=self)
+        await interaction.followup.send(f"🔊 Volume: **{new_vol}%**", ephemeral=True, delete_after=3)
+
+    async def _like_cb(self, interaction: discord.Interaction):
+        from database.models import get_liked, set_liked
+        await interaction.response.defer(ephemeral=True)
+        track = self.player.current
+        if not track:
+            return await interaction.followup.send("Nothing playing.", ephemeral=True, delete_after=3)
+        songs = await get_liked(interaction.user.id)
+        song_data = {
+            "title":     track.title,
+            "uri":       track.uri or "",
+            "author":    track.author or "Unknown",
+            "duration":  track.length or 0,
+            "thumbnail": clean_thumbnail(track.artwork_url) or "",
+        }
+        uris = [s.get("uri") for s in songs]
+        if track.uri in uris:
+            songs = [s for s in songs if s.get("uri") != track.uri]
+            await set_liked(interaction.user.id, songs)
+            await interaction.followup.send(
+                f"💔 Removed **{track.title}** from liked songs.", ephemeral=True, delete_after=5
+            )
+        else:
+            songs.append(song_data)
+            await set_liked(interaction.user.id, songs)
+            await interaction.followup.send(
+                f"❤️ Added **{track.title}** to liked songs!", ephemeral=True, delete_after=5
+            )
+
+    async def _lyrics_cb(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+        track = self.player.current
+        if not track:
+            return await interaction.followup.send("Nothing is playing.", ephemeral=True, delete_after=5)
+        try:
+            from cogs.lyrics import LyricsView
+            view = LyricsView(track.title, track.author or "", self.player)
+            await view.fetch_lyrics()
+            await interaction.followup.send(view=view, ephemeral=True)
+        except Exception as e:
+            await interaction.followup.send(
+                f"❌ Could not fetch lyrics: {e}", ephemeral=True, delete_after=8
+            )
+
     async def _shuffle_cb(self, interaction: discord.Interaction):
         await interaction.response.defer()
         self.player.queue.shuffle()
@@ -281,6 +353,17 @@ class NowPlayingView(discord.ui.LayoutView):
         self._build()
         await interaction.edit_original_response(view=self)
         await interaction.followup.send(msg, ephemeral=True, delete_after=3)
+
+    async def _playlist_cb(self, interaction: discord.Interaction):
+        """Show the current queue as a paginated view (ephemeral)."""
+        await interaction.response.defer(ephemeral=True)
+        try:
+            from cogs.music import QueueLayoutView
+            tracks = list(self.player.queue)
+            view   = QueueLayoutView(tracks, current_track=self.player.current, player=self.player)
+            await interaction.followup.send(view=view, ephemeral=True)
+        except Exception as e:
+            await interaction.followup.send(f"❌ {e}", ephemeral=True, delete_after=5)
 
     async def _filter_cb(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
