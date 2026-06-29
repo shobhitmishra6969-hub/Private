@@ -87,6 +87,248 @@ async def _ytm_first(query: str) -> ravelink.Playable | None:
     return None
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Autoplay interactive menu
+# ─────────────────────────────────────────────────────────────────────────────
+
+_MOOD_LANGS: list[tuple[str, str, str]] = [
+    ("Hindi",    "🇮🇳", "hindi top songs hits playlist"),
+    ("Punjabi",  "🎵", "punjabi top hits songs playlist"),
+    ("English",  "🌍", "english pop hits playlist 2024"),
+    ("Tamil",    "🎶", "tamil hits songs playlist"),
+    ("Telugu",   "🎸", "telugu hits songs playlist"),
+    ("Bengali",  "🎤", "bengali songs hits playlist"),
+    ("Bhojpuri", "🎺", "bhojpuri hits songs playlist"),
+    ("Haryanvi", "🤠", "haryanvi songs hits playlist"),
+    ("Marathi",  "🌺", "marathi songs hits playlist"),
+    ("K-Pop",    "🎀", "kpop bts blackpink hits playlist"),
+]
+
+
+class AutoplayMenuView(discord.ui.LayoutView):
+    """
+    Three-state interactive autoplay panel:
+      home   → [🎯 Related]  [🎭 Mood]
+      mood   → language grid (inside the embed) → picks a language → loads tracks
+      active → shows which mode is on + [⏹ Disable] [🏠 Home]
+    """
+
+    _AP_COLOR  = 0x7B2FBE
+    _MOOD_COLOR = 0x1DB954
+
+    def __init__(self, player: ravelink.Player, author: discord.Member | discord.User):
+        super().__init__(timeout=180)
+        self.player = player
+        self.author = author
+        self._state = "home"          # "home" | "mood" | "active"
+        self._active_label = ""       # what mode is on when state == "active"
+        self._build()
+
+    # ── build ─────────────────────────────────────────────────────────────────
+
+    def _build(self):
+        self.clear_items()
+        if self._state == "home":
+            self._build_home()
+        elif self._state == "mood":
+            self._build_mood()
+        elif self._state == "active":
+            self._build_active()
+
+    def _build_home(self):
+        ap_on = self.player.autoplay == ravelink.AutoPlayMode.enabled
+
+        # Card 1 — info
+        card = discord.ui.Container(accent_color=self._AP_COLOR)
+        card.add_item(discord.ui.TextDisplay(f"## {E.dance} Autoplay"))
+        card.add_item(discord.ui.Separator())
+        card.add_item(discord.ui.TextDisplay(
+            f"**Current status:** {'🟢 Enabled' if ap_on else '🔴 Disabled'}\n\n"
+            "**🎯 Related** — Auto-queues songs similar to what's currently playing.\n"
+            "**🎭 Mood** — Pick a language/genre and load a mood playlist into the queue."
+        ))
+        card.add_item(discord.ui.Separator())
+
+        related_btn = discord.ui.Button(
+            label="Related",
+            emoji="🎯",
+            style=discord.ButtonStyle.success if not ap_on else discord.ButtonStyle.secondary,
+            custom_id="ap_related",
+        )
+        mood_btn = discord.ui.Button(
+            label="Mood",
+            emoji="🎭",
+            style=discord.ButtonStyle.primary,
+            custom_id="ap_mood",
+        )
+        if ap_on:
+            disable_btn = discord.ui.Button(
+                label="Disable",
+                emoji="⏹",
+                style=discord.ButtonStyle.danger,
+                custom_id="ap_disable",
+            )
+            disable_btn.callback = self._disable_cb
+            card.add_item(discord.ui.ActionRow(related_btn, mood_btn, disable_btn))
+        else:
+            card.add_item(discord.ui.ActionRow(related_btn, mood_btn))
+
+        related_btn.callback = self._related_cb
+        mood_btn.callback    = self._mood_cb
+        self.add_item(card)
+
+    def _build_mood(self):
+        # Card — language grid
+        card = discord.ui.Container(accent_color=self._MOOD_COLOR)
+        card.add_item(discord.ui.TextDisplay("## 🎭 Choose a Language / Genre"))
+        card.add_item(discord.ui.Separator())
+        card.add_item(discord.ui.TextDisplay(
+            "Pick a language below — the bot will load a playlist of top songs in that language into your queue."
+        ))
+        card.add_item(discord.ui.Separator())
+
+        # Up to 5 buttons per ActionRow — split into rows of 5
+        row_size = 5
+        for chunk_start in range(0, len(_MOOD_LANGS), row_size):
+            chunk = _MOOD_LANGS[chunk_start:chunk_start + row_size]
+            btns  = []
+            for name, emoji, query in chunk:
+                btn = discord.ui.Button(
+                    label=name,
+                    emoji=emoji,
+                    style=discord.ButtonStyle.secondary,
+                    custom_id=f"ap_lang_{name.lower()}",
+                )
+                btn.callback = self._make_lang_cb(name, query)
+                btns.append(btn)
+            card.add_item(discord.ui.ActionRow(*btns))
+
+        # Back button row
+        back_btn = discord.ui.Button(
+            label="Back",
+            emoji="◀",
+            style=discord.ButtonStyle.secondary,
+            custom_id="ap_back",
+        )
+        back_btn.callback = self._back_cb
+        card.add_item(discord.ui.ActionRow(back_btn))
+        self.add_item(card)
+
+    def _build_active(self):
+        card = discord.ui.Container(accent_color=self._AP_COLOR)
+        card.add_item(discord.ui.TextDisplay(f"## {E.dance} Autoplay Active"))
+        card.add_item(discord.ui.Separator())
+        card.add_item(discord.ui.TextDisplay(
+            f"**Mode:** {self._active_label}\n\n"
+            "Autoplay is running. Songs will keep playing automatically.\n"
+            "Click **Disable** to turn it off, or **Home** to go back."
+        ))
+        card.add_item(discord.ui.Separator())
+
+        disable_btn = discord.ui.Button(
+            label="Disable",
+            emoji="⏹",
+            style=discord.ButtonStyle.danger,
+            custom_id="ap_disable",
+        )
+        home_btn = discord.ui.Button(
+            label="Home",
+            emoji="🏠",
+            style=discord.ButtonStyle.secondary,
+            custom_id="ap_home",
+        )
+        disable_btn.callback = self._disable_cb
+        home_btn.callback    = self._back_cb
+        card.add_item(discord.ui.ActionRow(disable_btn, home_btn))
+        self.add_item(card)
+
+    # ── callbacks ─────────────────────────────────────────────────────────────
+
+    async def _check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user.id != self.author.id:
+            await interaction.response.send_message(
+                "This panel belongs to someone else.", ephemeral=True
+            )
+            return False
+        return True
+
+    async def _related_cb(self, interaction: discord.Interaction):
+        if not await self._check(interaction): return
+        self.player.autoplay = ravelink.AutoPlayMode.enabled
+        self._active_label   = "🎯 Related — playing songs similar to the current track"
+        self._state          = "active"
+        self._build()
+        await interaction.response.edit_message(view=self)
+
+    async def _mood_cb(self, interaction: discord.Interaction):
+        if not await self._check(interaction): return
+        self._state = "mood"
+        self._build()
+        await interaction.response.edit_message(view=self)
+
+    async def _back_cb(self, interaction: discord.Interaction):
+        if not await self._check(interaction): return
+        self._state = "home"
+        self._build()
+        await interaction.response.edit_message(view=self)
+
+    async def _disable_cb(self, interaction: discord.Interaction):
+        if not await self._check(interaction): return
+        self.player.autoplay = ravelink.AutoPlayMode.disabled
+        self._active_label   = ""
+        self._state          = "home"
+        self._build()
+        await interaction.response.edit_message(view=self)
+
+    def _make_lang_cb(self, name: str, query: str):
+        async def _lang_cb(interaction: discord.Interaction):
+            if not await self._check(interaction): return
+            await interaction.response.defer()
+
+            # Search for tracks
+            try:
+                results = await ravelink.Playable.search(
+                    f"ytmsearch:{query}", source=ravelink.TrackSource.YouTubeMusic
+                )
+            except Exception:
+                results = None
+
+            tracks: list[ravelink.Playable] = []
+            if isinstance(results, ravelink.Playlist):
+                tracks = list(results.tracks)[:20]
+            elif isinstance(results, list):
+                tracks = results[:20]
+
+            if not tracks:
+                await interaction.followup.send(
+                    f"❌ Couldn't load {name} tracks. Try again.", ephemeral=True
+                )
+                return
+
+            was_playing = self.player.playing
+            for t in tracks:
+                await self.player.queue.put_wait(t)
+            if not was_playing:
+                next_t = self.player.queue.get()
+                try:
+                    await self.player.play(next_t)
+                except Exception:
+                    pass
+
+            self.player.autoplay = ravelink.AutoPlayMode.enabled
+            self._active_label   = (
+                f"🎭 Mood — **{name}** playlist loaded ({len(tracks)} tracks queued)"
+            )
+            self._state = "active"
+            self._build()
+            await interaction.edit_original_response(view=self)
+
+        return _lang_cb
+
+    async def on_timeout(self):
+        pass
+
+
 class SpotifyPlaylistResult:
     """Wrapper returned by _resolve_spotify_url for playlist/album URLs.
     Lets the play command distinguish 'add all these tracks' from a normal
@@ -959,15 +1201,17 @@ class MusicCog(commands.Cog, name="Music"):
 
     # ── autoplay ──────────────────────────────────────────────────────────────
 
-    @commands.hybrid_command(name="autoplay", aliases=["ap"], description="Toggle autoplay for related tracks.")
+    @commands.hybrid_command(name="autoplay", aliases=["ap"], description="Interactive autoplay — Related or Mood playlist.")
     async def autoplay(self, ctx: commands.Context):
         player = await voice_check(ctx)
-        if player.autoplay == ravelink.AutoPlayMode.enabled:
-            player.autoplay = ravelink.AutoPlayMode.disabled
-            await v2.send(ctx, v2.container("🎵 Autoplay **disabled**."))
+        view   = AutoplayMenuView(player, ctx.author)
+        if ctx.interaction:
+            await ctx.interaction.response.send_message(view=view)
+            resp = await ctx.interaction.original_response()
+            view._message = resp
         else:
-            player.autoplay = ravelink.AutoPlayMode.enabled
-            await v2.send(ctx, v2.container("🎵 Autoplay **enabled**."))
+            msg = await ctx.reply(view=view, mention_author=False)
+            view._message = msg
 
     # ── grab / save ───────────────────────────────────────────────────────────
 
