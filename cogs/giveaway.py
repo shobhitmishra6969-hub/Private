@@ -509,15 +509,19 @@ class GiveawayCog(commands.Cog, name="GiveawayCog"):
         ga_id = cur.lastrowid
 
         enter_view = GiveawayEnterView(ga_id, prize, str(ctx.author.id), winners, ends_at, [])
-        msg = await ctx.channel.send(view=enter_view)
+
+        # Send the giveaway embed as the single command response — no extra confirmation
+        if ctx.interaction:
+            await ctx.interaction.response.send_message(view=enter_view)
+            resp = await ctx.interaction.original_response()
+            msg  = resp
+        else:
+            msg = await ctx.reply(view=enter_view, mention_author=False)
 
         await db.execute("UPDATE giveaway SET messageId=? WHERE id=?", [str(msg.id), ga_id])
         await db.commit()
 
         self._schedule(ga_id, seconds)
-        await v2.send(ctx, v2.ok(
-            f"Giveaway started! 🎁 **{prize}** — ends <t:{ends_at}:R>"
-        ), delete_after=5)
 
     @giveaway.command(name="end", description="End a giveaway early.")
     @commands.has_permissions(manage_guild=True)
