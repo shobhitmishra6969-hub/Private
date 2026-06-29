@@ -145,9 +145,7 @@ class TrackAddedView(discord.ui.LayoutView):
         else:
             card.add_item(discord.ui.TextDisplay(body))
 
-        self.add_item(card)
-
-        # Action buttons
+        # Action buttons — inside the container so they don't float outside
         play_btn = discord.ui.Button(
             label="Play Now",
             emoji="▶️",
@@ -164,7 +162,8 @@ class TrackAddedView(discord.ui.LayoutView):
         )
         remove_btn.callback = self._remove_cb
 
-        self.add_item(discord.ui.ActionRow(play_btn, remove_btn))
+        card.add_item(discord.ui.ActionRow(play_btn, remove_btn))
+        self.add_item(card)
 
     # ── internal helpers ──────────────────────────────────────────────────────
 
