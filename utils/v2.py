@@ -63,11 +63,11 @@ async def send(
     view = _wrap(*containers)
     if hasattr(ctx, "interaction") and ctx.interaction:
         if ctx.interaction.response.is_done():
-            await ctx.interaction.followup.send(view=view, ephemeral=ephemeral, components_v2=True)
+            await ctx.interaction.followup.send(view=view, ephemeral=ephemeral)
         else:
-            await ctx.interaction.response.send_message(view=view, ephemeral=ephemeral, components_v2=True)
+            await ctx.interaction.response.send_message(view=view, ephemeral=ephemeral)
     else:
-        await ctx.reply(view=view, mention_author=False, delete_after=delete_after, components_v2=True)
+        await ctx.reply(view=view, mention_author=False, delete_after=delete_after)
 
 
 async def channel_send(
@@ -77,4 +77,4 @@ async def channel_send(
 ) -> None:
     """Send v2 containers directly to a channel object (not ctx)."""
     view = _wrap(*containers)
-    await channel.send(view=view, delete_after=delete_after, components_v2=True)
+    await channel.send(view=view, delete_after=delete_after)

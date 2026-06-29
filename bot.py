@@ -152,7 +152,6 @@ class ToneVibes(commands.Bot):
                     await message.reply(
                         view=InfoLayoutView(self),
                         mention_author=False,
-                        components_v2=True,
                     )
                 except Exception as e:
                     logger.log(f"[on_message] Mention reply failed: {e}", "error")

@@ -15,15 +15,17 @@ Every command response uses `utils/v2.py` helpers — no `discord.Embed` in comm
 - Interactive views (buttons + container): subclass `discord.ui.LayoutView`, `add_item(container)` first, then `add_item(button)` — buttons render below the card
 - Send LayoutView: `await ctx.reply(view=layout_view, mention_author=False)`
 
-## Critical gotcha
-- `discord.MessageFlags(components_v2=True)` ← correct flag name in discord.py 2.7.1
-- `discord.MessageFlags(is_components_v2=True)` ← WRONG, raises TypeError
-- When using v2 flag: NO embeds or content text in the same message
+## CRITICAL — do NOT pass components_v2=True to send()
+In discord.py 2.7.1, `LayoutView` sets the `components_v2` message flag **automatically**.
+Passing `components_v2=True` as a kwarg to `send()`, `reply()`, or `followup.send()` raises:
+`TypeError: Messageable.send() got an unexpected keyword argument 'components_v2'`
+and breaks all responses. **Never add it explicitly anywhere.**
 
 ## File map
-- `utils/v2.py` — helper builders and `send()` async helper
+- `utils/v2.py` — helper builders and `send()` / `channel_send()` async helpers
 - `events/player_events.py` — `NowPlayingView(LayoutView)` with `_build()` pattern
 - `cogs/music.py` — `QueueLayoutView(LayoutView)` with pagination
 - `cogs/favourite.py` — `LikedLayoutView(LayoutView)` with pagination
-- `cogs/information.py` — `HelpView(LayoutView)` with category buttons; `info_embed()`/`info_view()` kept as legacy Embed for the bot mention response
+- `cogs/information.py` — `HelpView(LayoutView)` with category buttons
 - `cogs/giveaway.py` — `GiveawayEnterView(LayoutView)` with live entry count update
+- `cogs/playlist.py` — `PlaylistMenuView(LayoutView)` + `TrackListView(LayoutView)` with modals

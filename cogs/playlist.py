@@ -415,7 +415,7 @@ class PlaylistMenuView(discord.ui.LayoutView):
         ))
         lv = discord.ui.LayoutView(timeout=None)
         lv.add_item(result_card)
-        await interaction.followup.send(view=lv, components_v2=True)
+        await interaction.followup.send(view=lv)
 
     async def _tracks_cb(self, interaction: discord.Interaction):
         if not await self._check(interaction): return
@@ -497,7 +497,7 @@ class PlaylistCog(commands.Cog, name="Playlist"):
         if ctx.invoked_subcommand is None:
             playlists = await get_playlists(ctx.author.id)
             view = PlaylistMenuView(self.bot, ctx.author, playlists)
-            await ctx.reply(view=view, mention_author=False, components_v2=True)
+            await ctx.reply(view=view, mention_author=False)
 
     @playlist.command(name="create", description="Create a new playlist.")
     async def pl_create(self, ctx: commands.Context, *, name: str):
@@ -591,7 +591,7 @@ class PlaylistCog(commands.Cog, name="Playlist"):
     async def pl_list(self, ctx: commands.Context):
         playlists = await get_playlists(ctx.author.id)
         view = PlaylistMenuView(self.bot, ctx.author, playlists)
-        await ctx.reply(view=view, mention_author=False, components_v2=True)
+        await ctx.reply(view=view, mention_author=False)
 
     @playlist.command(name="info", description="View tracks in a playlist.")
     async def pl_info(self, ctx: commands.Context, *, name: str):
@@ -604,7 +604,7 @@ class PlaylistCog(commands.Cog, name="Playlist"):
         menu.selected_idx = idx
         menu.page = idx // PAGE_SIZE
         track_view = TrackListView(menu, pl, idx)
-        await ctx.reply(view=track_view, mention_author=False, components_v2=True)
+        await ctx.reply(view=track_view, mention_author=False)
 
     @playlist.command(name="load", description="Load and play a playlist.")
     async def pl_load(self, ctx: commands.Context, *, name: str):
