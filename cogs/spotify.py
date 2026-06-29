@@ -69,45 +69,107 @@ def jload(val) -> list:
         return []
 
 
-async def _fetch_and_save_profile(discord_id: int, spotify_uid: str) -> Optional[dict]:
+async def _get_spotify_token() -> tuple[str, str]:
+    """
+    Fetch a client-credentials access token from Spotify.
+    Returns (token, "") on success, ("", error_message) on failure.
+    """
+    import base64
+    import aiohttp
+
+    cid = config.SPOTIFY_CLIENT_ID
+    sec = config.SPOTIFY_CLIENT_SECRET
+    if not cid or not sec:
+        return "", (
+            "❌ Spotify API is not configured on this bot.\n"
+            "The bot admin needs to set `SPOTIFY_CLIENT_ID` and `SPOTIFY_CLIENT_SECRET`."
+        )
+    creds = base64.b64encode(f"{cid}:{sec}".encode()).decode()
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                "https://accounts.spotify.com/api/token",
+                headers={"Authorization": f"Basic {creds}"},
+                data={"grant_type": "client_credentials"},
+                timeout=aiohttp.ClientTimeout(total=8),
+            ) as resp:
+                if resp.status != 200:
+                    text = await resp.text()
+                    return "", f"❌ Spotify auth failed (HTTP {resp.status}): {text[:120]}"
+                data = await resp.json()
+                return data.get("access_token", ""), ""
+    except Exception as e:
+        return "", f"❌ Could not connect to Spotify: {e}"
+
+
+async def _fetch_and_save_profile(discord_id: int, spotify_uid: str) -> tuple[Optional[dict], str]:
     """
     Fetch public Spotify profile + playlists via API and persist in DB.
-    Returns the dict row on success, None on failure.
+    Returns (row_dict, "") on success, (None, error_message) on failure.
     """
-    sp = get_sp()
-    if not sp:
-        return None
+    import aiohttp
+
+    token, err = await _get_spotify_token()
+    if not token:
+        return None, err
+
+    headers = {"Authorization": f"Bearer {token}"}
+    base    = "https://api.spotify.com/v1"
+
     try:
-        profile  = sp.user(spotify_uid)
-        praw     = sp.user_playlists(spotify_uid, limit=50)
-        playlists = [
-            {
-                "id":     p["id"],
-                "name":   p["name"],
-                "owner":  p["owner"]["display_name"],
-                "tracks": p["tracks"]["total"],
-                "image":  p["images"][0]["url"] if p.get("images") else None,
-                "url":    p["external_urls"]["spotify"],
-            }
-            for p in (praw.get("items") or [])
-            if p
-        ]
-        avatar  = profile["images"][0]["url"] if profile.get("images") else ""
+        async with aiohttp.ClientSession(headers=headers) as session:
+            # Profile
+            async with session.get(
+                f"{base}/users/{spotify_uid}",
+                timeout=aiohttp.ClientTimeout(total=8),
+            ) as resp:
+                if resp.status == 404:
+                    return None, (
+                        "❌ Spotify user not found.\n"
+                        "Double-check your profile URL — it should look like:\n"
+                        "`https://open.spotify.com/user/your_id`"
+                    )
+                if resp.status != 200:
+                    return None, f"❌ Spotify returned HTTP {resp.status}. Try again later."
+                profile = await resp.json()
+
+            # Public playlists
+            async with session.get(
+                f"{base}/users/{spotify_uid}/playlists",
+                params={"limit": 50},
+                timeout=aiohttp.ClientTimeout(total=8),
+            ) as resp:
+                praw      = await resp.json() if resp.status == 200 else {}
+                playlists = [
+                    {
+                        "id":     p["id"],
+                        "name":   p["name"],
+                        "owner":  p["owner"]["display_name"],
+                        "tracks": p["tracks"]["total"],
+                        "image":  p["images"][0]["url"] if p.get("images") else None,
+                        "url":    p["external_urls"]["spotify"],
+                    }
+                    for p in (praw.get("items") or [])
+                    if p
+                ]
+
+        avatar = profile["images"][0]["url"] if profile.get("images") else ""
         row = {
-            "userId":      str(discord_id),
+            "userId":        str(discord_id),
             "spotifyUserId": spotify_uid,
-            "displayName": profile.get("display_name") or spotify_uid,
-            "followers":   profile.get("followers", {}).get("total", 0),
-            "avatarUrl":   avatar,
-            "profileUrl":  profile["external_urls"]["spotify"],
-            "playlists":   json.dumps(playlists),
-            "linkedAt":    now_ts(),
-            "updatedAt":   now_ts(),
+            "displayName":   profile.get("display_name") or spotify_uid,
+            "followers":     profile.get("followers", {}).get("total", 0),
+            "avatarUrl":     avatar,
+            "profileUrl":    profile["external_urls"]["spotify"],
+            "playlists":     json.dumps(playlists),
+            "linkedAt":      now_ts(),
+            "updatedAt":     now_ts(),
         }
         await db_set("spotifyprofile", row, pk="userId")
-        return row
-    except Exception:
-        return None
+        return row, ""
+
+    except Exception as e:
+        return None, f"❌ Unexpected error fetching profile: {e}"
 
 
 def _row_to_dict(row) -> dict:
@@ -263,12 +325,9 @@ class SpotifyHubView(discord.ui.LayoutView):
         spotify_uid = self.row.get("spotifyUserId") or ""
         if not spotify_uid:
             return await interaction.followup.send("❌ No linked Spotify user ID.", ephemeral=True)
-        row = await _fetch_and_save_profile(self.user.id, spotify_uid)
+        row, err = await _fetch_and_save_profile(self.user.id, spotify_uid)
         if not row:
-            return await interaction.followup.send(
-                "❌ Couldn't refresh Spotify profile. The profile may be private or deleted.",
-                ephemeral=True,
-            )
+            return await interaction.followup.send(err, ephemeral=True)
         self.row = row
         self._build()
         await interaction.edit_original_response(view=self)
@@ -306,13 +365,9 @@ class SpotifyLinkModal(discord.ui.Modal, title="Link Spotify"):
         # Acknowledge the modal immediately so we can do async work
         await interaction.response.defer(ephemeral=True)
 
-        row = await _fetch_and_save_profile(interaction.user.id, spotify_uid)
+        row, err = await _fetch_and_save_profile(interaction.user.id, spotify_uid)
         if not row:
-            await interaction.followup.send(
-                "❌ Couldn't fetch that Spotify profile.\n"
-                "Make sure the URL is correct and the profile is **public**.",
-                ephemeral=True,
-            )
+            await interaction.followup.send(err, ephemeral=True)
             return
 
         # Update the hub view in-place
