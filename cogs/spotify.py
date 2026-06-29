@@ -545,12 +545,7 @@ class SpotifyPlaylistsView(discord.ui.LayoutView):
         await interaction.response.defer(ephemeral=True)
 
         try:
-            node = ravelink.Pool.get_node()
-            results = await node.fetch_tracks(url)
-            if not results:
-                return await interaction.followup.send(
-                    "❌ Couldn't load that playlist.", ephemeral=True
-                )
+            from cogs.music import _resolve_spotify_url
 
             guild  = interaction.guild
             vc     = guild.voice_client if guild else None
@@ -563,19 +558,19 @@ class SpotifyPlaylistsView(discord.ui.LayoutView):
                 player._text_channel_id = interaction.channel_id
                 player._np_message_id   = None
 
+            tracks = await _resolve_spotify_url(url)
+            if not tracks:
+                return await interaction.followup.send(
+                    "❌ Couldn't load that playlist. Make sure it's public.", ephemeral=True
+                )
+
             extras = {
                 "requester_id":   interaction.user.id,
                 "requester_name": interaction.user.display_name,
             }
-
-            if isinstance(results, ravelink.Playlist):
-                for track in results.tracks:
-                    track.extras = extras
-                    await player.queue.put_wait(track)
-            elif isinstance(results, list) and results:
-                for track in results:
-                    track.extras = extras
-                    await player.queue.put_wait(track)
+            for track in tracks:
+                track.extras = extras
+                await player.queue.put_wait(track)
 
             if not player.playing:
                 try:
@@ -585,7 +580,8 @@ class SpotifyPlaylistsView(discord.ui.LayoutView):
                     pass
 
             await interaction.followup.send(
-                f"{E.check} Now playing **{discord.utils.escape_markdown(pl.get('name', 'playlist'))}**!",
+                f"{E.check} Added **{len(tracks)}** tracks from "
+                f"**{discord.utils.escape_markdown(pl.get('name', 'playlist'))}**!",
                 ephemeral=True,
             )
         except Exception as e:
