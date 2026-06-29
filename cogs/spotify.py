@@ -175,46 +175,67 @@ class SpotifyHubView(discord.ui.LayoutView):
     # ── Connected card ────────────────────────────────────────────────────────
 
     def _add_connected_card(self):
-        row      = self.row
-        name     = row.get("displayName", "Unknown")
+        row       = self.row
+        name      = row.get("displayName", "Unknown")
         followers = row.get("followers", 0)
-        url      = row.get("profileUrl", "")
-        avatar   = row.get("avatarUrl") or None
+        url       = row.get("profileUrl", "")
+        avatar    = row.get("avatarUrl") or None
+        playlists = jload(row.get("playlists", "[]"))
 
-        body = (
-            f"Logged in as **{discord.utils.escape_markdown(name)}**\n"
-            f"Followers: {followers}\n"
-            f"Profile: [Open in Spotify]({url})"
+        # ── Profile card ──────────────────────────────────────────────────────
+        profile_body = (
+            f"**Display Name:** {discord.utils.escape_markdown(name)}\n"
+            f"**Followers:** {int(followers):,}\n"
+            f"**Public Playlists:** {len(playlists)}\n"
+            f"**Profile:** [Open in Spotify]({url})"
         )
 
-        card = discord.ui.Container(accent_color=SP_COLOR)
-        card.add_item(discord.ui.TextDisplay(f"## {E.check} Spotify Connected"))
-        card.add_item(discord.ui.Separator())
+        profile_card = discord.ui.Container(accent_color=SP_COLOR)
+        profile_card.add_item(discord.ui.TextDisplay(f"## {E.check} Spotify Connected"))
+        profile_card.add_item(discord.ui.Separator())
         if avatar:
-            card.add_item(discord.ui.Section(
-                discord.ui.TextDisplay(body),
+            profile_card.add_item(discord.ui.Section(
+                discord.ui.TextDisplay(profile_body),
                 accessory=discord.ui.Thumbnail(media=avatar),
             ))
         else:
-            card.add_item(discord.ui.TextDisplay(body))
-        card.add_item(discord.ui.Separator())
+            profile_card.add_item(discord.ui.TextDisplay(profile_body))
+        profile_card.add_item(discord.ui.Separator())
 
-        playlists_btn = discord.ui.Button(
-            label="Playlists",
-            emoji=E.Spotify,
-            style=discord.ButtonStyle.success,
-            custom_id="sp_hub_playlists",
-        )
-        profile_btn = discord.ui.Button(
-            label="Profile",
-            emoji=E.info,
-            style=discord.ButtonStyle.primary,
-            custom_id="sp_hub_profile",
-        )
-        playlists_btn.callback = self._playlists_cb
-        profile_btn.callback   = self._profile_cb
-        card.add_item(discord.ui.ActionRow(playlists_btn, profile_btn))
-        self.add_item(card)
+        profile_btn  = discord.ui.Button(label="Profile",  emoji=E.info,    style=discord.ButtonStyle.primary,   custom_id="sp_hub_profile")
+        refresh_btn  = discord.ui.Button(label="Refresh",  emoji="🔄",      style=discord.ButtonStyle.secondary, custom_id="sp_hub_refresh")
+        profile_btn.callback = self._profile_cb
+        refresh_btn.callback = self._refresh_cb
+        profile_card.add_item(discord.ui.ActionRow(profile_btn, refresh_btn))
+        self.add_item(profile_card)
+
+        # ── Playlists preview card ────────────────────────────────────────────
+        pl_card = discord.ui.Container(accent_color=0x1A1A2E)
+        pl_card.add_item(discord.ui.TextDisplay(f"## {E.Spotify} Your Playlists"))
+        pl_card.add_item(discord.ui.Separator())
+
+        if not playlists:
+            pl_card.add_item(discord.ui.TextDisplay(
+                "No public playlists found on your Spotify profile.\n"
+                "Make sure your playlists are set to **public** on Spotify."
+            ))
+        else:
+            preview = playlists[:6]
+            lines = [
+                f"`{i}.` **{discord.utils.escape_markdown(p.get('name', 'Untitled')[:35])}**"
+                f"  —  `{p.get('tracks', 0)} tracks`"
+                for i, p in enumerate(preview, 1)
+            ]
+            if len(playlists) > 6:
+                lines.append(f"-# … and {len(playlists) - 6} more")
+            pl_card.add_item(discord.ui.TextDisplay("\n".join(lines)))
+
+        pl_card.add_item(discord.ui.Separator())
+
+        all_btn  = discord.ui.Button(label="Browse All Playlists", emoji=E.Spotify, style=discord.ButtonStyle.success,   custom_id="sp_hub_playlists")
+        all_btn.callback = self._playlists_cb
+        pl_card.add_item(discord.ui.ActionRow(all_btn))
+        self.add_item(pl_card)
 
     async def _playlists_cb(self, interaction: discord.Interaction):
         if interaction.user.id != self.user.id:
@@ -232,6 +253,25 @@ class SpotifyHubView(discord.ui.LayoutView):
             )
         view = SpotifyProfileView(self.bot, self.user, self.row)
         await interaction.response.edit_message(view=view)
+
+    async def _refresh_cb(self, interaction: discord.Interaction):
+        if interaction.user.id != self.user.id:
+            return await interaction.response.send_message(
+                "This panel belongs to someone else.", ephemeral=True
+            )
+        await interaction.response.defer()
+        spotify_uid = self.row.get("spotifyUserId") or ""
+        if not spotify_uid:
+            return await interaction.followup.send("❌ No linked Spotify user ID.", ephemeral=True)
+        row = await _fetch_and_save_profile(self.user.id, spotify_uid)
+        if not row:
+            return await interaction.followup.send(
+                "❌ Couldn't refresh Spotify profile. The profile may be private or deleted.",
+                ephemeral=True,
+            )
+        self.row = row
+        self._build()
+        await interaction.edit_original_response(view=self)
 
 
 # ── Link Modal ────────────────────────────────────────────────────────────────

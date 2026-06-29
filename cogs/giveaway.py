@@ -1,7 +1,8 @@
-"""Giveaway system."""
+"""Giveaway system + GiveawayConfig interactive panel."""
 from __future__ import annotations
 
 import asyncio
+import json
 import random
 from typing import Optional
 
@@ -10,18 +11,41 @@ from discord.ext import commands
 
 import config
 import utils.v2 as v2
-from database import get_db, json_load, json_dump, now_ts
+from database import get_db, db_get, db_set, json_load, json_dump, now_ts
 from database.models import get_active_giveaways, get_all_active_giveaways
 
-COLOR = config.COLOR
+COLOR    = config.COLOR
 GA_COLOR = 0xFF6B6B
+GA_GREEN = 0x57F287
+GA_DARK  = 0x2B2D31
 
+
+# ── helpers ───────────────────────────────────────────────────────────────────
 
 async def _pick_winners(entries: list, count: int) -> list:
     if not entries:
         return []
     count = min(count, len(entries))
     return random.sample(entries, count)
+
+
+async def get_ga_config(guild_id: int | str) -> dict:
+    row = await db_get("giveawayconfig", {"guildId": str(guild_id)})
+    if not row:
+        return {
+            "guildId": str(guild_id),
+            "theme": "blue",
+            "dmNotifications": 0,
+            "defaultImage": None,
+            "managerRoles": "[]",
+        }
+    return dict(row)
+
+
+async def save_ga_config(guild_id: int | str, data: dict) -> None:
+    data["guildId"] = str(guild_id)
+    data["updatedAt"] = now_ts()
+    await db_set("giveawayconfig", data, pk="guildId")
 
 
 def _build_ga_container(prize: str, host_id: str, winner_count: int,
@@ -46,6 +70,8 @@ def _build_ga_container(prize: str, host_id: str, winner_count: int,
         return v2.container(body, header=f"🎁 {prize}", color=GA_COLOR,
                             footer="Click the button below to enter!")
 
+
+# ── Giveaway Enter View ───────────────────────────────────────────────────────
 
 class GiveawayEnterView(discord.ui.LayoutView):
     def __init__(self, giveaway_id: int, prize: str, host_id: str,
@@ -111,6 +137,270 @@ class GiveawayEnterView(discord.ui.LayoutView):
             await interaction.followup.send("🎉 You've entered the giveaway!", ephemeral=True)
 
 
+# ── GiveawayConfig Modals ─────────────────────────────────────────────────────
+
+class SetImageModal(discord.ui.Modal, title="Set Default Giveaway Image"):
+    url = discord.ui.TextInput(
+        label="Image URL",
+        placeholder="https://i.imgur.com/example.png",
+        style=discord.TextStyle.short,
+        required=True,
+        max_length=500,
+    )
+
+    def __init__(self, view: "GiveawayConfigView"):
+        super().__init__()
+        self._view = view
+
+    async def on_submit(self, interaction: discord.Interaction):
+        cfg = self._view.cfg
+        cfg["defaultImage"] = self.url.value.strip()
+        await save_ga_config(self._view.guild_id, cfg)
+        self._view.cfg = cfg
+        self._view._build()
+        await interaction.response.edit_message(view=self._view)
+
+
+class AddRoleModal(discord.ui.Modal, title="Add Manager Role"):
+    role_id = discord.ui.TextInput(
+        label="Role ID",
+        placeholder="Paste the role ID here (e.g. 123456789012345678)",
+        style=discord.TextStyle.short,
+        required=True,
+        max_length=25,
+    )
+
+    def __init__(self, view: "GiveawayConfigView"):
+        super().__init__()
+        self._view = view
+
+    async def on_submit(self, interaction: discord.Interaction):
+        raw = self.role_id.value.strip()
+        if not raw.isdigit():
+            return await interaction.response.send_message(
+                "❌ Please enter a valid role ID (numbers only).", ephemeral=True
+            )
+        guild = interaction.guild
+        role = guild.get_role(int(raw)) if guild else None
+        if not role:
+            return await interaction.response.send_message(
+                "❌ Role not found in this server.", ephemeral=True
+            )
+        cfg = self._view.cfg
+        roles = json_load(cfg.get("managerRoles", "[]"))
+        if raw in roles:
+            return await interaction.response.send_message(
+                f"❌ {role.mention} is already a manager role.", ephemeral=True
+            )
+        roles.append(raw)
+        cfg["managerRoles"] = json_dump(roles)
+        await save_ga_config(self._view.guild_id, cfg)
+        self._view.cfg = cfg
+        self._view._build()
+        await interaction.response.edit_message(view=self._view)
+
+
+class RemoveRoleModal(discord.ui.Modal, title="Remove Manager Role"):
+    role_id = discord.ui.TextInput(
+        label="Role ID to Remove",
+        placeholder="Paste the role ID here",
+        style=discord.TextStyle.short,
+        required=True,
+        max_length=25,
+    )
+
+    def __init__(self, view: "GiveawayConfigView"):
+        super().__init__()
+        self._view = view
+
+    async def on_submit(self, interaction: discord.Interaction):
+        raw = self.role_id.value.strip()
+        cfg = self._view.cfg
+        roles = json_load(cfg.get("managerRoles", "[]"))
+        if raw not in roles:
+            return await interaction.response.send_message(
+                "❌ That role ID is not in the manager roles list.", ephemeral=True
+            )
+        roles.remove(raw)
+        cfg["managerRoles"] = json_dump(roles)
+        await save_ga_config(self._view.guild_id, cfg)
+        self._view.cfg = cfg
+        self._view._build()
+        await interaction.response.edit_message(view=self._view)
+
+
+# ── GiveawayConfig View ───────────────────────────────────────────────────────
+
+class GiveawayConfigView(discord.ui.LayoutView):
+    """
+    Interactive giveaway configuration panel.
+    Layout:
+      [Card 1] Current config display
+      [Card 2] Features list
+      [Card 3] Action buttons
+    """
+
+    def __init__(self, author: discord.Member, guild_id: int | str, cfg: dict):
+        super().__init__(timeout=180)
+        self.author   = author
+        self.guild_id = str(guild_id)
+        self.cfg      = cfg
+        self._build()
+
+    def _build(self):
+        self.clear_items()
+
+        theme    = self.cfg.get("theme", "blue")
+        dm_on    = bool(self.cfg.get("dmNotifications", 0))
+        img      = self.cfg.get("defaultImage") or None
+        roles_raw = json_load(self.cfg.get("managerRoles", "[]"))
+
+        theme_label  = "White Theme" if theme == "white" else "Blue Theme"
+        theme_dot    = "🟢" if theme == "white" else "🔵"
+        dm_dot       = "🟢" if dm_on else "🔴"
+        dm_label     = "Enabled" if dm_on else "Disabled"
+        img_label    = img[:45] + "…" if img and len(img) > 45 else (img or "Not set")
+        roles_label  = f"{len(roles_raw)} role(s) set" if roles_raw else "None set"
+
+        # ── Card 1: Current config ────────────────────────────────────────────
+        cfg_card = discord.ui.Container(accent_color=COLOR)
+        cfg_card.add_item(discord.ui.TextDisplay("## 🎉 Giveaway Configuration"))
+        cfg_card.add_item(discord.ui.Separator())
+        cfg_card.add_item(discord.ui.TextDisplay(
+            "**▷ Current Configuration:**\n\n"
+            f"**• Theme:** {theme_dot} {theme_label}\n"
+            f"**• DM Notifications:** {dm_dot} {dm_label}\n"
+            f"**• Default Image:** {img_label}\n"
+            f"**• Manager Roles:** {roles_label}"
+        ))
+        self.add_item(cfg_card)
+
+        # ── Card 2: Features ──────────────────────────────────────────────────
+        feat_card = discord.ui.Container(accent_color=GA_DARK)
+        feat_card.add_item(discord.ui.TextDisplay(
+            "**📋 Features:**\n"
+            "**—** Choose between White or Blue giveaway theme\n"
+            "**—** Toggle DM notifications for entries/wins\n"
+            "**—** Set default image for all giveaways\n"
+            "**—** Configure manager roles for giveaway permissions\n"
+            "**—** Manager roles can create/manage giveaways"
+        ))
+        self.add_item(feat_card)
+
+        # ── Card 3: Buttons ───────────────────────────────────────────────────
+        btn_card = discord.ui.Container(accent_color=GA_DARK)
+
+        # Row 1: Theme toggle + DM toggle
+        theme_btn = discord.ui.Button(
+            label=f"Theme: {'White' if theme == 'white' else 'Blue'}",
+            style=discord.ButtonStyle.primary if theme == "white" else discord.ButtonStyle.secondary,
+            custom_id="gc_theme",
+        )
+        dm_btn = discord.ui.Button(
+            label="Toggle DM",
+            style=discord.ButtonStyle.success if dm_on else discord.ButtonStyle.secondary,
+            custom_id="gc_dm",
+        )
+        theme_btn.callback = self._theme_cb
+        dm_btn.callback    = self._dm_cb
+        btn_card.add_item(discord.ui.ActionRow(theme_btn, dm_btn))
+
+        # Row 2: Default Image + Manager Roles view
+        img_btn   = discord.ui.Button(label="Default Image",  style=discord.ButtonStyle.secondary, custom_id="gc_img")
+        roles_btn = discord.ui.Button(label="Manager Roles",  style=discord.ButtonStyle.secondary, custom_id="gc_roles")
+        img_btn.callback   = self._img_cb
+        roles_btn.callback = self._roles_cb
+        btn_card.add_item(discord.ui.ActionRow(img_btn, roles_btn))
+
+        # Row 3: Add / Remove Manager Role
+        add_role_btn = discord.ui.Button(label="Add Manager Role",    style=discord.ButtonStyle.success,   custom_id="gc_add_role")
+        rem_role_btn = discord.ui.Button(label="Remove Manager Role", style=discord.ButtonStyle.danger,    custom_id="gc_rem_role", disabled=not roles_raw)
+        add_role_btn.callback = self._add_role_cb
+        rem_role_btn.callback = self._rem_role_cb
+        btn_card.add_item(discord.ui.ActionRow(add_role_btn, rem_role_btn))
+
+        # Row 4: Reset Image + Reset Roles
+        rst_img_btn   = discord.ui.Button(label="Reset Default Image",  style=discord.ButtonStyle.danger, custom_id="gc_rst_img",   disabled=not img)
+        rst_roles_btn = discord.ui.Button(label="Reset Manager Roles",  style=discord.ButtonStyle.danger, custom_id="gc_rst_roles", disabled=not roles_raw)
+        rst_img_btn.callback   = self._rst_img_cb
+        rst_roles_btn.callback = self._rst_roles_cb
+        btn_card.add_item(discord.ui.ActionRow(rst_img_btn, rst_roles_btn))
+
+        self.add_item(btn_card)
+
+    # ── auth check ────────────────────────────────────────────────────────────
+
+    async def _check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user.id != self.author.id:
+            await interaction.response.send_message("This panel belongs to someone else.", ephemeral=True)
+            return False
+        return True
+
+    # ── callbacks ─────────────────────────────────────────────────────────────
+
+    async def _theme_cb(self, interaction: discord.Interaction):
+        if not await self._check(interaction): return
+        self.cfg["theme"] = "blue" if self.cfg.get("theme") == "white" else "white"
+        await save_ga_config(self.guild_id, self.cfg)
+        self._build()
+        await interaction.response.edit_message(view=self)
+
+    async def _dm_cb(self, interaction: discord.Interaction):
+        if not await self._check(interaction): return
+        self.cfg["dmNotifications"] = 0 if self.cfg.get("dmNotifications") else 1
+        await save_ga_config(self.guild_id, self.cfg)
+        self._build()
+        await interaction.response.edit_message(view=self)
+
+    async def _img_cb(self, interaction: discord.Interaction):
+        if not await self._check(interaction): return
+        await interaction.response.send_modal(SetImageModal(self))
+
+    async def _roles_cb(self, interaction: discord.Interaction):
+        if not await self._check(interaction): return
+        roles_raw = json_load(self.cfg.get("managerRoles", "[]"))
+        guild = interaction.guild
+        if not roles_raw:
+            return await interaction.response.send_message(
+                "No manager roles have been set yet. Use **Add Manager Role** to add one.", ephemeral=True
+            )
+        mentions = []
+        for rid in roles_raw:
+            role = guild.get_role(int(rid)) if guild else None
+            mentions.append(role.mention if role else f"`{rid}` (not found)")
+        await interaction.response.send_message(
+            f"**Current Manager Roles:**\n" + "\n".join(f"• {m}" for m in mentions),
+            ephemeral=True,
+        )
+
+    async def _add_role_cb(self, interaction: discord.Interaction):
+        if not await self._check(interaction): return
+        await interaction.response.send_modal(AddRoleModal(self))
+
+    async def _rem_role_cb(self, interaction: discord.Interaction):
+        if not await self._check(interaction): return
+        await interaction.response.send_modal(RemoveRoleModal(self))
+
+    async def _rst_img_cb(self, interaction: discord.Interaction):
+        if not await self._check(interaction): return
+        self.cfg["defaultImage"] = None
+        await save_ga_config(self.guild_id, self.cfg)
+        self._build()
+        await interaction.response.edit_message(view=self)
+
+    async def _rst_roles_cb(self, interaction: discord.Interaction):
+        if not await self._check(interaction): return
+        self.cfg["managerRoles"] = "[]"
+        await save_ga_config(self.guild_id, self.cfg)
+        self._build()
+        await interaction.response.edit_message(view=self)
+
+    async def on_timeout(self):
+        pass
+
+
+# ── Cog ───────────────────────────────────────────────────────────────────────
+
 class GiveawayCog(commands.Cog, name="GiveawayCog"):
 
     def __init__(self, bot):
@@ -167,7 +457,6 @@ class GiveawayCog(commands.Cog, name="GiveawayCog"):
         if channel:
             try:
                 msg = await channel.fetch_message(int(row["messageId"]))
-                # Rebuild the view as ended (no enter button)
                 ended_view = discord.ui.LayoutView(timeout=None)
                 ended_view.add_item(_build_ga_container(
                     row["prize"], row["hostId"], row["winnerCount"],
@@ -185,6 +474,8 @@ class GiveawayCog(commands.Cog, name="GiveawayCog"):
                 )
             else:
                 await channel.send(f"😔 No one entered the giveaway for **{row['prize']}**.")
+
+    # ── Giveaway commands ─────────────────────────────────────────────────────
 
     @commands.hybrid_group(name="giveaway", aliases=["ga"], description="Giveaway management.")
     async def giveaway(self, ctx: commands.Context):
@@ -303,25 +594,15 @@ class GiveawayCog(commands.Cog, name="GiveawayCog"):
         )
         await v2.send(ctx, v2.container(desc, header="🎁 Active Giveaways"))
 
-    @commands.hybrid_group(name="giveawayconfig", aliases=["gconfig"], description="Giveaway settings.")
+    # ── GiveawayConfig ────────────────────────────────────────────────────────
+
+    @commands.hybrid_command(name="giveawayconfig", aliases=["gconfig", "gaconfig"],
+                              description="Configure giveaway settings for this server.")
     @commands.has_permissions(manage_guild=True)
     async def giveawayconfig(self, ctx: commands.Context):
-        if ctx.invoked_subcommand is None:
-            await v2.send(ctx, v2.info("Use `giveawayconfig dmnotify` or `giveawayconfig roles`."))
-
-    @giveawayconfig.command(name="dmnotify", description="Toggle DM notifications for winners.")
-    async def gc_dmnotify(self, ctx: commands.Context):
-        from database import db_get, db_set, now_ts
-        row = await db_get("giveawayconfig", {"guildId": str(ctx.guild.id)})
-        current = row["dmNotifications"] if row else 0
-        new_val = 0 if current else 1
-        await db_set("giveawayconfig", {
-            "guildId": str(ctx.guild.id),
-            "dmNotifications": new_val,
-            "updatedAt": now_ts(),
-        }, pk="guildId")
-        state = "enabled" if new_val else "disabled"
-        await v2.send(ctx, v2.ok(f"DM notifications {state}."))
+        cfg  = await get_ga_config(ctx.guild.id)
+        view = GiveawayConfigView(ctx.author, ctx.guild.id, cfg)
+        await ctx.reply(view=view, mention_author=False)
 
 
 async def setup(bot):
