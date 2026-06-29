@@ -149,16 +149,13 @@ class ToneVibes(commands.Bot):
             )
             if is_mention:
                 try:
-                    voice = getattr(message.author, "voice", None)
-                    vc_channel = voice.channel if voice and voice.channel else None
-                    if vc_channel:
-                        # Send into the voice channel's own text chat
-                        await vc_channel.send(view=InfoLayoutView(self))
-                    else:
-                        # Fallback: reply in the text channel where the mention happened
-                        await message.reply(view=InfoLayoutView(self), mention_author=False)
-                except Exception:
-                    pass
+                    await message.reply(
+                        view=InfoLayoutView(self),
+                        mention_author=False,
+                        components_v2=True,
+                    )
+                except Exception as e:
+                    logger.log(f"[on_message] Mention reply failed: {e}", "error")
                 return
 
         try:
